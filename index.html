@@ -41,6 +41,14 @@
   .tag { display:inline-block; padding:2px 8px; border-radius:20px; font-size:12px; background:#eee; }
   .tag.on { background:#e5f3ea; color:#145c33; }
   .tableau { overflow-x:auto; }
+  .humeurs { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .humeur { background:#F7F4EA; border-radius:14px; padding:12px; text-align:center; }
+  .humeur .e { font-size:40px; line-height:1.1; display:block; }
+  .humeur .t { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--gris); margin-top:2px; }
+  .humeur .m { font-size:13px; margin-top:4px; }
+  .pop { animation:pop .55s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes pop { 0% { transform:scale(.3) rotate(-12deg); opacity:0; } 70% { transform:scale(1.12) rotate(3deg); opacity:1; } 100% { transform:scale(1) rotate(0); } }
+  @media (prefers-reduced-motion: reduce) { .pop { animation:none; } }
 </style>
 </head>
 <body>
@@ -68,7 +76,27 @@
       <button class="b-dep" id="btn-depart">Départ</button>
     </div>
     <div class="msg" id="msg-pointer"></div>
+    <div class="humeurs cache" id="humeurs">
+      <div class="humeur"><span class="e" id="h-jour">·</span><div class="t">Aujourd'hui</div><div class="m" id="h-jour-m"></div></div>
+      <div class="humeur"><span class="e" id="h-mois">·</span><div class="t">Ce mois-ci</div><div class="m" id="h-mois-m"></div></div>
+    </div>
     <ul class="journal" id="journal"></ul>
+  </div>
+
+  <div class="carte cache" id="bloc-demande">
+    <h2>Demander un congé ou une absence</h2>
+    <p class="sous">Ta demande est envoyée au gérant, qui la valide ou la refuse.</p>
+    <select id="d-type">
+      <option value="conge">Congé</option>
+      <option value="maladie">Maladie</option>
+      <option value="absence_autorisee">Absence (avec accord)</option>
+      <option value="retard_justifie">Retard justifié</option>
+    </select>
+    <div style="display:flex;gap:8px"><input type="date" id="d-debut" aria-label="Du" style="flex:1;min-width:0"><input type="date" id="d-fin" aria-label="Au" style="flex:1;min-width:0"></div>
+    <input id="d-com" placeholder="Explication (facultatif)" maxlength="300">
+    <div class="boutons"><button class="b-sec" id="btn-demande">Envoyer la demande</button></div>
+    <div class="msg" id="msg-demande"></div>
+    <ul class="journal" id="mes-demandes"></ul>
   </div>
 
   <p class="petit" style="text-align:center">Astuce : ajoute cette page à ton écran d'accueil (Partager → « Sur l'écran d'accueil »).</p>
@@ -131,7 +159,18 @@ function heure(iso) { return new Date(iso).toLocaleTimeString("fr-FR", { timeZon
 let token = store.get("capanna_token");
 function afficherWifi(ok) {
   $("etat-wifi").className = "carte wifi " + (ok ? "ok" : "ko");
-  $("texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna" : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
+  $("texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna" : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant (si tu y es déjà, coupe tes données mobiles)";
+}
+function afficherHumeur(h, animer) {
+  const bloc = $("humeurs");
+  if (!h || (!h.jour && !h.mois)) { bloc.classList.add("cache"); return; }
+  bloc.classList.remove("cache");
+  const pose = (id, e, msg) => {
+    const el = $(id); el.textContent = e || "—"; $(id + "-m").textContent = msg || "";
+    if (animer) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  };
+  pose("h-jour", h.jour ? h.jour.emoji : "", h.jour ? h.jour.msg : "Pas encore d'arrivée pointée.");
+  pose("h-mois", h.mois ? h.mois.emoji : "", h.mois ? h.mois.msg : "");
 }
 function afficherJournal(liste) {
   $("journal").innerHTML = liste.map((p) => `<li>${p.type === "arrivee" ? "Arrivée" : "Départ"} à ${heure(p.horodatage)}</li>`).join("");
@@ -148,6 +187,12 @@ async function chargerEmploye() {
       $("bonjour").textContent = "Bonjour " + d.moi.nom;
       $("prevu").textContent = `Planning du ${d.jour_nom} : ${d.moi.prevu || "—"}`;
       afficherJournal(d.moi.aujourdhui);
+      afficherHumeur(d.moi.humeur, false);
+      $("bloc-demande").classList.remove("cache");
+      const TY = { conge: "Congé", maladie: "Maladie", absence_autorisee: "Absence", retard_justifie: "Retard justifié", absence_injustifiee: "Absence" };
+      const ST = { demandee: "en attente", validee: "validée ✓", refusee: "refusée", annulee: "annulée" };
+      const fr = (x) => x.split("-").reverse().join("/");
+      $("mes-demandes").innerHTML = (d.moi.demandes || []).map((x) => `<li>${TY[x.type]} du ${fr(x.date_debut)}${x.date_fin !== x.date_debut ? " au " + fr(x.date_fin) : ""} : <b>${ST[x.statut]}</b></li>`).join("");
     } else {
       $("bloc-pointer").classList.add("cache"); $("bloc-activer").classList.remove("cache");
       if (token) { token = null; store.set("capanna_token", ""); }
@@ -169,10 +214,19 @@ async function pointer(type) {
   $("btn-arrivee").disabled = $("btn-depart").disabled = true;
   try {
     const d = await api({ action: "pointer", token, type });
-    message($("msg-pointer"), `${type === "arrivee" ? "Arrivée" : "Départ"} enregistré à ${d.heure}. ${d.info}`, true);
+    message($("msg-pointer"), `${type === "arrivee" ? "Arrivée" : "Départ"} enregistré à ${d.heure}. ${type === "arrivee" && d.humeur && d.humeur.jour ? "" : d.info}`, true);
+    afficherHumeur(d.humeur, type === "arrivee");
     afficherJournal(d.aujourdhui);
   } catch (e) { message($("msg-pointer"), e.message, false); chargerEmploye(); }
 }
+$("btn-demande").onclick = async () => {
+  const deb = $("d-debut").value, fin = $("d-fin").value || deb;
+  if (!deb) return message($("msg-demande"), "Choisis au moins la date de début.", false);
+  try {
+    await api({ action: "demander_absence", token, type: $("d-type").value, date_debut: deb, date_fin: fin, commentaire: $("d-com").value });
+    message($("msg-demande"), "Demande envoyée au gérant.", true); $("d-com").value = ""; chargerEmploye();
+  } catch (e) { message($("msg-demande"), e.message, false); }
+};
 $("btn-arrivee").onclick = () => pointer("arrivee");
 $("btn-depart").onclick = () => pointer("depart");
 
@@ -249,7 +303,8 @@ $("btn-copier").onclick = async () => {
 };
 
 // ---------------- démarrage ----------------
-if (location.hash === "#gerant") initGerant().catch((e) => message($("msg-login"), e.message, false));
+if (location.hash === "#gerant") location.replace("gerant.html");
+else if (location.hash === "#ancien-gerant") initGerant().catch((e) => message($("msg-login"), e.message, false));
 else chargerEmploye();
 </script>
 </body>

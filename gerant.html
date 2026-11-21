@@ -85,6 +85,10 @@
   .jours7 .j { background:#FAF8F2; border:1px solid var(--ligne); border-radius:12px; padding:10px; min-height:84px; font-size:13px; }
   .jours7 .j b { display:block; font-size:12px; color:var(--gris); text-transform:uppercase; margin-bottom:6px; }
   .jours7 .j.off { opacity:.55; }
+  .emo { font-size:20px; line-height:1; }
+  .humeurs { display:flex; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
+  .humeurs .carte { flex:1 1 240px; display:flex; gap:14px; align-items:center; }
+  .humeurs .gros { font-size:44px; line-height:1; }
 
   /* --- connexion --- */
   .login { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -283,6 +287,9 @@ const services = () => [...new Set(EMPLOYES.map((e) => e.service))].sort();
 
 // ======================= TABLEAU DE BORD =======================
 let filtreT = { per: "mois", service: "", employe: "" };
+let HUM = {};
+const emoJ = (id) => HUM[id]?.jour ? `<span class="emo" title="${esc(HUM[id].jour.msg)}">${HUM[id].jour.emoji}</span>` : "";
+const emoM = (id) => HUM[id]?.mois ? `<span class="emo" title="${esc(HUM[id].mois.msg)}">${HUM[id].mois.emoji}</span>` : "";
 async function vueTableau() {
   const V = $("#vue");
   V.innerHTML = `<h1>Tableau de bord</h1><p class="sous" id="t-sous">Chargement…</p>
@@ -311,6 +318,7 @@ async function chargerTableau() {
   try { t = await api("admin_tableau", { debut, fin, service: filtreT.service || undefined, employe_id: filtreT.employe || undefined }); }
   catch (e) { return message($("#t-corps"), e.message, false); }
   viderCharts();
+  HUM = t.humeurs || {};
   const E = t.equipe, J = t.jour;
   const avantSuivi = t.aujourdhui < t.debut_suivi;
   $("#t-sous").innerHTML = `Du ${dfr(t.debut)} au ${dfr(t.fin)} · suivi officiel depuis le ${dfr(t.debut_suivi)} · tolérance ${t.parametres.tolerance_retard_min} min · heures sup après ${t.parametres.seuil_heures_sup_min} min`;
@@ -346,13 +354,13 @@ async function chargerTableau() {
 function tableClassement(l, mode) {
   if (!l.length) return `<div class="vide">Pas encore de données.</div>`;
   return `<table><tr><th>#</th><th>Employé</th><th>${mode === "p" ? "Ponctualité" : "Retard cumulé"}</th><th class="masque-mobile">${mode === "p" ? "Services" : "Nb retards"}</th></tr>
-  ${l.map((c, i) => `<tr class="clic" data-fiche="${c.employe_id}"><td>${i + 1}</td><td><b>${esc(c.nom)}</b><br><small style="color:var(--gris)">${esc(c.service)}</small></td>
+  ${l.map((c, i) => `<tr class="clic" data-fiche="${c.employe_id}"><td>${i + 1}</td><td><b>${esc(c.nom)}</b> ${emoM(c.employe_id)}<br><small style="color:var(--gris)">${esc(c.service)}</small></td>
   <td>${mode === "p" ? pct(c.ponctualite_pct) : duree(c.retard_total_min)}</td><td class="masque-mobile">${mode === "p" ? c.creneaux_travailles : c.nb_retards}</td></tr>`).join("")}</table>`;
 }
 function tableEquipeStats(l) {
   if (!l.length) return `<div class="vide">Pas encore de données sur cette période.</div>`;
-  return `<table><tr><th>Employé</th><th>Poste</th><th>Jours</th><th>Retards</th><th>Cumul</th><th>Ponctualité</th><th>Absences inj.</th><th>Heures sup</th><th>Travail effectif</th></tr>
-  ${[...l].sort((a, b) => a.nom.localeCompare(b.nom)).map((c) => `<tr class="clic" data-fiche="${c.employe_id}"><td><b>${esc(c.nom)}</b></td><td>${esc(c.service)}</td><td>${c.jours_travailles}</td><td>${c.nb_retards}</td><td>${duree(c.retard_total_min)}</td><td>${pct(c.ponctualite_pct)}</td><td>${c.absences_injustifiees || ""}</td><td>${c.heures_sup_min ? duree(c.heures_sup_min) : ""}</td><td>${duree(c.travail_min)}</td></tr>`).join("")}</table>`;
+  return `<table><tr><th>Employé</th><th title="Ponctualité du jour">Auj.</th><th title="Discipline du mois">Mois</th><th>Poste</th><th>Jours</th><th>Retards</th><th>Cumul</th><th>Ponctualité</th><th>Absences inj.</th><th>Heures sup</th><th>Travail effectif</th></tr>
+  ${[...l].sort((a, b) => a.nom.localeCompare(b.nom)).map((c) => `<tr class="clic" data-fiche="${c.employe_id}"><td><b>${esc(c.nom)}</b></td><td>${emoJ(c.employe_id)}</td><td>${emoM(c.employe_id)}</td><td>${esc(c.service)}</td><td>${c.jours_travailles}</td><td>${c.nb_retards}</td><td>${duree(c.retard_total_min)}</td><td>${pct(c.ponctualite_pct)}</td><td>${c.absences_injustifiees || ""}</td><td>${c.heures_sup_min ? duree(c.heures_sup_min) : ""}</td><td>${duree(c.travail_min)}</td></tr>`).join("")}</table>`;
 }
 function graphe(id, labels, serie) {
   const el = document.getElementById(id); if (!el || !window.Chart) return;
@@ -406,6 +414,10 @@ async function vueFiche(id) {
       <button class="danger" id="b-reset" ${emp.telephone ? "" : "disabled"}>Réinitialiser le téléphone</button>
     </div>
   </div>
+  <div class="humeurs">
+    <div class="carte"><span class="gros">${f.humeur?.jour?.emoji || "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Ponctualité du jour</div><div>${esc(f.humeur?.jour?.msg || "Pas d'arrivée pointée aujourd'hui.")}</div></div></div>
+    <div class="carte"><span class="gros">${f.humeur?.mois?.emoji || "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Discipline du mois</div><div>${esc(f.humeur?.mois?.msg || "")}</div></div></div>
+  </div>
   <div class="grille g4">
     <div class="carte kpi or"><div class="l">Retard du jour</div><div class="v">${duree(f.retard_jour_min)}</div></div>
     <div class="carte kpi or"><div class="l">Retard de la semaine</div><div class="v">${duree(f.semaine.retard_total_min)}</div><div class="d">${f.semaine.nb_retards} retard(s)</div></div>
@@ -420,18 +432,19 @@ async function vueFiche(id) {
     <div class="jours7">${[1, 2, 3, 4, 5, 6, 7].map((j) => { const cs = f.creneaux.filter((c) => c.jour === j);
       return `<div class="j ${cs.length ? "" : "off"}"><b>${JOURS[j]}</b>${cs.length ? cs.map((c) => `${tm(c.debut)} – ${tm(c.fin)}${c.pause_min ? `<br><small>pause ${c.pause_min} min</small>` : ""}`).join("<hr style='border:0;border-top:1px dashed #ddd;margin:6px 0'>") : "OFF"}<br><button class="lien" data-planj="${j}">modifier</button></div>`; }).join("")}</div></div>
   <div class="carte" style="margin-top:14px"><h2>Historique</h2><div class="tab"><table>
-    <tr><th>Date</th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th>Retard</th><th>Heures sup</th><th>Travail</th><th>Statut</th></tr>
-    ${hist.length ? hist.map((l) => `<tr ${l.jour < f.debut_suivi ? 'style="opacity:.5" title="Avant le début du suivi : non compté"' : ""}><td>${djour(l.jour)}</td>
+    <tr><th>Date</th><th></th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th>Retard</th><th>Heures sup</th><th>Travail</th><th>Statut</th></tr>
+    ${hist.length ? hist.map((l) => `<tr ${l.jour < f.debut_suivi ? 'style="opacity:.5" title="Avant le début du suivi : non compté"' : ""}><td>${djour(l.jour)}</td><td>${l.emoji ? `<span class="emo" title="${esc(l.emoji.msg)}">${l.emoji.emoji}</span>` : ""}</td>
       <td>${l.prevu_debut ? `${tm(l.prevu_debut)}–${tm(l.prevu_fin)}` : "—"}</td><td>${hm(l.arrivee_min)}</td><td>${hm(l.depart_min)}</td>
       <td>${l.retard_min ? `<b style="color:var(--orange)">${l.retard_min} min</b>` : l.retard_justifie_min ? `<span title="justifié">(${l.retard_justifie_min} min justifiées)</span>` : ""}</td>
-      <td>${l.heures_sup_min ? duree(l.heures_sup_min) : ""}</td><td>${l.travail_min != null ? duree(l.travail_min) : ""}</td><td>${statut(l.statut)}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Aucun historique pour l'instant.</td></tr>`}
+      <td>${l.heures_sup_min ? duree(l.heures_sup_min) : ""}</td><td>${l.travail_min != null ? duree(l.travail_min) : ""}</td><td>${statut(l.statut)}</td></tr>`).join("") : `<tr><td colspan="9" class="vide">Aucun historique pour l'instant.</td></tr>`}
   </table></div></div>
   <div class="carte" style="margin-top:14px"><h2>Pointages des 14 derniers jours <small style="color:var(--gris);font-weight:400">– corrections avec motif obligatoire</small></h2><div class="tab"><table>
     <tr><th>Date</th><th>Type</th><th>Heure</th><th>Source</th><th>État</th><th></th></tr>
-    ${pts.pointages.length ? pts.pointages.map((p) => `<tr><td>${djour(p.jour_service)}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td><b>${p.heure}</b></td>
+    ${pts.pointages.length ? pts.pointages.map((p) => { const lh = p.type === "arrivee" && p.accepte && !p.annule ? hist.find((l) => l.jour === p.jour_service && hm(l.arrivee_min) === p.heure && l.emoji) : null;
+      return `<tr><td>${djour(p.jour_service)}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"} ${lh ? `<span class="emo" title="${esc(lh.emoji.msg)}">${lh.emoji.emoji}</span>` : ""}</td><td><b>${p.heure}</b></td>
       <td>${p.source === "manuel" ? pastille("Manuel", "p-or") : "Wi-Fi"}</td>
       <td>${!p.accepte ? pastille("Refusé : " + (p.motif || ""), "p-rouge") : p.annule ? pastille("Annulé", "p-gris") : pastille("Valide", "p-ok")}</td>
-      <td style="white-space:nowrap">${p.accepte && !p.annule ? `<button class="lien" data-mod="${p.id}" data-h="${p.heure}" data-t="${p.type}">corriger</button><button class="lien" data-ann="${p.id}">annuler</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="vide">Aucun pointage.</td></tr>`}
+      <td style="white-space:nowrap">${p.accepte && !p.annule ? `<button class="lien" data-mod="${p.id}" data-h="${p.heure}" data-t="${p.type}">corriger</button><button class="lien" data-ann="${p.id}">annuler</button>` : ""}</td></tr>`; }).join("") : `<tr><td colspan="6" class="vide">Aucun pointage.</td></tr>`}
   </table></div></div>
   <div class="carte" style="margin-top:14px"><h2>Absences et congés</h2><div class="tab"><table>
     <tr><th>Type</th><th>Du</th><th>Au</th><th>Statut</th><th>Commentaire</th></tr>
@@ -640,6 +653,16 @@ async function vueReglages() {
     ${champ("alerte_cumul_2_min", "Alerte retard cumulé n°2", "Seuil mensuel (180 = 3 h).")}
     ${champ("debut_suivi", "Début du suivi officiel", "Rien n'est compté avant cette date.", "date")}
   </div>
+  <div class="carte" style="margin-top:14px"><h2>Emojis de ponctualité</h2>
+    <p style="color:var(--gris);font-size:13px;margin-top:-6px">Calculés automatiquement à partir des pointages réels (tolérance de ${P.tolerance_retard_min} min incluse). Ils s'ajoutent aux chiffres, ils ne les remplacent pas.</p>
+    <div class="grille g2">
+      <div><b>Ponctualité du jour</b><table>
+        <tr><td class="emo">${esc(p.emojis.avance.emoji)}</td><td>Avance d'au moins ${p.emojis.avance_min} min</td><td><small>${esc(p.emojis.avance.msg)}</small></td></tr>
+        <tr><td class="emo">${esc(p.emojis.heure.emoji)}</td><td>À l'heure (dans la tolérance)</td><td><small>${esc(p.emojis.heure.msg)}</small></td></tr>
+        ${paliersTxt(p.emojis.jour, "Retard", "min", P.tolerance_retard_min)}</table></div>
+      <div><b>Discipline du mois (retard cumulé)</b><table>${paliersTxt(p.emojis.mois, "Cumul", "min", -1)}</table></div>
+    </div>
+    <button class="sec" id="b-emo" style="margin-top:10px">Modifier les emojis et les messages</button></div>
   <div class="carte" style="margin-top:14px"><h2>Wi-Fi du restaurant</h2>
     <p style="margin:0 0 8px">${c.wifi ? pastille("Cet appareil est sur le Wi-Fi Capanna", "p-ok") : pastille("Cet appareil n'est pas sur un réseau enregistré (" + c.ip_vue + ")", "p-orange")}</p>
     <div>${c.reseaux.map((r) => `${pastille(r.reseau, "p-ok")} <button class="lien" data-ret="${esc(r.reseau)}">retirer</button>`).join(" ") || "Aucun réseau enregistré."}</div>
@@ -663,11 +686,47 @@ async function vueReglages() {
     if (r) { await api("admin_retirer_wifi", { reseau: b.dataset.ret }); vueReglages(); }
   });
   $("#b-wifi").onclick = async () => { await api("admin_ajouter_wifi"); vueReglages(); };
+  $("#b-emo").onclick = () => modifierEmojis(p.emojis, p.emojis_defaut);
+}
+function paliersTxt(l, mot, u, tol) {
+  let prec = tol;
+  return l.map((x) => { const de = prec + 1, txt = x.max === undefined ? `${mot} de plus de ${prec} ${u}` : x.max === 0 ? "Aucun retard" : `${mot} de ${Math.max(de, 1)} à ${x.max} ${u}`; prec = x.max ?? prec;
+    return `<tr><td class="emo">${esc(x.emoji)}</td><td>${txt}</td><td><small>${esc(x.msg)}</small></td></tr>`; }).join("");
+}
+async function modifierEmojis(c, def) {
+  const champs = [
+    { label: "Avance minimale pour 🤩 (min)", type: "number", valeur: String(c.avance_min), requis: true },
+    { label: "Emoji « en avance »", valeur: c.avance.emoji, requis: true }, { label: "Message « en avance »", valeur: c.avance.msg, requis: true },
+    { label: "Emoji « à l'heure »", valeur: c.heure.emoji, requis: true }, { label: "Message « à l'heure »", valeur: c.heure.msg, requis: true },
+  ];
+  c.jour.forEach((x, i) => champs.push(
+    { label: `Retard du jour – palier ${i + 1} : jusqu'à (min)${i === c.jour.length - 1 ? " – dernier palier, laisser vide" : ""}`, type: "number", valeur: x.max === undefined ? "" : String(x.max) },
+    { label: `Retard du jour – palier ${i + 1} : emoji`, valeur: x.emoji, requis: true },
+    { label: `Retard du jour – palier ${i + 1} : message ({retard} = minutes)`, valeur: x.msg, requis: true }));
+  c.mois.forEach((x, i) => champs.push(
+    { label: `Mois – palier ${i + 1} : cumul jusqu'à (min)${i === c.mois.length - 1 ? " – dernier palier, laisser vide" : ""}`, type: "number", valeur: x.max === undefined ? "" : String(x.max) },
+    { label: `Mois – palier ${i + 1} : emoji`, valeur: x.emoji, requis: true },
+    { label: `Mois – palier ${i + 1} : message ({cumul} = durée)`, valeur: x.msg, requis: true }));
+  champs.push({ label: "Rétablir les réglages d'origine ?", type: "select", options: [["non", "Non, garder mes modifications"], ["oui", "Oui, revenir aux emojis d'origine"]], valeur: "non" }, champMotif);
+  const r = await fenetre({ titre: "Emojis de ponctualité", texte: "Les seuils doivent être croissants. Le dernier palier n'a pas de limite.", champs, ok: "Enregistrer" });
+  if (!r) return;
+  const motif = r[r.length - 1];
+  let conf;
+  if (r[r.length - 2] === "oui") conf = def;
+  else {
+    let k = 0; const v = () => r[k++];
+    const num = (x) => x === "" ? undefined : parseInt(x, 10);
+    conf = { avance_min: parseInt(v(), 10), avance: { emoji: v(), msg: v() }, heure: { emoji: v(), msg: v() }, jour: [], mois: [] };
+    c.jour.forEach(() => { const m = num(v()); conf.jour.push({ ...(m === undefined ? {} : { max: m }), emoji: v(), msg: v() }); });
+    c.mois.forEach(() => { const m = num(v()); conf.mois.push({ ...(m === undefined ? {} : { max: m }), emoji: v(), msg: v() }); });
+  }
+  try { await api("admin_parametre_modifier", { cle: "emojis", valeur: JSON.stringify(conf), motif }); vueReglages(); }
+  catch (x) { alerteErreur(new Error(x.message === "Valeur invalide." ? "Réglage refusé : vérifie que les seuils sont des nombres croissants et que seul le dernier palier est vide." : x.message)); }
 }
 function resume(o) {
   if (o == null) return "—";
   if (Array.isArray(o)) return o.length ? o.map((c) => `${(c.debut || "").slice(0, 5)}–${(c.fin || "").slice(0, 5)}${c.pause_min ? ` (pause ${c.pause_min})` : ""}`).join(" + ") : "OFF";
-  return Object.entries(o).filter(([k]) => !["employe_id", "nouveau_id", "decide_par", "decide_le", "demande_par"].includes(k)).map(([k, v]) => `${k} : ${v}`).join(", ");
+  return Object.entries(o).filter(([k]) => !["employe_id", "nouveau_id", "decide_par", "decide_le", "demande_par"].includes(k)).map(([k, v]) => `${k} : ${String(v).length > 60 ? "(nouvelle configuration)" : v}`).join(", ");
 }
 function nomObjet(x) {
   if (x.objet === "creneau") { const [id, j] = String(x.objet_id).split("/"); const e = EMPLOYES.find((e) => e.id == id); return `${e ? e.nom : id} (${j})`; }

@@ -1,4 +1,4 @@
-// CAPANNA SMART HR – fonction de pointage (v2)
+// CAPANNA SMART HR – fonction de pointage (v3 : emojis de ponctualité)
 // Toutes les données passent par ici (clé service). Le pointage n'est accepté
 // que depuis le réseau du restaurant (adresse IP enregistrée par le gérant)
 // et depuis le téléphone lié à l'employé.
@@ -130,7 +130,67 @@ const PARAMS_MODIFIABLES: Record<string, (v: string) => boolean> = {
   mode_retard: (v) => ["complet", "deduit"].includes(v),
   mode_heures_sup: (v) => ["complet", "deduit"].includes(v),
   debut_suivi: (v) => isDate(v),
+  emojis: (v) => validerEmojis(v) !== null,
 };
+
+// ---------- emojis de ponctualité ----------
+type Palier = { max?: number; emoji: string; msg: string };
+type ConfEmojis = { avance_min: number; avance: Palier; heure: Palier; jour: Palier[]; mois: Palier[] };
+const EMOJIS_DEFAUT: ConfEmojis = {
+  avance_min: 5,
+  avance: { emoji: "🤩", msg: "Excellent ! Tu es même en avance." },
+  heure: { emoji: "😄", msg: "Bravo ! Tu es arrivé à l'heure." },
+  jour: [
+    { max: 10, emoji: "😕", msg: "Attention, tu as {retard} minutes de retard." },
+    { max: 30, emoji: "😟", msg: "Tu as {retard} minutes de retard aujourd'hui." },
+    { emoji: "😢", msg: "Tu as {retard} minutes de retard aujourd'hui." },
+  ],
+  mois: [
+    { max: 0, emoji: "😄", msg: "Aucun retard ce mois-ci, continue comme ça !" },
+    { max: 30, emoji: "😕", msg: "Quelques retards ce mois-ci ({cumul})." },
+    { max: 60, emoji: "😟", msg: "Retards répétés ce mois-ci ({cumul})." },
+    { max: 180, emoji: "😢", msg: "Retards importants ce mois-ci ({cumul})." },
+    { emoji: "😭", msg: "Retards très importants ce mois-ci ({cumul})." },
+  ],
+};
+function validerEmojis(v: string): ConfEmojis | null {
+  try {
+    const c = JSON.parse(v);
+    const palier = (x: Palier) => x && typeof x.emoji === "string" && x.emoji.length <= 16 && typeof x.msg === "string" && x.msg.length <= 200 && (x.max === undefined || (Number.isInteger(x.max) && x.max >= 0));
+    const croissant = (l: Palier[]) => l.every((x, i) => i === l.length - 1 ? x.max === undefined : x.max !== undefined && (i === 0 || x.max > l[i - 1].max!));
+    if (!(Number.isInteger(c.avance_min) && c.avance_min >= 0 && c.avance_min <= 120)) return null;
+    if (!palier(c.avance) || !palier(c.heure)) return null;
+    if (!Array.isArray(c.jour) || c.jour.length < 1 || c.jour.length > 8 || !c.jour.every(palier) || !croissant(c.jour)) return null;
+    if (!Array.isArray(c.mois) || c.mois.length < 1 || c.mois.length > 8 || !c.mois.every(palier) || !croissant(c.mois)) return null;
+    return c as ConfEmojis;
+  } catch { return null; }
+}
+function confEmojis(p: Record<string, string>): ConfEmojis {
+  return (p.emojis && validerEmojis(p.emojis)) || EMOJIS_DEFAUT;
+}
+const dureeTxt = (m: number) => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+function remplir(msg: string, v: Record<string, string | number>) {
+  return msg.replace(/\{(\w+)\}/g, (_, k) => (k in v ? String(v[k]) : `{${k}}`));
+}
+// Emoji du jour pour une ligne du moteur (un service). La tolérance est déjà appliquée dans retard_min.
+function emojiJour(l: { arrivee_min: number | null; retard_min: number; retard_justifie_min?: number; prevu_debut: string | null }, c: ConfEmojis) {
+  if (l.arrivee_min === null || !l.prevu_debut) return null;
+  const r = l.retard_min || 0;
+  if (!r && (l.retard_justifie_min || 0) > 0) {
+    return { code: "justifie", emoji: c.heure.emoji, msg: `Retard de ${l.retard_justifie_min} min justifié : il n'est pas compté.`, retard_min: 0, avance_min: 0 };
+  }
+  if (r > 0) {
+    const pal = c.jour.find((x) => x.max === undefined || r <= x.max)!;
+    return { code: "retard", emoji: pal.emoji, msg: remplir(pal.msg, { retard: r }), retard_min: r, avance_min: 0 };
+  }
+  const avance = tMin(l.prevu_debut)! - l.arrivee_min;
+  if (avance >= c.avance_min) return { code: "avance", emoji: c.avance.emoji, msg: remplir(c.avance.msg, { avance }), retard_min: 0, avance_min: avance };
+  return { code: "heure", emoji: c.heure.emoji, msg: remplir(c.heure.msg, {}), retard_min: 0, avance_min: Math.max(avance, 0) };
+}
+function emojiMois(cumul: number, nb: number, c: ConfEmojis) {
+  const pal = c.mois.find((x) => x.max === undefined || cumul <= x.max)!;
+  return { emoji: pal.emoji, msg: remplir(pal.msg, { cumul: dureeTxt(cumul), nb }), cumul_min: cumul, nb_retards: nb };
+}
 
 // ---------- journal ----------
 async function journal(objet: string, objet_id: string | number | null, action: string, ancienne: unknown, nouvelle: unknown, motif: string) {
@@ -216,6 +276,29 @@ function stats(ls: Ligne[]): Stats {
 }
 function lundiDe(js: string) { return addDays(js, 1 - dow(js)); }
 
+// Emojis du jour et du mois, calculés à partir du moteur (corrections, tolérance, justificatifs inclus).
+async function humeurs(p: Record<string, string>, auj: string, employeId?: number) {
+  const c = confEmojis(p);
+  const ds = p.debut_suivi || "2000-01-01";
+  const m1 = auj.slice(0, 8) + "01";
+  const debut = m1 < ds ? ds : m1;
+  const lsMois = auj >= debut ? await journees(debut, auj) : [];
+  const lsJour = lsMois.length ? lsMois.filter((l) => l.jour === auj) : await journees(auj, auj);
+  const res = new Map<number, { jour: ReturnType<typeof emojiJour>; mois: ReturnType<typeof emojiMois> }>();
+  const ids = employeId ? [employeId] : [...new Set(lsJour.concat(lsMois).map((l) => l.employe_id))];
+  for (const id of ids) {
+    const mois = lsMois.filter((l) => l.employe_id === id);
+    const jour = lsJour.filter((l) => l.employe_id === id && l.arrivee_min !== null && l.statut !== "hors_planning");
+    // service du jour le plus récent pointé (double service : le dernier commencé)
+    const dernier = jour.sort((a, b) => (b.arrivee_min! - a.arrivee_min!))[0];
+    res.set(id, {
+      jour: dernier ? emojiJour(dernier, c) : null,
+      mois: emojiMois(mois.reduce((s, l) => s + (l.retard_min || 0), 0), mois.filter((l) => l.retard_min > 0).length, c),
+    });
+  }
+  return res;
+}
+
 // Bornes de suivi : on ne compte jamais avant debut_suivi.
 async function bornes(debut?: string, fin?: string) {
   const p = await parametres();
@@ -300,7 +383,8 @@ Deno.serve(async (req) => {
           const cs = await planningDu(a.employe.id, js);
           const { data: dem } = await sb.from("hr_absences").select("id, type, date_debut, date_fin, statut, commentaire")
             .eq("employe_id", a.employe.id).order("created_at", { ascending: false }).limit(5);
-          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), demandes: dem || [] };
+          const h = (await humeurs(await parametres(), js, a.employe.id)).get(a.employe.id) || null;
+          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), demandes: dem || [], humeur: h };
         }
         let employes: unknown[] = [];
         if (!a && wifi) {
@@ -353,7 +437,9 @@ Deno.serve(async (req) => {
           info = f - m > 5 ? `Départ ${f - m} min avant l'heure prévue (${hhmm(f)}).` : "Merci, bonne fin de service !";
         }
         const l = local(now);
-        return json({ ok: true, type, heure: `${String(l.h).padStart(2, "0")}h${String(l.m).padStart(2, "0")}`, info, aujourdhui: await etatDuJour(a.employe.id, js) });
+        let humeur = null;
+        try { humeur = (await humeurs(p, js, a.employe.id)).get(a.employe.id) || null; } catch (e) { console.error(e); }
+        return json({ ok: true, type, heure: `${String(l.h).padStart(2, "0")}h${String(l.m).padStart(2, "0")}`, info, aujourdhui: await etatDuJour(a.employe.id, js), humeur });
       }
 
       case "demander_absence": {
@@ -456,6 +542,7 @@ Deno.serve(async (req) => {
           equipe: stats(ls), classement,
           semaines: serie((l) => lundiDe(l.jour)), mois: serie((l) => l.jour.slice(0, 7)),
           alertes: await alertes(p, auj, debut_suivi),
+          humeurs: Object.fromEntries(await humeurs(p, auj)),
         });
       }
 
@@ -464,7 +551,8 @@ Deno.serve(async (req) => {
         const id = Number(b.employe_id);
         const { data: e } = await sb.from("hr_employes").select("id, nom, service, actif").eq("id", id).maybeSingle();
         if (!e) throw new Refus("Employé introuvable.", 404);
-        const { debut_suivi, auj } = await bornes();
+        const { debut_suivi, auj, p } = await bornes();
+        const ce = confEmojis(p);
         const depuis = auj < debut_suivi ? auj : debut_suivi;
         const ls = (await journees(depuis, auj)).filter((l) => l.employe_id === id);
         const suivi = ls.filter((l) => l.jour >= debut_suivi);
@@ -477,7 +565,8 @@ Deno.serve(async (req) => {
           semaine: stats(suivi.filter((l) => l.jour >= lundi)),
           mois: stats(suivi.filter((l) => l.jour >= mois1)),
           total: stats(suivi),
-          historique: ls.slice().reverse(),
+          historique: ls.slice().reverse().map((l) => ({ ...l, emoji: emojiJour(l, ce) })),
+          humeur: (await humeurs(p, auj, id)).get(id) || null,
           absences: abs || [], creneaux: cr || [],
         });
       }
@@ -579,7 +668,8 @@ Deno.serve(async (req) => {
 
       // ----- paramètres et journal -----
       case "admin_parametres": {
-        return json({ ok: true, parametres: await parametres() });
+        const pp = await parametres();
+        return json({ ok: true, parametres: pp, emojis: confEmojis(pp), emojis_defaut: EMOJIS_DEFAUT });
       }
       case "admin_parametre_modifier": {
         const motif = exigerMotif(b.motif);
