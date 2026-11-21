@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B4F3C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pointage Capanna">
+<title>Pointage Capanna</title>
+<style>
+  :root { --vert:#0B4F3C; --or:#A8823C; --fond:#F2EEE1; --rouge:#B3261E; --gris:#6b6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--fond); color:#1d1d1d;
+         padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  header { text-align:center; padding:28px 0 8px; }
+  header h1 { font-family:Georgia,serif; font-style:italic; color:var(--vert); margin:0; font-size:30px; letter-spacing:.5px; }
+  header p { margin:4px 0 0; color:var(--or); font-size:13px; letter-spacing:2px; text-transform:uppercase; }
+  main { max-width:460px; margin:0 auto; }
+  .carte { background:#fff; border-radius:18px; padding:20px; margin:14px 0; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .wifi { display:flex; align-items:center; gap:10px; font-size:15px; }
+  .pastille { width:12px; height:12px; border-radius:50%; background:#c9c9c9; flex:none; }
+  .ok .pastille { background:#2e9d5b; } .ko .pastille { background:var(--rouge); }
+  h2 { margin:0 0 6px; font-size:22px; } .sous { color:var(--gris); font-size:14px; margin:0; }
+  button { font:inherit; border:0; border-radius:14px; padding:16px; width:100%; font-size:18px; font-weight:600; cursor:pointer; }
+  .b-arr { background:var(--vert); color:#fff; } .b-dep { background:var(--or); color:#fff; }
+  .b-sec { background:#ece8db; color:#1d1d1d; font-size:15px; padding:12px; font-weight:500; }
+  button:disabled { opacity:.4; }
+  .boutons { display:grid; gap:12px; margin-top:16px; }
+  select, input { font:inherit; width:100%; padding:14px; border-radius:12px; border:1px solid #d8d3c3; background:#fff; font-size:17px; margin-top:8px; }
+  .msg { margin-top:14px; padding:12px 14px; border-radius:12px; font-size:15px; display:none; }
+  .msg.vu { display:block; } .msg.bon { background:#e5f3ea; color:#145c33; } .msg.mal { background:#fbe7e6; color:var(--rouge); }
+  ul.journal { list-style:none; padding:0; margin:12px 0 0; } ul.journal li { padding:6px 0; border-top:1px solid #f0ece0; font-size:15px; }
+  .cache { display:none; }
+  table { width:100%; border-collapse:collapse; font-size:13px; } th, td { text-align:left; padding:6px 4px; border-top:1px solid #eee; vertical-align:top; }
+  th { color:var(--gris); font-weight:600; } .alerte { color:var(--rouge); }
+  .ligne { display:flex; gap:8px; align-items:center; } .ligne > * { flex:1; }
+  .petit { font-size:13px; color:var(--gris); }
+  a { color:var(--vert); }
+  .admin main { max-width:900px; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:20px; font-size:12px; background:#eee; }
+  .tag.on { background:#e5f3ea; color:#145c33; }
+  .tableau { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header><h1>Capanna</h1><p id="sous-titre">Pointage</p></header>
+<main>
+
+<!-- ======== EMPLOYÉ ======== -->
+<section id="vue-employe">
+  <div class="carte wifi" id="etat-wifi"><span class="pastille"></span><span id="texte-wifi">Vérification du réseau…</span></div>
+
+  <div class="carte cache" id="bloc-activer">
+    <h2>Activer mon téléphone</h2>
+    <p class="sous">À faire une seule fois, sur le Wi-Fi Capanna, avec le code donné par le gérant.</p>
+    <select id="choix-nom"><option value="">Choisis ton nom…</option></select>
+    <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Code à 4 chiffres" autocomplete="off">
+    <div class="boutons"><button class="b-arr" id="btn-activer">Activer</button></div>
+    <div class="msg" id="msg-activer"></div>
+  </div>
+
+  <div class="carte cache" id="bloc-pointer">
+    <h2 id="bonjour">Bonjour</h2>
+    <p class="sous" id="prevu"></p>
+    <div class="boutons">
+      <button class="b-arr" id="btn-arrivee">Arrivée</button>
+      <button class="b-dep" id="btn-depart">Départ</button>
+    </div>
+    <div class="msg" id="msg-pointer"></div>
+    <ul class="journal" id="journal"></ul>
+  </div>
+
+  <p class="petit" style="text-align:center">Astuce : ajoute cette page à ton écran d'accueil (Partager → « Sur l'écran d'accueil »).</p>
+</section>
+
+<!-- ======== GÉRANT ======== -->
+<section id="vue-gerant" class="cache">
+  <div class="carte" id="bloc-login">
+    <h2 id="titre-login">Espace gérant</h2>
+    <p class="sous" id="aide-login">Entre ton code gérant.</p>
+    <input id="code-gerant" type="password" placeholder="Code gérant" autocomplete="current-password">
+    <input id="code-gerant2" type="password" placeholder="Confirme le code" class="cache" autocomplete="new-password">
+    <div class="boutons"><button class="b-arr" id="btn-login">Entrer</button></div>
+    <div class="msg" id="msg-login"></div>
+  </div>
+
+  <div id="bloc-admin" class="cache">
+    <div class="carte">
+      <h2>Wi-Fi du restaurant</h2>
+      <p class="sous" id="wifi-admin"></p>
+      <div id="liste-reseaux" class="petit" style="margin-top:8px"></div>
+      <div class="boutons"><button class="b-sec" id="btn-ajout-wifi">Enregistrer le réseau actuel comme Wi-Fi Capanna</button></div>
+      <p class="petit">À faire depuis le restaurant, connecté au Wi-Fi Capanna. Si la box change d'adresse, refais-le.</p>
+    </div>
+
+    <div class="carte">
+      <h2>Équipe <span class="petit" id="jour-equipe"></span></h2>
+      <div class="tableau"><table id="table-equipe"></table></div>
+    </div>
+
+    <div class="carte">
+      <h2>Rapport</h2>
+      <div class="ligne"><input type="date" id="r-debut"><input type="date" id="r-fin"></div>
+      <div class="boutons"><button class="b-sec" id="btn-rapport">Afficher</button></div>
+      <div class="tableau" style="margin-top:12px"><table id="table-rapport"></table></div>
+      <div id="refus" class="petit" style="margin-top:10px"></div>
+      <div class="boutons"><button class="b-sec cache" id="btn-copier">Copier pour Google Sheets</button></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const API = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/pointage";
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+async function api(body) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ erreur: "Réponse illisible" }));
+  if (!r.ok || j.erreur) throw new Error(j.erreur || "Erreur " + r.status);
+  return j;
+}
+function message(el, texte, bon) { el.textContent = texte; el.className = "msg vu " + (bon ? "bon" : "mal"); }
+function heure(iso) { return new Date(iso).toLocaleTimeString("fr-FR", { timeZone: "Africa/Casablanca", hour: "2-digit", minute: "2-digit" }); }
+
+// ---------------- EMPLOYÉ ----------------
+let token = store.get("capanna_token");
+function afficherWifi(ok) {
+  $("etat-wifi").className = "carte wifi " + (ok ? "ok" : "ko");
+  $("texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna" : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
+}
+function afficherJournal(liste) {
+  $("journal").innerHTML = liste.map((p) => `<li>${p.type === "arrivee" ? "Arrivée" : "Départ"} à ${heure(p.horodatage)}</li>`).join("");
+  const dernier = liste[liste.length - 1];
+  $("btn-arrivee").disabled = dernier?.type === "arrivee";
+  $("btn-depart").disabled = dernier?.type !== "arrivee";
+}
+async function chargerEmploye() {
+  try {
+    const d = await api({ action: "init", token });
+    afficherWifi(d.wifi);
+    if (d.moi) {
+      $("bloc-activer").classList.add("cache"); $("bloc-pointer").classList.remove("cache");
+      $("bonjour").textContent = "Bonjour " + d.moi.nom;
+      $("prevu").textContent = `Planning du ${d.jour_nom} : ${d.moi.prevu || "—"}`;
+      afficherJournal(d.moi.aujourdhui);
+    } else {
+      $("bloc-pointer").classList.add("cache"); $("bloc-activer").classList.remove("cache");
+      if (token) { token = null; store.set("capanna_token", ""); }
+      const sel = $("choix-nom");
+      sel.innerHTML = '<option value="">Choisis ton nom…</option>' + d.employes.map((e) => `<option value="${e.id}">${e.nom} — ${e.service}</option>`).join("");
+      if (!d.wifi) message($("msg-activer"), "Connecte-toi au Wi-Fi Capanna pour activer ton téléphone.", false);
+    }
+  } catch (e) { $("texte-wifi").textContent = "Erreur : " + e.message; }
+}
+$("btn-activer").onclick = async () => {
+  try {
+    const d = await api({ action: "enregistrer", employe_id: $("choix-nom").value, pin: $("pin").value.trim() });
+    token = d.token; store.set("capanna_token", token);
+    if (!store.get("capanna_token")) message($("msg-activer"), "Ton navigateur bloque l'enregistrement. Ouvre la page dans Safari ou Chrome (pas en navigation privée).", false);
+    else chargerEmploye();
+  } catch (e) { message($("msg-activer"), e.message, false); }
+};
+async function pointer(type) {
+  $("btn-arrivee").disabled = $("btn-depart").disabled = true;
+  try {
+    const d = await api({ action: "pointer", token, type });
+    message($("msg-pointer"), `${type === "arrivee" ? "Arrivée" : "Départ"} enregistré à ${d.heure}. ${d.info}`, true);
+    afficherJournal(d.aujourdhui);
+  } catch (e) { message($("msg-pointer"), e.message, false); chargerEmploye(); }
+}
+$("btn-arrivee").onclick = () => pointer("arrivee");
+$("btn-depart").onclick = () => pointer("depart");
+
+// ---------------- GÉRANT ----------------
+let codeGerant = "", creation = false;
+async function initGerant() {
+  document.body.classList.add("admin");
+  $("vue-employe").classList.add("cache"); $("vue-gerant").classList.remove("cache");
+  $("sous-titre").textContent = "Espace gérant";
+  const s = await api({ action: "admin_statut" });
+  if (!s.configure) {
+    creation = true;
+    $("titre-login").textContent = "Créer le code gérant";
+    $("aide-login").textContent = "Première utilisation : choisis un code d'au moins 6 caractères. Garde-le pour toi.";
+    $("code-gerant2").classList.remove("cache"); $("btn-login").textContent = "Créer";
+  }
+}
+$("btn-login").onclick = async () => {
+  const c = $("code-gerant").value;
+  try {
+    if (creation) {
+      if (c !== $("code-gerant2").value) return message($("msg-login"), "Les deux codes ne sont pas identiques.", false);
+      await api({ action: "admin_creer", code: c });
+    }
+    await api({ action: "admin_connexion", code: c });
+    codeGerant = c;
+    $("bloc-login").classList.add("cache"); $("bloc-admin").classList.remove("cache");
+    const auj = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Casablanca" });
+    $("r-debut").value = auj; $("r-fin").value = auj;
+    rafraichirAdmin();
+  } catch (e) { message($("msg-login"), e.message, false); }
+};
+async function rafraichirAdmin() {
+  const c = await api({ action: "admin_connexion", code: codeGerant });
+  $("wifi-admin").textContent = c.wifi ? "Cet appareil est sur le Wi-Fi Capanna." : "Cet appareil n'est PAS sur un réseau enregistré (adresse vue : " + c.ip_vue + ").";
+  $("liste-reseaux").innerHTML = c.reseaux.length
+    ? "Réseaux enregistrés : " + c.reseaux.map((r) => `<span class="tag on">${r.reseau}</span> <a href="#" data-retirer="${r.reseau}">retirer</a>`).join(" ")
+    : "Aucun réseau enregistré : personne ne peut pointer pour l'instant.";
+  document.querySelectorAll("[data-retirer]").forEach((a) => a.onclick = async (ev) => {
+    ev.preventDefault(); await api({ action: "admin_retirer_wifi", code: codeGerant, reseau: a.dataset.retirer }); rafraichirAdmin();
+  });
+  const eq = await api({ action: "admin_equipe", code: codeGerant });
+  $("jour-equipe").textContent = "(journée du " + eq.jour_service.split("-").reverse().join("/") + ")";
+  $("table-equipe").innerHTML = "<tr><th>Nom</th><th>Service</th><th>Code</th><th>Téléphone</th><th>Présent</th><th></th></tr>" +
+    eq.equipe.map((e) => `<tr><td>${e.nom}</td><td>${e.service}</td><td><b>${e.pin}</b></td>
+      <td>${e.telephone ? '<span class="tag on">activé</span>' : '<span class="tag">non activé</span>'}</td>
+      <td>${e.present ? '<span class="tag on">sur place</span>' : ""}</td>
+      <td><a href="#" data-reset="${e.id}">réinitialiser tél.</a> · <a href="#" data-pin="${e.id}">nouveau code</a></td></tr>`).join("");
+  document.querySelectorAll("[data-reset]").forEach((a) => a.onclick = async (ev) => {
+    ev.preventDefault(); await api({ action: "admin_reinitialiser", code: codeGerant, employe_id: a.dataset.reset }); rafraichirAdmin();
+  });
+  document.querySelectorAll("[data-pin]").forEach((a) => a.onclick = async (ev) => {
+    ev.preventDefault(); await api({ action: "admin_nouveau_code", code: codeGerant, employe_id: a.dataset.pin }); rafraichirAdmin();
+  });
+}
+$("btn-ajout-wifi").onclick = async () => {
+  try { await api({ action: "admin_ajouter_wifi", code: codeGerant }); rafraichirAdmin(); }
+  catch (e) { $("wifi-admin").textContent = e.message; }
+};
+let derniersRapport = [];
+$("btn-rapport").onclick = async () => {
+  const r = await api({ action: "admin_rapport", code: codeGerant, debut: $("r-debut").value, fin: $("r-fin").value });
+  derniersRapport = r.lignes;
+  const fmt = (m) => m == null ? "" : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`;
+  $("table-rapport").innerHTML = "<tr><th>Jour</th><th>Nom</th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th>Durée</th><th>Alertes</th></tr>" +
+    r.lignes.map((l) => `<tr><td>${l.jour_nom} ${l.jour.slice(8)}/${l.jour.slice(5, 7)}</td><td>${l.nom}</td><td>${l.prevu}</td><td>${l.arrivee}</td><td>${l.depart}</td><td>${fmt(l.duree_min)}</td><td class="alerte">${l.alertes}</td></tr>`).join("");
+  $("refus").innerHTML = r.refus.length ? "<b>Pointages refusés :</b> " + r.refus.map((x) => `${x.jour.slice(8)}/${x.jour.slice(5, 7)} ${x.heure} ${x.nom} (${x.motif})`).join(" · ") : "";
+  $("btn-copier").classList.toggle("cache", !r.lignes.length);
+};
+$("btn-copier").onclick = async () => {
+  const t = ["Jour\tNom\tService\tPrévu\tArrivée\tDépart\tDurée (min)\tRetard (min)\tAlertes",
+    ...derniersRapport.map((l) => [l.jour.split("-").reverse().join("/"), l.nom, l.service, l.prevu, l.arrivee, l.depart, l.duree_min ?? "", l.retard_min ?? "", l.alertes].join("\t"))].join("\n");
+  try { await navigator.clipboard.writeText(t); $("btn-copier").textContent = "Copié ✓"; } catch { $("btn-copier").textContent = "Copie impossible sur cet appareil"; }
+};
+
+// ---------------- démarrage ----------------
+if (location.hash === "#gerant") initGerant().catch((e) => message($("msg-login"), e.message, false));
+else chargerEmploye();
+</script>
+</body>
+</html>
