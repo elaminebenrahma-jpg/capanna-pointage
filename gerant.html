@@ -85,10 +85,12 @@
   .jours7 .j { background:#FAF8F2; border:1px solid var(--ligne); border-radius:12px; padding:10px; min-height:84px; font-size:13px; }
   .jours7 .j b { display:block; font-size:12px; color:var(--gris); text-transform:uppercase; margin-bottom:6px; }
   .jours7 .j.off { opacity:.55; }
-  .emo { font-size:20px; line-height:1; }
+  .emo { display:inline-flex; vertical-align:middle; line-height:0; }
+  .emo svg { width:22px; height:22px; }
   .humeurs { display:flex; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
   .humeurs .carte { flex:1 1 240px; display:flex; gap:14px; align-items:center; }
-  .humeurs .gros { font-size:44px; line-height:1; }
+  .humeurs .gros { line-height:0; flex:none; }
+  .humeurs .gros svg { width:52px; height:52px; }
 
   /* --- connexion --- */
   .login { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -154,6 +156,22 @@
 <div id="fenetre"></div>
 
 <script>
+// Smileys Capanna : même construction pour les 4 états, seules la bouche, les sourcils et la couleur changent.
+const SMILEYS = {
+  vert:   { c: "#2E9E5B", bouche: "M33 58 Q50 74 67 58", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Ponctuel" },
+  jaune:  { c: "#E0A800", bouche: "M35 63 L65 63", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Petit retard" },
+  orange: { c: "#EE7A1A", bouche: "M35 65 Q50 60 65 65", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Retards répétés" },
+  rouge:  { c: "#D93A2F", bouche: "M33 69 Q50 54 67 69", yeux: "M37 40 L37 47 M63 40 L63 47 M30 33 L42 29 M70 33 L58 29", label: "Retards importants" },
+};
+function smiley(niveau, taille = 40, anime = false) {
+  const s = SMILEYS[niveau] || SMILEYS.vert;
+  return `<svg class="smiley${anime ? " smiley-anime" : ""}" width="${taille}" height="${taille}" viewBox="0 0 100 100" role="img" aria-label="${s.label}" fill="none" stroke="${s.c}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="50" cy="50" r="44"/><path d="${s.yeux}"/><path d="${s.bouche}"/></svg>`;
+}
+// Niveau d'un état : accepte les noms (vert/jaune/orange/rouge) et les anciens emojis.
+const NIV_EMO = { "🤩": "vert", "😄": "vert", "🙂": "vert", "😕": "jaune", "😐": "jaune", "😟": "orange", "😢": "rouge", "😭": "rouge" };
+const niveau = (e) => SMILEYS[e] ? e : (NIV_EMO[e] || "vert");
+
+const svgE = (e, t = 22) => e ? smiley(niveau(e), t) : "";
 const API = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/pointage";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -288,8 +306,8 @@ const services = () => [...new Set(EMPLOYES.map((e) => e.service))].sort();
 // ======================= TABLEAU DE BORD =======================
 let filtreT = { per: "mois", service: "", employe: "" };
 let HUM = {};
-const emoJ = (id) => HUM[id]?.jour ? `<span class="emo" title="${esc(HUM[id].jour.msg)}">${HUM[id].jour.emoji}</span>` : "";
-const emoM = (id) => HUM[id]?.mois ? `<span class="emo" title="${esc(HUM[id].mois.msg)}">${HUM[id].mois.emoji}</span>` : "";
+const emoJ = (id) => HUM[id]?.jour ? `<span class="emo" title="${esc(HUM[id].jour.msg)}">${svgE(HUM[id].jour.emoji)}</span>` : "";
+const emoM = (id) => HUM[id]?.mois ? `<span class="emo" title="${esc(HUM[id].mois.msg)}">${svgE(HUM[id].mois.emoji)}</span>` : "";
 async function vueTableau() {
   const V = $("#vue");
   V.innerHTML = `<h1>Tableau de bord</h1><p class="sous" id="t-sous">Chargement…</p>
@@ -415,8 +433,8 @@ async function vueFiche(id) {
     </div>
   </div>
   <div class="humeurs">
-    <div class="carte"><span class="gros">${f.humeur?.jour?.emoji || "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Ponctualité du jour</div><div>${esc(f.humeur?.jour?.msg || "Pas d'arrivée pointée aujourd'hui.")}</div></div></div>
-    <div class="carte"><span class="gros">${f.humeur?.mois?.emoji || "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Discipline du mois</div><div>${esc(f.humeur?.mois?.msg || "")}</div></div></div>
+    <div class="carte"><span class="gros">${f.humeur?.jour ? svgE(f.humeur.jour.emoji, 52) : "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Ponctualité du jour</div><div>${esc(f.humeur?.jour?.msg || "Pas d'arrivée pointée aujourd'hui.")}</div></div></div>
+    <div class="carte"><span class="gros">${f.humeur?.mois ? svgE(f.humeur.mois.emoji, 52) : "—"}</span><div><div class="l" style="font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">Discipline du mois</div><div>${esc(f.humeur?.mois?.msg || "")}</div></div></div>
   </div>
   <div class="grille g4">
     <div class="carte kpi or"><div class="l">Retard du jour</div><div class="v">${duree(f.retard_jour_min)}</div></div>
@@ -433,7 +451,7 @@ async function vueFiche(id) {
       return `<div class="j ${cs.length ? "" : "off"}"><b>${JOURS[j]}</b>${cs.length ? cs.map((c) => `${tm(c.debut)} – ${tm(c.fin)}${c.pause_min ? `<br><small>pause ${c.pause_min} min</small>` : ""}`).join("<hr style='border:0;border-top:1px dashed #ddd;margin:6px 0'>") : "OFF"}<br><button class="lien" data-planj="${j}">modifier</button></div>`; }).join("")}</div></div>
   <div class="carte" style="margin-top:14px"><h2>Historique</h2><div class="tab"><table>
     <tr><th>Date</th><th></th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th>Retard</th><th>Heures sup</th><th>Travail</th><th>Statut</th></tr>
-    ${hist.length ? hist.map((l) => `<tr ${l.jour < f.debut_suivi ? 'style="opacity:.5" title="Avant le début du suivi : non compté"' : ""}><td>${djour(l.jour)}</td><td>${l.emoji ? `<span class="emo" title="${esc(l.emoji.msg)}">${l.emoji.emoji}</span>` : ""}</td>
+    ${hist.length ? hist.map((l) => `<tr ${l.jour < f.debut_suivi ? 'style="opacity:.5" title="Avant le début du suivi : non compté"' : ""}><td>${djour(l.jour)}</td><td>${l.emoji ? `<span class="emo" title="${esc(l.emoji.msg)}">${svgE(l.emoji.emoji)}</span>` : ""}</td>
       <td>${l.prevu_debut ? `${tm(l.prevu_debut)}–${tm(l.prevu_fin)}` : "—"}</td><td>${hm(l.arrivee_min)}</td><td>${hm(l.depart_min)}</td>
       <td>${l.retard_min ? `<b style="color:var(--orange)">${l.retard_min} min</b>` : l.retard_justifie_min ? `<span title="justifié">(${l.retard_justifie_min} min justifiées)</span>` : ""}</td>
       <td>${l.heures_sup_min ? duree(l.heures_sup_min) : ""}</td><td>${l.travail_min != null ? duree(l.travail_min) : ""}</td><td>${statut(l.statut)}</td></tr>`).join("") : `<tr><td colspan="9" class="vide">Aucun historique pour l'instant.</td></tr>`}
@@ -441,7 +459,7 @@ async function vueFiche(id) {
   <div class="carte" style="margin-top:14px"><h2>Pointages des 14 derniers jours <small style="color:var(--gris);font-weight:400">– corrections avec motif obligatoire</small></h2><div class="tab"><table>
     <tr><th>Date</th><th>Type</th><th>Heure</th><th>Source</th><th>État</th><th></th></tr>
     ${pts.pointages.length ? pts.pointages.map((p) => { const lh = p.type === "arrivee" && p.accepte && !p.annule ? hist.find((l) => l.jour === p.jour_service && hm(l.arrivee_min) === p.heure && l.emoji) : null;
-      return `<tr><td>${djour(p.jour_service)}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"} ${lh ? `<span class="emo" title="${esc(lh.emoji.msg)}">${lh.emoji.emoji}</span>` : ""}</td><td><b>${p.heure}</b></td>
+      return `<tr><td>${djour(p.jour_service)}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"} ${lh ? `<span class="emo" title="${esc(lh.emoji.msg)}">${svgE(lh.emoji.emoji)}</span>` : ""}</td><td><b>${p.heure}</b></td>
       <td>${p.source === "manuel" ? pastille("Manuel", "p-or") : "Wi-Fi"}</td>
       <td>${!p.accepte ? pastille("Refusé : " + (p.motif || ""), "p-rouge") : p.annule ? pastille("Annulé", "p-gris") : pastille("Valide", "p-ok")}</td>
       <td style="white-space:nowrap">${p.accepte && !p.annule ? `<button class="lien" data-mod="${p.id}" data-h="${p.heure}" data-t="${p.type}">corriger</button><button class="lien" data-ann="${p.id}">annuler</button>` : ""}</td></tr>`; }).join("") : `<tr><td colspan="6" class="vide">Aucun pointage.</td></tr>`}
@@ -653,16 +671,16 @@ async function vueReglages() {
     ${champ("alerte_cumul_2_min", "Alerte retard cumulé n°2", "Seuil mensuel (180 = 3 h).")}
     ${champ("debut_suivi", "Début du suivi officiel", "Rien n'est compté avant cette date.", "date")}
   </div>
-  <div class="carte" style="margin-top:14px"><h2>Emojis de ponctualité</h2>
+  <div class="carte" style="margin-top:14px"><h2>Smileys de ponctualité</h2>
     <p style="color:var(--gris);font-size:13px;margin-top:-6px">Calculés automatiquement à partir des pointages réels (tolérance de ${P.tolerance_retard_min} min incluse). Ils s'ajoutent aux chiffres, ils ne les remplacent pas.</p>
     <div class="grille g2">
       <div><b>Ponctualité du jour</b><table>
-        <tr><td class="emo">${esc(p.emojis.avance.emoji)}</td><td>Avance d'au moins ${p.emojis.avance_min} min</td><td><small>${esc(p.emojis.avance.msg)}</small></td></tr>
-        <tr><td class="emo">${esc(p.emojis.heure.emoji)}</td><td>À l'heure (dans la tolérance)</td><td><small>${esc(p.emojis.heure.msg)}</small></td></tr>
+        <tr><td class="emo">${svgE(p.emojis.avance.emoji, 26)}</td><td>Avance d'au moins ${p.emojis.avance_min} min</td><td><small>${esc(p.emojis.avance.msg)}</small></td></tr>
+        <tr><td class="emo">${svgE(p.emojis.heure.emoji, 26)}</td><td>À l'heure (dans la tolérance)</td><td><small>${esc(p.emojis.heure.msg)}</small></td></tr>
         ${paliersTxt(p.emojis.jour, "Retard", "min", P.tolerance_retard_min)}</table></div>
       <div><b>Discipline du mois (retard cumulé)</b><table>${paliersTxt(p.emojis.mois, "Cumul", "min", -1)}</table></div>
     </div>
-    <button class="sec" id="b-emo" style="margin-top:10px">Modifier les emojis et les messages</button></div>
+    <button class="sec" id="b-emo" style="margin-top:10px">Modifier les smileys et les messages</button></div>
   <div class="carte" style="margin-top:14px"><h2>Wi-Fi du restaurant</h2>
     <p style="margin:0 0 8px">${c.wifi ? pastille("Cet appareil est sur le Wi-Fi Capanna", "p-ok") : pastille("Cet appareil n'est pas sur un réseau enregistré (" + c.ip_vue + ")", "p-orange")}</p>
     <div>${c.reseaux.map((r) => `${pastille(r.reseau, "p-ok")} <button class="lien" data-ret="${esc(r.reseau)}">retirer</button>`).join(" ") || "Aucun réseau enregistré."}</div>
@@ -691,24 +709,26 @@ async function vueReglages() {
 function paliersTxt(l, mot, u, tol) {
   let prec = tol;
   return l.map((x) => { const de = prec + 1, txt = x.max === undefined ? `${mot} de plus de ${prec} ${u}` : x.max === 0 ? "Aucun retard" : `${mot} de ${Math.max(de, 1)} à ${x.max} ${u}`; prec = x.max ?? prec;
-    return `<tr><td class="emo">${esc(x.emoji)}</td><td>${txt}</td><td><small>${esc(x.msg)}</small></td></tr>`; }).join("");
+    return `<tr><td class="emo">${svgE(x.emoji, 26)}</td><td>${txt}</td><td><small>${esc(x.msg)}</small></td></tr>`; }).join("");
 }
+const OPTS_SMILEY = [["vert", "Vert – ponctuel"], ["jaune", "Jaune – petit retard"], ["orange", "Orange – retards répétés"], ["rouge", "Rouge – retards importants"]];
 async function modifierEmojis(c, def) {
+  const sel = (label, e) => ({ label, type: "select", options: OPTS_SMILEY, valeur: niveau(e) });
   const champs = [
-    { label: "Avance minimale pour 🤩 (min)", type: "number", valeur: String(c.avance_min), requis: true },
-    { label: "Emoji « en avance »", valeur: c.avance.emoji, requis: true }, { label: "Message « en avance »", valeur: c.avance.msg, requis: true },
-    { label: "Emoji « à l'heure »", valeur: c.heure.emoji, requis: true }, { label: "Message « à l'heure »", valeur: c.heure.msg, requis: true },
+    { label: "Avance minimale pour le smiley vert « en avance » (min)", type: "number", valeur: String(c.avance_min), requis: true },
+    sel("Smiley « en avance »", c.avance.emoji), { label: "Message « en avance »", valeur: c.avance.msg, requis: true },
+    sel("Smiley « à l'heure »", c.heure.emoji), { label: "Message « à l'heure »", valeur: c.heure.msg, requis: true },
   ];
   c.jour.forEach((x, i) => champs.push(
     { label: `Retard du jour – palier ${i + 1} : jusqu'à (min)${i === c.jour.length - 1 ? " – dernier palier, laisser vide" : ""}`, type: "number", valeur: x.max === undefined ? "" : String(x.max) },
-    { label: `Retard du jour – palier ${i + 1} : emoji`, valeur: x.emoji, requis: true },
+    sel(`Retard du jour – palier ${i + 1} : smiley`, x.emoji),
     { label: `Retard du jour – palier ${i + 1} : message ({retard} = minutes)`, valeur: x.msg, requis: true }));
   c.mois.forEach((x, i) => champs.push(
     { label: `Mois – palier ${i + 1} : cumul jusqu'à (min)${i === c.mois.length - 1 ? " – dernier palier, laisser vide" : ""}`, type: "number", valeur: x.max === undefined ? "" : String(x.max) },
-    { label: `Mois – palier ${i + 1} : emoji`, valeur: x.emoji, requis: true },
+    sel(`Mois – palier ${i + 1} : smiley`, x.emoji),
     { label: `Mois – palier ${i + 1} : message ({cumul} = durée)`, valeur: x.msg, requis: true }));
   champs.push({ label: "Rétablir les réglages d'origine ?", type: "select", options: [["non", "Non, garder mes modifications"], ["oui", "Oui, revenir aux emojis d'origine"]], valeur: "non" }, champMotif);
-  const r = await fenetre({ titre: "Emojis de ponctualité", texte: "Les seuils doivent être croissants. Le dernier palier n'a pas de limite.", champs, ok: "Enregistrer" });
+  const r = await fenetre({ titre: "Smileys de ponctualité", texte: "Les seuils doivent être croissants. Le dernier palier n'a pas de limite.", champs, ok: "Enregistrer" });
   if (!r) return;
   const motif = r[r.length - 1];
   let conf;

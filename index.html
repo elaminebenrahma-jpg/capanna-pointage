@@ -43,12 +43,15 @@
   .tableau { overflow-x:auto; }
   .humeurs { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
   .humeur { background:#F7F4EA; border-radius:14px; padding:12px; text-align:center; }
-  .humeur .e { font-size:40px; line-height:1.1; display:block; }
+  .humeur .e { display:flex; justify-content:center; height:60px; align-items:center; }
+  .humeur .e svg { width:56px; height:56px; }
   .humeur .t { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--gris); margin-top:2px; }
   .humeur .m { font-size:13px; margin-top:4px; }
-  .pop { animation:pop .55s cubic-bezier(.2,1.4,.4,1) both; }
+  .pop svg { animation:pop .55s cubic-bezier(.2,1.4,.4,1) both; }
+  .pop svg path { stroke-dasharray:120; stroke-dashoffset:120; animation:trace .6s .25s ease-out forwards; }
+  @keyframes trace { to { stroke-dashoffset:0; } }
   @keyframes pop { 0% { transform:scale(.3) rotate(-12deg); opacity:0; } 70% { transform:scale(1.12) rotate(3deg); opacity:1; } 100% { transform:scale(1) rotate(0); } }
-  @media (prefers-reduced-motion: reduce) { .pop { animation:none; } }
+  @media (prefers-reduced-motion: reduce) { .pop svg, .pop svg path { animation:none; stroke-dashoffset:0; } }
 </style>
 </head>
 <body>
@@ -140,6 +143,21 @@
 </main>
 
 <script>
+// Smileys Capanna : même construction pour les 4 états, seules la bouche, les sourcils et la couleur changent.
+const SMILEYS = {
+  vert:   { c: "#2E9E5B", bouche: "M33 58 Q50 74 67 58", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Ponctuel" },
+  jaune:  { c: "#E0A800", bouche: "M35 63 L65 63", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Petit retard" },
+  orange: { c: "#EE7A1A", bouche: "M35 65 Q50 60 65 65", yeux: "M37 38 L37 46 M63 38 L63 46", label: "Retards répétés" },
+  rouge:  { c: "#D93A2F", bouche: "M33 69 Q50 54 67 69", yeux: "M37 40 L37 47 M63 40 L63 47 M30 33 L42 29 M70 33 L58 29", label: "Retards importants" },
+};
+function smiley(niveau, taille = 40, anime = false) {
+  const s = SMILEYS[niveau] || SMILEYS.vert;
+  return `<svg class="smiley${anime ? " smiley-anime" : ""}" width="${taille}" height="${taille}" viewBox="0 0 100 100" role="img" aria-label="${s.label}" fill="none" stroke="${s.c}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="50" cy="50" r="44"/><path d="${s.yeux}"/><path d="${s.bouche}"/></svg>`;
+}
+// Niveau d'un état : accepte les noms (vert/jaune/orange/rouge) et les anciens emojis.
+const NIV_EMO = { "🤩": "vert", "😄": "vert", "🙂": "vert", "😕": "jaune", "😐": "jaune", "😟": "orange", "😢": "rouge", "😭": "rouge" };
+const niveau = (e) => SMILEYS[e] ? e : (NIV_EMO[e] || "vert");
+
 const API = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/pointage";
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -166,7 +184,7 @@ function afficherHumeur(h, animer) {
   if (!h || (!h.jour && !h.mois)) { bloc.classList.add("cache"); return; }
   bloc.classList.remove("cache");
   const pose = (id, e, msg) => {
-    const el = $(id); el.textContent = e || "—"; $(id + "-m").textContent = msg || "";
+    const el = $(id); el.innerHTML = e ? smiley(niveau(e), 56) : "—"; $(id + "-m").textContent = msg || "";
     if (animer) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
   };
   pose("h-jour", h.jour ? h.jour.emoji : "", h.jour ? h.jour.msg : "Pas encore d'arrivée pointée.");
