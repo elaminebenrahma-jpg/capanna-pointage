@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B4F3C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Capanna">
+<title>Capanna – Pointage</title>
+<style>
+:root{--vert:#0B4F3C;--vert-2:#0E6B51;--or:#A8823C;--fond:#F2EEE1;--carte:#fff;--ligne:#E6E0CF;--texte:#1d1d1d;--gris:#6b6b6b;--rouge:#B3261E;
+  --s-vert:#2E9E5B;--s-jaune:#D9A400;--s-orange:#E2742B;--s-rouge:#D2453F;--r:16px}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--fond);color:var(--texte);
+  padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 12px);font-size:15px;line-height:1.4}
+header.marque{text-align:center;padding:22px 16px 6px}
+header.marque img{display:block;width:160px;max-width:50%;height:auto;margin:0 auto}
+header.marque p{margin:4px 0 0;color:var(--or);font-size:12px;letter-spacing:2px;text-transform:uppercase}
+main{max-width:480px;margin:0 auto;padding:0 14px}
+body.admin main{max-width:1100px}
+.carte{background:var(--carte);border-radius:var(--r);padding:18px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04)}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em} h2{font-size:20px} h3{font-size:16px}
+.sous{color:var(--gris);font-size:14px;margin:4px 0 0}
+.petit{font-size:13px;color:var(--gris)}
+.cache{display:none!important}
+button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{opacity:.4;cursor:default}
+.b-principal{background:var(--vert);color:#fff}.b-or{background:var(--or);color:#fff}
+.b-sec{background:#EEE9DA;color:var(--texte);font-weight:500}.b-danger{background:#FBE7E6;color:var(--rouge)}
+.b-lien{background:none;color:var(--vert);padding:6px 8px;font-weight:600}
+.b-plein{width:100%}.b-grand{font-size:18px;padding:17px}
+.pile{display:grid;gap:10px}.ligne{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ligne>.flex{flex:1;min-width:120px}
+label{display:block;font-size:13px;color:var(--gris);margin:12px 0 4px}
+input,select,textarea{font:inherit;width:100%;padding:12px 13px;border-radius:12px;border:1px solid #D8D2BF;background:#fff;font-size:16px;color:var(--texte)}
+textarea{min-height:84px;resize:vertical}
+.msg{margin-top:12px;padding:11px 13px;border-radius:12px;font-size:14px}
+.msg.bon{background:#E5F3EA;color:#145C33}.msg.mal{background:#FBE7E6;color:var(--rouge)}.msg.info{background:#F4EFE0;color:#5c4b22}
+.wifi{display:flex;align-items:center;gap:10px}.pastille{width:11px;height:11px;border-radius:50%;background:#c9c9c9;flex:none}
+.wifi.ok .pastille{background:var(--s-vert)}.wifi.ko .pastille{background:var(--rouge)}
+.onglets{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;margin:8px 0 2px;-webkit-overflow-scrolling:touch}
+.onglets::-webkit-scrollbar{display:none}
+.onglet{flex:none;background:#E9E3D2;color:#3b3b3b;border-radius:999px;padding:9px 14px;font-weight:600;font-size:14px;position:relative}
+.onglet.actif{background:var(--vert);color:#fff}
+.badge{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--rouge);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:6px}
+.puce{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#EEE9DA;color:#444;white-space:nowrap}
+.puce.attente{background:#FFF4D6;color:#8A6400}.puce.complement{background:#FDEBDC;color:#9A4A12}.puce.validee{background:#E5F3EA;color:#145C33}
+.puce.refusee{background:#FBE7E6;color:var(--rouge)}.puce.annulee{background:#eee;color:#777}.puce.manquant{background:#FBE7E6;color:var(--rouge)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.kpi b{display:block;font-size:26px;font-weight:700;letter-spacing:-.02em}.kpi span{font-size:13px;color:var(--gris)}
+.grille2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.liste{list-style:none;margin:0;padding:0}.liste li{display:flex;align-items:center;gap:12px;padding:11px 2px;border-top:1px solid #F0EBDD}
+.liste li:first-child{border-top:0}.liste .t{font-weight:600}.liste .flex{flex:1;min-width:0}
+.cliquable{cursor:pointer}.cliquable:hover{background:#FBF9F3}
+.tableau{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-top:1px solid #F0EBDD;vertical-align:middle;white-space:nowrap}
+th{color:var(--gris);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;border-top:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.barre td{color:#aaa;text-decoration:line-through}
+.resultat{display:flex;align-items:center;gap:16px;margin-top:16px;padding:14px;border-radius:14px;background:#FBF9F3}
+.resultat .t{font-weight:650;font-size:16px}
+.journal-jour{list-style:none;padding:0;margin:12px 0 0}.journal-jour li{padding:7px 0;border-top:1px solid #F0EBDD}
+.apercu{margin-top:10px;border:1px dashed #D8D2BF;border-radius:12px;padding:10px;display:flex;gap:12px;align-items:center}
+.apercu img{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#eee}
+.apercu .doc{width:72px;height:72px;border-radius:8px;background:#F4EFE0;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--or)}
+.voile{position:fixed;inset:0;background:rgba(20,20,20,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+.feuille{background:var(--fond);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)}
+@media(min-width:700px){.voile{align-items:center;padding:20px}.feuille{border-radius:20px}}
+.feuille .entete{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.doc-vue img{max-width:100%;border-radius:12px;display:block}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .j{background:#fff;border-radius:10px;min-height:64px;padding:5px;font-size:11px;overflow:hidden}
+.cal .j.hors{opacity:.35}.cal .j.auj{outline:2px solid var(--vert)}
+.cal .j .n{font-weight:700;font-size:12px;color:#555}.cal .j .ev{margin-top:3px;padding:2px 4px;border-radius:5px;background:#E5F3EA;color:#145C33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal .j .ev.conge{background:#E6EEF9;color:#1E4C8F}.cal .j .ev.maladie{background:#FBE7E6;color:#8E1F19}.cal .j .ev.attente{background:#FFF4D6;color:#8A6400}
+.cal .tete{font-size:11px;color:var(--gris);text-align:center;font-weight:600;padding:2px 0}
+.creneaux-jour{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:start;padding:10px 0;border-top:1px solid #F0EBDD}
+.creneau{display:grid;grid-template-columns:1fr 1fr 74px 32px;gap:6px;margin-bottom:6px}
+.creneau input{padding:9px 8px;font-size:15px}
+.x{background:#F4EFE0;border-radius:10px;padding:0;width:32px;height:40px;color:#666}
+.graph svg{width:100%;height:auto;display:block}
+.vide{color:var(--gris);text-align:center;padding:18px 8px;font-size:14px}
+.retour{display:inline-flex;align-items:center;gap:4px}
+/* smileys */
+.smiley{display:inline-block;vertical-align:middle;max-width:100%;height:auto;flex:none}
+.smiley-anime{animation:smiley-entree .45s cubic-bezier(.2,.8,.2,1) both}
+.smiley-anime .smiley-visage{stroke-dasharray:126;stroke-dashoffset:126;animation:smiley-trait .6s .05s ease-out forwards}
+.smiley-anime .smiley-oeil,.smiley-anime .smiley-bouche{opacity:0;animation:smiley-fondu .25s .45s ease-out forwards}
+@keyframes smiley-entree{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes smiley-trait{to{stroke-dashoffset:0}}
+@keyframes smiley-fondu{to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.smiley-anime,.smiley-anime *{animation:none!important;stroke-dashoffset:0!important;opacity:1!important}}
+/* impression (rapport PDF) */
+#impression{display:none}
+@media print{
+  body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
+  #impression{display:block;font-size:12px;color:#000}#impression h1{font-size:20px}#impression table{font-size:11px}
+  #impression th,#impression td{white-space:normal;padding:5px 6px;border-top:1px solid #ddd}
+  #impression .kpis{grid-template-columns:repeat(4,1fr)}#impression .kpi{box-shadow:none;border:1px solid #ddd;padding:8px}#impression .kpi b{font-size:18px}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<header class="marque"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAbgAAAFOBAMAAAAGLxWEAAAAMFBMVEUAAAAAAAAAAAAAAAD+/v7iDRgGiTDtdn0kl0l4wI/qm6BFhlp2vo6638Y3f06Cp42DBYhRAAAAEHRSTlMA+qBg////////////////sVUcWwAAI3FJREFUeNrtne9uG0mS4H+ZtTskPTAri8Jty72wmKSBGfcs2i7ZL3Af78u9zj3G4Z7i3uEewnbZA9zt3cJiUsaO5W6IFUUDw5KNyrwPRVKURIqUbMu0VvmhWyZZlRkZ/yMjIuFu3I3NR3oz00TfA7boZHIj8+jvAZwP8Py2UuW+QnVuK+YKMOqWApcaVL+6VcBFdjblYSB5aW4VcGEMfYAQS+qtu4Ep/+HmqDGg8vqPQpJwu/ScetxMmgLo0JNP7x/ltwq495QPjrCiWq6518rLWyUtrTKC+ogKiSo6t0kVRIn6iFMAlY5D7P0t4rnQagQ1UY0Hfz+xTXfPlZTo8MNjLjLQAQSlAx2TytD4jliIv7Wb8O2B85oIkGBDbMiN2/Go4yR7Hp2CFL37UXkupB5QO6+DSogzBtj2/l504Htn3IQfE7jcGVSqfIx/uUOqMLjhR0/66pQq8x8HOGUXWE7ZBIzzocBo71x7P0KFHDskmwm1gqlp9gMAl8qpFN5LhFwlUaq9cdYRvTvwwxTPa9WfCpK9NIGe/ChkqfE18nYQD4SDQDBO5yk+QHCA9ZjoEEDcC6W0/0GAy3JsjQiPHUdEIY1BpV1zCN0AQWyaM5IaoNDXcefA/CiYU+kYUAYssS9CbyiAk0MPYgVJXwNxRG2EvXrKsXE/iIWiur9XPD5S9yb3TgTU5LcGnOQtPWkCTjfKlilL/SG+V5XAz0Wpdhs/CM89eyrecIgOtLvE42ArkL1IqqDoQgARwcdJgCgyA08Ih/aHAC4aDBWuA5W2kiXFr2YMgbHX2rQZkmI0akwnHwZoh4iU+F38Y+i5So8N+0nAHEc7ZsjQVCA2N/cDzsI7Q1ePvDIqoACvHC7gfgyy3Pv1EPfCoIiDDtq6KFJklgjIUHvsjI8jEwYmtXYHOl6TxD8I5ng17KJSA5BXT/0r8cGTOjwaCK/xXZ6Al8FhhqV6FNcegtl+4GozSh2CdAY8cqSB2OwIwHGqYG/shvsOo1IqFbJYRoRkKKho+4HLDeILT6b7AXzNTJ1KCgAHjCu8QzkcRgULHRExO+kPQZY7hLFH0RWLEosG8rEKugcRqLhzOnVAutFbpYLybr/afuB6b9GhQ4V4TZAhYQeki/UvrSUwckEXEFTVMwSVZyEKBis7ox8Acy/ZCQRQmLcC5D0PFEFI30gtOXwC2OjlUGjzLLRVPx/oQfQDAKfwGoj2OUxSpmJCjwTlKt1NXUqQgCZ4PKlTA9jLkmBo22fp1gOXBvI833O27VynF2xObP1zg++R54cKtAmAYNGHGC0UbSAwzN997X3+6sOQhCS8NmIgjONY53n0dACM749jFfIE1XWg7CBPVN45jtpA6MSu+7rrtl6JR6ZwQ4PRdFTMx6Bov7RKMOMuQSs6PQH2XkpCsMe9djzGEjul+27LMZd0tcttSByo0B3WDJeMVBKgMwLo/rUNxdTcUgFyFSdBCXEN287xFmJuBwA7DCF1heugA9ncj1GBPiMDhMxPT8R1bgjBaOxHESF+l6Rfd7u/HnDTIEimHQ44phLI6nhKIMAB+SGhUDsW/7YLHEM81q7aL4JoOnoPiLDbCFzARimkVTGTK3Wk9RiktokDFdbjxRoKW9vKVdcoFz8hxG+HhownNt9KgdKVJw7eqDjBJGipWTpE80imRD0yDDCOeK1MBO/IUN2hM3xkzwVwY6otBE5hBKiKcGApxgEVoRXiIQExKLpiAJQLXvkwbFvxKSj9VIFPBNuLdLyVZInoPIp2CGhHu62MAmU10zClhn4Ai0zJ1cJHo7TBD5yyIadQr4X75rV51t824J49kWAIHq1i1IC2CpWtfIXpqRQYmZCLko81llWlM/DSHtS+u4v2Q0iMPEVskefbBtzgsCOmCtZWYzoBKzHmtRGrCQwgIMAeYR8g7GmrAMYCWKXww4/Ga61EpOv0tgFnujkZBOlU4xFK61d58kSTdccOwFiAjOCIDUi3UChLiIHXwRkSz7jiWKMi83DbgrJFo1W27G+Nz+HTk3eNZs6ufDwJ/GViBQVHH5rAH+MSfpOmQvxJM24Jqmiqv7fUrkya7I0fT5qlCp8GWwVcUhKp9y1cchL4xT34SeDkn48fC9I6Ai3NUjUVNi8JqtkkFE12y6MT4F5QkweTOgbRlGZBJ/xBtossLVU3MToKAUaMHMAocYDEuQRvor4aIYBYFASjhQTA15EVNYbIoPT4/sAl2wWcRLzuSQiGPmLQPaCT99EGwQRMyNsgwH5GuxfhvEF1bG24sMPIx+AQ3yVKx1sFnC6e2KcH4xCcfknkqALot7xSx06Jho7zYbpip3GZR0eE0Vu0pQDagdSxZ+kW+XDPVVvFc62TT5Nh609DU/7hc4OTJgWMiOJQRo2fA8Duh+YvNSv9vfV4V3alcZKjSz9s/f2X3d+au0cnP5dlqQfhj0UwslXAPf7tH6NJs9gtm/Z9i90yCvBANfr556pV0tnVk0+7pXR2BShbhfB7KqHEljxoxf/vU6Pc+a1RAr7UjbL1frvMrywl1qGQmq0ETw8hvIx8B2WOX93PY9H529d1ug1gcmBfzI7k4j0MAoDaIc3VXtTZLp47iFQV+TF81OgCeAlY6zsWf6jIOOQh7EFlelMZqXpOMyqm4TGfjyHcjwa67XxItyfMsO+AQC+oOk7QPyjifCrOjXFgctGxPlZGhdAbBlSYfin1z0GZdqYMGNFe77l8ezCX6TGQyDsgAQ44zUwoAiCagN83hHEkI6NGoKBrBRQMgL2DLDIoI8EU3sXbJFCaf0pEHREE/bdfBHispIUpAUSBKe81a3b8k9OTXvx7AyudD4NfhKSEzkRJq9WA8Hsj+vdQlltloRRDB4ZOj2ng6p2AdiRzujfQD7nhr104zJ4QXJHHHQU56IOa4zC6Mt72H22Xs+rz/hjC25cq2nFCXnjgOOVgeqAo8RD9IsHxUHld4XhECBJqA/khqLQSNGHHUeSjdKuA65kXvqbw4FEY1WEnIKSoYR1XqABnUsaHxGg4wEwPUkVlwLBvqKCih0myrQJOoucGbP9Z8KiA+vWt9RbhEO+twniU8aAcIQY1lRfDOmjmMUAOdpgoM8gHbrvIctw+6KFehAHWBAPDR5Bp1QtA5jHRs45Qu94WiMemhorc1kuwCERpgDwl3qZwelShLp7Vx0nIEtCjWFlHkhN6DtRIx0HYd5DTkyD7r/eSQ5/vHE/1YpKjj4mqbVEF1kjUoFecwnWSf2qeCEUTQhMlUIISZcoce3RvEk2AMpKm+ucJu8P2g+Z7WmAlqBL2jjCPj7aFLMeqMrxcUNwxilqvaTBzrAZFlOT7obOn0NBuw31hqNzrggTIEAM6629RgMh0MYLF0JUpTDyZpqVXUpuaFpQlp000IIg3lh1ULVQCCtO3aK0x2Io8SLYtZPnhqD+JCvjQGugmTFqctISiGYDo7617u4XNh030oAkQTAmcDJqnOdutBqr9uuknjU/NE07+RX7eFtsyeUTvWPnKgq9jyRZA1amyHjnOPJJCNZ1KgI6eB821iS0wNAApoSAUx/2oZ7eCLHOTG7AZKjIpkL4GVEhqAWMDwWgc7Pw6FzjEXjrTsMNDZ97MhLYupFOoDJW3xW0DcLY9Bi3FPsorBziPtr62GjtmTMfsvNBa1ME7o0ERI1aI3z6pVZHgKlQM3Yh4FN765CkwVltBlq90ZT560xtM39SLEGYniCGObcyAbqCNlwraMjZKRLup7xcLUUSQvnkXQElkRuJRe+3tECh5TwIItALA2Je6wb81AML7o0Ib0btCs/zUREFTmiUle78ZUNIMrfKk0YC42cwplfq5/UDKJmGyJXpOFV3o9OrwaifxGE/hUQJ0UMHha43Xgy4COociGRu8whplLWo8Ftc1CSGPXwokKLslwIUh+u1L6BuoDnKre3iM0kDopNMsdULXE/8VpTnWIA+rAbqrXIZktH0QDhOgnWGhnZtiO4DzY8NDIvSLARQpr7oCgfqkJgwg8QPU2IqI8RAHlAEhIohRBgXOAGHQg6KfSI9h/+sY9F9BiXf+1ir+uf2zTKKfSop7D45An+iBbgB0Jvpv9yafG3/KHtAb7n4KUHaHTV22GsBRU5mTslGHa8Pgl3wcIB7+lNx7uw3ARb28NXlQTj65xk81KZUAzbBbNIHwvuX/EiSVjxPVPClLFdDlowmjzw0gPCgp1eOi6Cc52KMPu/kv4/joE+H/bIn59cdQFk3aRePzYwH0tNClKU1AeFDK7okQ7vF5AgFoDpqUoQXYD51GiajR+/ctcCgjH/7wofVYPv/yVWoo9BeLk1FvR0GnixkA+vgl0C0ojCpQRGLymujwM8vM1LXHWr3meFCH9/o9sFDsoAyu5wfyNWrOvhQ4r9SBfwJBGAE8jHpBVOYB5Y1nD6n9BDU2hFcGZQKQkgXvbW12+edJPoDxc6t8CoSAklk7gO9KlieJQnoi89PjUlSjVE1Qk+Jes0Q9KAHiAowUTUpAPk+iBo/eQ8mDkjwpAfKSzntMKb838v3Pu2X53VVBGgJRdiZNau6e6gAY0YbTND0sBOt3pucJKQMI8/qyEUB/LygXRp3vjrneByuE5oKzbXpyxL4Ak9ACdoUPTVBQ8PhDMxQ62JaEBpRN1KAflx+bu4fzN1BSlkYXDfvbLzWavxvmlOwBqlefb9cauYC+A0KSADiCN1AktddmOT5NqWWk8zGVLWK6MwmiLRhPf+iLL60R+ULMRT99KHQ3zn4aNiHsJgKfA7vn5Pjj/9sMpTQ//VRCwefGx1im6l/HYORDEz04afoTQB9/+OmBDvIgj4fq/XfluWqQ5/ddZlw3FPDuDdCG2YF9qNW6zhRWG/ZU7aPjHSiwEsV16T/cr9nRqmOsEAwjinj03W1L+y5oEtHe4vdmMmVKtHVErEKR7YFMrWE1Bjyx+Hadzu7BYSEj8/1IlMswAvn3N5yLPauAYN9oI+eivKYudlGQSH3kAcFQGXik3DSSYBxgtQAhVaM90LaAvDDfHbgojP/aNkDxayzQ7Z6VN1QFmFoNhGyemQkv/Wwfcplrisihxn28SFdSpb4/5vTxk5oMhwK6cNPX1jgTdEARKGZzWfAIYKMY0AY1k2pj40EfvxAU6MMnX5zu/MUWSpjwe7NxAt3DJoSpYvLRwUltOlNrsMm/5PC4qKOXzRPU7qcA4D80uffnBenaFm1Q4/KfHjh2j7YhmyGqM+rrA5rcgqoI4elUuiRAmqE4BG+sJQIlObO+bcGB6idW5YakSGIID8eFz/Ps+4fTozYjsCiUs4CRWsyZd0UQ6NBW4DzBBkCTaakFqu7TnVFOOMidxzGqSXFcybutOCvYSyCA7hSeDFA5AhrnvQTI+SsW0imaHqIrDwHM8Ysi82eKgAgfX4G2hMSErQBOfIFiGD8803WnmyoMGFQnhIzIMTwAVMavMiXXVPuusXXhriiLAapUlHcQ8tFWAFeMfQGQPZ29M3UoGcZTy/KtR+PRIbKgIMMC+qNI6BRSOEATgsORGg5D4GtVHn+5nut3w44CNA5S0BKmp92iQEHKuAKq1GcAr+qzkIceTKCuJKwPUvUzJ3WEEOV6ZguAe1IMjG9jQKFwcDyLqHYsBg+uXruRmWWmAJ3BOyQY5rF3woCIOBdg1DfRFgD3OqQJykCVQgIa/KuZ5aE6z2tVasAYrU77YD1Edz2I8ARHNFuHfyZAolTh7m9B9CuUJ0J48Omfiml7l1I1y9bpSUKt2HuCySa6ASWcgBoQjnplKB8cnUiT8C+N8vT0jsZuGUzx5efi+itUcWKQKjP1u8xZYdAx1PY+2WkChcUDkSAMVFCgDqTuxjqFMEMPimH63YHbj4VhJCaRJNA1gPkIMG3qNRL4OPf+MKTYkCEwbdVgoi4YtIUntma/GGv9o3QLIs6T37ufJg1cSx01AofN8qQZ/uiT3TeNrqvjXoQS1eTxEbRapXxCEj0BeqX/vN8sQwkl7X9rqMFvzXCCzqPwyTUnRTf77nFL2rqyRtHb82osdcjV64I9lTHI87Eh1PiQOvtXd4Ouxaeg2oNplR2mwqOCCMfBoyCMsu8uLXXSdWrs2rzMsLGaeXMjJ2EHoDokkmLWVc9ggshTZDF3SU0TolRaaTSPnmEDSbQFSrw6yAIPg5tmA48NaIq2pjNNl62M13SmTncWHGHa5nIe3fQiWIngUAUCo0E3i82ovR1JNkpnANr1DLEoKuVdzP2Zj+b4lTCToFGKRHhA1XWfHYsG9VoCBEMUFDrDBW22A7jqeJqAcSBhgLLRHj0YPu3OZnDFLLkSrwJPsKDNHqhu/nZog0V5FRuDHhNyfJI8Nbmk21XhbzBYT8j2BTicCoTK6N5gquUUIjgy9uOOIx5laC+FqLY1+hD8r8c1dzqnZauampWlFhOF5pGanEAdR68dz8bkjyPVLEtQzUkZNWi1pONL/R7gXvnTCT9/eP/nD4AWo4+aujcgfHq/VZhT7XRcSY7SYOgz23tv8TthdkjyzINKul5mp+YAB4Es9GbJpfGLaenZFgFn37kgGqn8WEvnbTGPXb2yeDO18s0AOoUUwlQMweHUnM6UIZc4iQdbWEpd7HUVVRSE4FWFP1XCrywYX585dtFvnwSZRmiBztPasSPGdYVMDaxl2xoJ6sanwYR7agI0+x/C4unT7w3tms2SEzU56k1aAir+16lpln8ONE5KPjTt0e4R0X8SVZZbh7nO8fyYQL04G96p6qZEEX7q1HRHbnF7C2NRIUsFKoc1W0eW/u0Ujvqkx5yraX0GO0+mn6rFiGTwJIkIXqa5brxyW9rJxto6ynquF2fGscG7rkPNDocXmFWNevYrCchv3YNo6R7G8bs25JAw61gzN73FVDJva/MDNob3UFk0aFBnkeqPK8/Zc70freu9ETIqdPgG1PfdgXOaHtBNWXIwJYYfuqW/bjwokoZoymUtSIUf+gIUj+hhRbu4ybstbmwqQ1XBu+QrthjanqESW/8vvbk5b+xenmlZREx2C8nSI2Ce3pTVcNNX1+ygcbcVOI+yNytPbhA4SatoALcTOITBF+fNbOlIEgORMrcTcxaozC0ly+zm3MebBi5CRTcM201i7gmk5nYCF3DMCihuoyqYBl9vJ3CWN3I7paUiekGluL1kyS2VlhXMk1NuJ88Vtxa4ILeWLDGBW2yhYG868nWTwEWQcktdno4jGt9Sl0di8Mc3SpY3eJ/46/uAhNtJlg+Z3UZxS82vwW31xCOY5vneQsyN4FW4wavnb1CgBIDoibqlAgXDEyHcTlVg4puWKDfHAq3mv/KbgvI2kmXozK9zvoU8V924t3pjZKmachJKHW4lWc5qVklvIXBiICKYm4w53yRwntsKnKqvNbvBRI2bA04rydKAUbcxPSpUggPz5Cbtr5sCziYaA5m7Sa8nuqk9bP5BFKW6N2x+mtwyzMWIiyBVoUfYuS1ewfNZl8tAG8Qzss7vHN9kMt23GvtuPs9Ix6CPldFtgS8vtv3eZBn1XKebFzVsPAV8GvBxZ2yGSZIkj35cgRLZcO9v+e8WoPM3dNnPVTEpPzc+/nuQ8i9iyknr3p+P+AFH1Es6RM+SpJNOSyPSKQvqpAP9/iN0ksy//pF47lk+tSA792vm6slpGYiO0cfRQ8ezWcyh81Yle9kPAVzUzUmMQPJi/tmjt+fkjNrLgOjp9GdRd9RpZ1sOXNTNAVTvxSUyzPp3ewJ03gJEv9ZAPa/+2u4Mem+3VKBo8/i3+jYyM71mrbfM79b207GUnx+T7yY7ebT3oXXv5xzeH4XPdvd9uaVCRHeu4Z/fjbtxN+7G3bgbd+Nu3I3/sENf+5Dn249nX+oVpNfs0HtyA9Z+U74QuBO51ip1c1du4Hyz/CIyi65Jl+EGTq70BUzpq5ZmhmuyXHQDaTz+y4Bb2lphg+FuoN1EekFsXXFDWyXXaRAUNeDxtw5RnsA5gaCvWnZ6LabzsKzfBF87vBx9CVnqL+jIEn37fjLnaV9fPfXOXq9c1d9MQsgl+xlZ1Wq17v1lRaO7fYHrMJ2Cb850vZLzTBedO7uov8xby1dyAqAnFwOWrXr83H+/Sp5c4Hagv/QWkGflvcm8vffSX/TUvcnyDYwmq4DT8en0xR8nqxZ5MdA6LxYoV+xKc+lziuaymO2E+efp+2WvU3Dhdhx0c9qbdznP6TN3Xfud5Ty7hOnO8O3w0SpO0JuZ4WHhc1kqY+2yxj5hCdPpFbCBN5fog2XvnY6RXaLCVzS+Cum63Fp1RVHilgIXxevPSOxGQr1IL5GZ58a7TRp8L9vcaPkGnv18DtzeZiqcDYT64Qrik5WEfrVjKHOJFvXLJlay3sHUG3qewS4nW70ZYtbje5UGXsXSp5Mk61+wzpIaL19euNb54PhqwJmLwM3m6OT5QZ6PV/NsZzXTJf1kuZyQGYDpdVAX0k1toFWYm07RnfaozO1yv2V629gyTtH5wYuDvLcEtRHA61UYX2//vdvQoq8vBtMX3j1F3Gnqy6tVlJ6t+qJOCnpZXCQ2D2i/CuPBbmIRb2aVm3O0rxcQFy+cuC+Brr6PLFtOBGreCH2pyKkwq5b58TraYNkG6Joy7Dngagj1Gap5Zc5ntYb5BQqXBUTCBbq0gKk/WcY+Pr1OUkJ1URxU9Q/lHHBP58V7i9qqs4RnTf1WfYkolmXsMO335a7HU2aDMAb1VTJnaF/P5wznEFW9XbLI+saPSx3WcN5krfd+JdNtwFN6wzjNedrX82ftJjw7u8gk3Vynzm7iWcl0G2gDuyH052h/HjjQ2UY8u4jrzVROOuWQlUy3gSL/uMFe6tmb3Bng7BIOZWVrjGqd7ZxdZAd7ceIrWVjrhM5sA5fEUGSjzqd2RkAbBUTS89R82SPjjQTGmq/tjML1InB6M56V2RzrmE5doGY1Zy11PZ5aQ7nzDcSd4Xc9/Ue1ucRSXDUK6dft/tUUuVn2fnW6tnRhzelGZH/q/fsrR/UWNsUuXfWlPGU2Ejr+9L9uATi3RAqs5lmu3BpxBpG/xLO9BKt6uFbo2MupTW1oA8zXu84Ayxbff7pz6gIUlaybvw7mjDfaQOwirNNDLb+R2e3mOxFzhRi1mq9Bj1Ztr1knKi9x6xY3MEOd+jZ6w9i/X7T8e92NlXi6sHNaLSuWqNbyVFhjgi5uYGAhWXoKnLlSyvDLbB2XqSXUTLX8As71PCWXC53FDWTxnge9oXlnN5Yn6gIi3CZybsxV3KhV4mCpQMk2F3obyf7qKva8rA2V2MsoN2INcGzoEqy3t+p7nsyS2Pi1eQreXEZeYeXa9GbpL36tupB5MdkiCW1GzbJOYNdCR68zL66JuXStupgC1zsremQjYbVeGwwvMUFXb6DeTIevNyVVCs97iZwxRqLNnq3sWkW+aILK0gjBkuC63ij7JdrA/BwmyYGco1G/Yc3J67WoW60Nlm1gdRWyDBtJ1OWHCpvY2d6sW8tqoeMvW4e5ohHFZk2wNqXmRQvLXkfopKu3RW90Ic7VshHOhmPs5ucYH68jdNxqgaw39lvOv1ev0iGnFqReRs2PrmNhrRE6ZjlUehNWWsazOl5Fc3uXUvP+KL2GhTUXOnYpdi6szWyOOb/scqtVeFsoJF5CzT23Qjzba7p1Ydl1y2cRmK5V4fUPo+enhsjSfeks3tp7Ss2z55Ss8nPfXNOtsxcwFLmZovuHC6cHXMKzUfugLmCPLu5Zv8pmZ2QXqFnPnlsd86yMXMutk7k8idqnZ3B+irn1wJ2a3U9mTF9dQHd4ka2m5qen060Uu9dz6xbMi71pQKZa4Me1EeSFkJKbM685vyP2Mmp2G8S1N3frzPmnshnsYb42u8Bz4apRUXceuGwzDWRWM/i13Lp0/kk0J6b52vTFw9aNVXi0gQIxSwB2X+jWybn3qVXJTbO4pd3AVTuvXvwGVoe5YojzkqyseSxJzm1gdU6bz8+i9Pob4PQp8KdRwepK1raZg6ku0a3rde5wKaMurCib/RU2PAhZWORrUBlnufZSaj61i6fP+Ut4oLLXS2w4XZG6IM2qNYy88I3vJXurJMpSKpuuJvSS0QaFPa83zT5btoEczi0/O/3lPwDWXWrWuQXEvuR6Cdunz1l3ZonhrIUlV0zxWthAqnxmQmSm/kbP0KrW3zZwQTfoa8iT7DKMuyuiLrp8b0+T6e3VUub9OgVyibCMrpR7d4nQWTGHXjjC59JjFH/NdPt0uWpXl8Igm8WSzgDnVtLZQh6KOX9J4+X2h9lAOyquCFzYMJa02ebq01eqM0IsMlOhll5y4ClXB6663MOy6xB5RsnbFcLC1BhbTLA5XOpPr/JEsk1vPbkS9b3hKiFUuQS4OYO+nra0XfCYZd0LNpBW18D4+jvcwgYbmNUL0Iu4DrNeTlHv7NFwxVWZZ7WwNJdvyvAK2iBaswn6zCvD8FEK0bP2Bi+4LnDZ5c/5K+RqX2qanwI3Z9PRMEnagyvJLzbOlNropXLFfGaz2vvUK2oBzj5muLLYS7+og/yl483an05zbfSZjIkl+365VybXbMaVfgnqzgqdbNXGy6k5E8zVt/CyhawUsurLU0eHbOb7nr5pcN5CkTW8Y77gxi+5BNTKrttXvxgx2WybDs+sVo3W8Y65FBeXRyEvA47X80/NCjUk6yIBF8Lp1SLu9Ghzp81fsyFFYFqEcQExfsGQtKsP3i7fwOhs29XB/ARgk86h2Xwv8itaX/Pnomrpo/MPfb785VWer8GccKGnrM+jp4K6n+Ubyq7raEEjG0N/bXFWr+18w9zq5Y03nuUbtHnMzFfoKXstzLE1nWlk2+8eubut88aamma3HXPRDw1cxXeXoRtejbDNqqC65Bu9ieCurukzm++GWAXY9cANVZKsUAdGJfoSFaI6brluNElivwoIRbJqbZVZX1Z2N+7G3bgbd+Nu3I27sT0hiOuP//Kfl/g3/4vLruw5Hf/4P9nqG5X++/9YsubbHGb4bvGUr425//ZfL8IW/e8lP3ymt83BvRt3427cjbtxN+7G3fiBxrSELLJcpePmuksjv/RlV3F56jTFuuIxarNwNr/vIMhCyWCoA8G9ujdh1AaCRG0IMn1ULbT2SPL5BN2sfls3m09BkLmHFORbeQUJqITCznKN54nC2sXjheRhNT8jEDdPTFaWqgd2+i8ThhfXkNSpom8MKoOw+LI3QGK+pYOhEoNKpimnSTLv0brfAbUzvV4vOV1RlMzATOrLOntm/mgvOU3SmR8dqCSpn5vd1ddLpm9GJWb257fz58KZQ35b13T5WbK0P0Ps/nzLWmMWsnmj0wQ/OWUSA1Tq9BgpXeQcHb65s5ouOwKuFuf10dpsB7XYfzc6BU5fyJTw1/b49JdlWoRsfivKaN4MhVmNv91Uks3gCGqhzP/cy2A6yU2FGaJpAeuszKk6i9Hi/M3o2bLjSL1A6d6clvlXF8lDf2vMycJk3rE60ZbIZ6vTWE7vYgnGnFK6u7TMv/uNgTtzM08607Khs/RcWV1WtjPDYmrcabFAuLRaSb4xcE9OWSBJ3DzpeOn17latPDiPzLx5mzvXp0KtVEQJ3xQ4lbiQLa0e8helh81WSrekfSobNHphGW++YnKY/gJrLZ/dPc0rs6zfh4BZITHNQrupsyqjMisbKa1LsvxS4HyxnGoG5iIBRiSJnGWTuawY2DlrBZ+0F3Wnu6TE1HxbnvNndPipHXt4MRva637frpIo2XzmtNPvm+keTKtMVtaKD/i2EWfrLkgz/SSb9o04O+6/IGpPOwpI3bh2sGDFpTXzuhzU9OkAIMar73RWkJ19pAcEt5RirIFqzk3nu/KaRZGvLvTNXilkvylw+ixLCKCipamGki2Wd0ZApBbL4KYd2+v+y36zcnH/bTFXnd1yBSgPyHlS0tMesq6exqfwxF/cpDDtDV3/IzpXuSlLqOEbAWfrVg5qWj3/6PlzU4O0QyR+fl5V6/NuSE9rTirDsN9zdjanpTK8AyKj64feAVh/tlNYdCpcLOr582dyJeCuGmbQx/REH8+97SBTl3VaQaLjhbhAN1Nm+k3UBvTxPOgQu6hN7EhAjegJBJnFF1DJwsvqh5I1JQxfLxp0QQ896z9a+1C/f/6x5yv12SPuxn/o8f8BTB5zovDErYEAAAAASUVORK5CYII=" alt="Capanna Restaurante"><p id="sous-titre">Pointage</p></header>
+<main id="app"></main>
+<div id="impression"></div>
+<script>
+"use strict";
+// ======================================================================
+// Socle
+// ======================================================================
+const API = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/pointage-v2";
+const TZ = "Africa/Casablanca";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  sget(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  sset(k, v) { try { v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} },
+};
+async function api(body) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ erreur: "Réponse illisible du serveur." }));
+  if (!r.ok || j.erreur) throw new Error(j.erreur || "Erreur " + r.status);
+  return j;
+}
+function msg(el, texte, genre = "mal") { if (!el) return; el.innerHTML = texte ? `<div class="msg ${genre}">${esc(texte)}</div>` : ""; }
+const heure = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+const hhmm = (m) => (m === null || m === undefined) ? "—" : `${String(Math.floor(m / 60) % 24).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`;
+const tmin = (t) => { if (!t) return null; const [h, m] = String(t).split(":").map(Number); return h * 60 + m; };
+const hcourt = (t) => t ? String(t).slice(0, 5).replace(":", "h") : "";
+const duree = (m) => { m = Math.round(m || 0); if (m < 60) return `${m} min`; const h = Math.floor(m / 60), r = m % 60; return r ? `${h} h ${String(r).padStart(2, "0")}` : `${h} h`; };
+const JOURS = ["", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const JOURS_C = ["", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const dow = (d) => { const x = new Date(d + "T12:00:00Z").getUTCDay(); return x === 0 ? 7 : x; };
+const plusJours = (d, n) => new Date(new Date(d + "T12:00:00Z").getTime() + n * 864e5).toISOString().slice(0, 10);
+const lundiDe = (d) => plusJours(d, 1 - dow(d));
+const debutMois = (d) => d.slice(0, 8) + "01";
+const finMois = (d) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).toISOString().slice(0, 10);
+const dateFr = (d) => { const x = new Date(d + "T12:00:00Z"); return `${JOURS[dow(d)]} ${x.getUTCDate()} ${MOIS[x.getUTCMonth()]}`; };
+const dateCourte = (d) => { const x = new Date(d + "T12:00:00Z"); return `${String(x.getUTCDate()).padStart(2, "0")}/${String(x.getUTCMonth() + 1).padStart(2, "0")}`; };
+const dateHeure = (iso) => new Date(iso).toLocaleString("fr-FR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const aujLocal = () => { const d = new Date(Date.now() - 5 * 3600e3); return d.toLocaleDateString("en-CA", { timeZone: TZ }); };
+
+// ---------- smileys (identité validée le 21/11/2026) ----------
+const SMILEY_COULEURS = { vert: "#2E9E5B", jaune: "#D9A400", orange: "#E2742B", rouge: "#D2453F" };
+const SMILEY_BOUCHES = {
+  vert: "M15.5 28.5 Q24 36 32.5 28.5", jaune: "M16.5 31 Q24 32.5 31.5 31",
+  orange: "M16.5 32.5 Q24 28.5 31.5 32.5", rouge: "M15.5 34 Q24 26 32.5 34",
+};
+function smiley(niveau, opts = {}) {
+  const n = SMILEY_COULEURS[niveau] ? niveau : "vert";
+  const taille = opts.taille || 40, titre = esc(opts.titre || "");
+  const couleur = opts.couleur && /^#[0-9a-f]{6}$/i.test(opts.couleur) ? opts.couleur : SMILEY_COULEURS[n];
+  return `<svg class="smiley${opts.anime ? " smiley-anime" : ""}" viewBox="0 0 48 48" width="${taille}" height="${taille}" role="img" aria-label="${titre}" style="color:${couleur}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${titre ? `<title>${titre}</title>` : ""}<circle class="smiley-visage" cx="24" cy="24" r="20"/><path class="smiley-oeil" d="M18 18.5v4"/><path class="smiley-oeil" d="M30 18.5v4"/><path class="smiley-bouche" d="${SMILEY_BOUCHES[n]}"/></svg>`;
+}
+const smileyDe = (e, taille, anime) => e ? smiley(e.smiley, { taille, anime, couleur: e.couleur, titre: e.message }) : "";
+
+// ---------- fichiers : photo compressée ou PDF, avant envoi ----------
+const TAILLE_MAX = 5 * 1024 * 1024;
+function lireDataURL(blob) { return new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(blob); }); }
+async function preparerFichier(f) {
+  if (!f) return null;
+  const pdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+  if (pdf) {
+    if (f.size > TAILLE_MAX) throw new Error("PDF trop lourd (5 Mo maximum).");
+    return { nom: f.name, type: "application/pdf", taille: f.size, data: await lireDataURL(f), apercu: null };
+  }
+  if (!/^image\//.test(f.type) && !/\.(jpe?g|png|heic|heif)$/i.test(f.name)) throw new Error("Format refusé : photo (JPG, PNG) ou PDF uniquement.");
+  // la photo est redimensionnée et réencodée en JPEG : plus légère, et sans données cachées
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error("Image illisible.")); i.src = url; });
+    const max = 1800, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    const data = c.toDataURL("image/jpeg", 0.82);
+    const taille = Math.round((data.length - data.indexOf(",") - 1) * 3 / 4);
+    if (taille > TAILLE_MAX) throw new Error("Photo trop lourde, même compressée.");
+    return { nom: f.name.replace(/\.\w+$/, "") + ".jpg", type: "image/jpeg", taille, data, apercu: data };
+  } finally { URL.revokeObjectURL(url); }
+}
+const taillePropre = (o) => o > 1048576 ? (o / 1048576).toFixed(1) + " Mo" : Math.max(1, Math.round(o / 1024)) + " Ko";
+function ouvrirDocument(type_mime, base64, titre) {
+  const bin = atob(base64), o = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([o], { type: type_mime }));
+  if (type_mime === "application/pdf") {
+    feuille(`<div class="entete"><h2>${esc(titre)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+      <p class="sous">Document PDF. Il s'ouvre dans un nouvel onglet, sans adresse publique : le lien disparaît à la fermeture.</p>
+      <div class="pile" style="margin-top:12px"><a class="b-principal" style="text-align:center;padding:14px;border-radius:14px;color:#fff;text-decoration:none" href="${url}" target="_blank" rel="noopener">Ouvrir le PDF</a></div>`, () => URL.revokeObjectURL(url));
+  } else {
+    feuille(`<div class="entete"><h2>${esc(titre)}</h2><button class="b-sec" data-fermer>Fermer</button></div><div class="doc-vue"><img src="${url}" alt="${esc(titre)}"></div>`, () => URL.revokeObjectURL(url));
+  }
+}
+
+// ---------- feuille modale ----------
+function feuille(html, auFermer) {
+  const v = document.createElement("div"); v.className = "voile";
+  v.innerHTML = `<div class="feuille" role="dialog" aria-modal="true">${html}</div>`;
+  const fermer = () => { v.remove(); document.body.style.overflow = ""; auFermer && auFermer(); };
+  v.addEventListener("click", (e) => { if (e.target === v || e.target.closest("[data-fermer]")) fermer(); });
+  const echap = (e) => { if (e.key === "Escape") { document.removeEventListener("keydown", echap); fermer(); } };
+  document.addEventListener("keydown", echap);
+  document.body.appendChild(v); document.body.style.overflow = "hidden";
+  return { el: v.firstElementChild, fermer };
+}
+function demanderMotif(titre, aide, valider, opts = {}) {
+  const f = feuille(`<div class="entete"><h2>${esc(titre)}</h2><button class="b-sec" data-fermer>Annuler</button></div>
+    ${aide ? `<p class="sous">${aide}</p>` : ""}${opts.avant || ""}
+    <label>${esc(opts.label || "Motif (obligatoire)")}</label><textarea id="m-motif" placeholder="${esc(opts.placeholder || "Ex. : oubli de pointage, confirmé par le chef de salle")}"></textarea>
+    <div id="m-msg"></div><div class="pile" style="margin-top:12px"><button class="${opts.classe || "b-principal"} b-plein" id="m-ok">${esc(opts.bouton || "Enregistrer")}</button></div>`);
+  $("#m-ok", f.el).onclick = async () => {
+    const motif = $("#m-motif", f.el).value.trim();
+    if (!opts.facultatif && motif.length < 3) return msg($("#m-msg", f.el), "Le motif est obligatoire (3 caractères minimum).");
+    $("#m-ok", f.el).disabled = true;
+    try { await valider(motif, f.el); f.fermer(); } catch (e) { msg($("#m-msg", f.el), e.message); $("#m-ok", f.el).disabled = false; }
+  };
+  return f;
+}
+const LIB_TYPE = { absence_autorisee: "Absence autorisée", retard_justifie: "Retard autorisé", depart_anticipe: "Départ anticipé", conge: "Congé", maladie: "Maladie", absence_injustifiee: "Absence injustifiée" };
+const LIB_STATUT = { demandee: "En attente", complement: "Complément demandé", validee: "Acceptée", refusee: "Refusée", annulee: "Annulée" };
+const CLASSE_STATUT = { demandee: "attente", complement: "complement", validee: "validee", refusee: "refusee", annulee: "annulee" };
+const LIB_JOUR = { travaille: "Travaillé", present: "Présent", depart_non_pointe: "Départ non pointé", coupure_non_pointee: "Coupure non pointée", absence_justifiee: "Absence justifiée", absence_injustifiee: "Absent", absent_en_cours: "Pas encore arrivé", a_venir: "À venir", hors_planning: "Hors planning" };
+function periodeDemande(d) {
+  let t = d.date_debut === d.date_fin ? dateFr(d.date_debut) : `du ${dateCourte(d.date_debut)} au ${dateCourte(d.date_fin)}`;
+  if (d.type === "retard_justifie" && d.heure_fin) t += ` · arrivée prévue ${hcourt(d.heure_fin)}`;
+  else if (d.type === "depart_anticipe" && d.heure_debut) t += ` · départ à ${hcourt(d.heure_debut)}`;
+  else if (d.heure_debut && d.heure_fin) t += ` · ${hcourt(d.heure_debut)}–${hcourt(d.heure_fin)}`;
+  return t;
+}
+
+// ======================================================================
+// ESPACE EMPLOYÉ
+// ======================================================================
+const E = { token: store.get("capanna_token"), etat: null, onglet: "pointage", fichier: null };
+
+async function demarrerEmploye() {
+  document.body.classList.remove("admin");
+  $("#app").innerHTML = `<div class="carte wifi" id="etat-wifi"><span class="pastille"></span><span id="texte-wifi">Vérification du réseau…</span></div><div id="corps"></div>
+    <p class="petit" style="text-align:center;margin:18px 0">Astuce : ajoute cette page à ton écran d'accueil (Partager → « Sur l'écran d'accueil »).</p>`;
+  try { E.etat = await api({ action: "init", token: E.token }); } catch (e) { return msg($("#corps"), e.message); }
+  const ok = E.etat.wifi;
+  $("#etat-wifi").className = "carte wifi " + (ok ? "ok" : "ko");
+  $("#texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna" : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
+  if (!E.etat.moi) return ecranActivation();
+  ecranEmploye();
+}
+
+function ecranActivation() {
+  const emps = E.etat.employes || [];
+  $("#corps").innerHTML = `<div class="carte"><h2>Activer mon téléphone</h2>
+    <p class="sous">À faire une seule fois, sur le Wi-Fi Capanna, avec le code donné par le gérant.</p>
+    ${E.etat.wifi ? `<label>Ton nom</label><select id="a-nom"><option value="">Choisis ton nom…</option>${emps.map((x) => `<option value="${x.id}">${esc(x.nom)} — ${esc(x.service)}</option>`).join("")}</select>
+    <label>Code à 4 chiffres</label><input id="a-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+    <div class="pile" style="margin-top:14px"><button class="b-principal b-grand" id="a-ok">Activer</button></div>` : `<div class="msg info">Connecte-toi d'abord au Wi-Fi du restaurant, puis recharge la page.</div>`}
+    <div id="a-msg"></div></div>`;
+  const b = $("#a-ok"); if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const r = await api({ action: "enregistrer", employe_id: $("#a-nom").value, pin: $("#a-pin").value.trim() });
+      E.token = r.token; store.set("capanna_token", r.token); demarrerEmploye();
+    } catch (e) { msg($("#a-msg"), e.message); b.disabled = false; }
+  };
+}
+
+function ecranEmploye() {
+  const m = E.etat.moi;
+  $("#corps").innerHTML = `<div class="onglets" role="tablist">
+      <button class="onglet ${E.onglet === "pointage" ? "actif" : ""}" data-o="pointage">Pointage</button>
+      <button class="onglet ${E.onglet === "demandes" ? "actif" : ""}" data-o="demandes">Mes demandes<span id="badge-e"></span></button>
+    </div><div id="vue-e"></div>`;
+  $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => { E.onglet = b.dataset.o; ecranEmploye(); });
+  if (E.onglet === "pointage") vuePointage(m); else vueMesDemandes();
+  api({ action: "mes_notifications", token: E.token }).then((r) => {
+    const n = (r.notifications || []).filter((x) => !x.lu).length;
+    if ($("#badge-e")) $("#badge-e").innerHTML = n ? `<span class="badge">${n}</span>` : "";
+  }).catch(() => {});
+}
+
+function vuePointage(m) {
+  const em = m.emojis;
+  $("#vue-e").innerHTML = `<div class="carte">
+      <h2>Bonjour ${esc(m.nom.split(" ")[0])}</h2>
+      <p class="sous">${esc(JOURS[dow(E.etat.jour_service)])} · prévu : ${esc(m.prevu)}</p>
+      <div class="pile" style="margin-top:16px">
+        <button class="b-principal b-grand" id="p-arr">Arrivée</button>
+        <button class="b-or b-grand" id="p-dep">Départ</button>
+      </div>
+      <div id="p-msg"></div>
+      <div id="p-resultat"></div>
+      <ul class="journal-jour" id="p-journal"></ul>
+    </div>
+    <div class="carte" id="p-mois"></div>`;
+  afficherJournal(m.aujourdhui);
+  afficherIndicateurs(em, false);
+  $("#p-arr").onclick = () => pointer("arrivee");
+  $("#p-dep").onclick = () => pointer("depart");
+}
+function afficherJournal(liste) {
+  $("#p-journal").innerHTML = (liste || []).map((p) => `<li>${p.type === "arrivee" ? "Arrivée" : "Départ"} à ${heure(p.horodatage)}</li>`).join("");
+  const dernier = (liste || [])[liste.length - 1];
+  $("#p-arr").disabled = dernier?.type === "arrivee";
+  $("#p-dep").disabled = dernier?.type !== "arrivee";
+}
+function afficherIndicateurs(em, anime) {
+  const mois = em?.mois;
+  $("#p-mois").innerHTML = mois ? `<div class="ligne">${smileyDe(mois, 44, anime)}<div class="flex"><div class="t" style="font-weight:650">Mon mois</div>
+      <div class="petit">${esc(mois.message)}</div></div></div>` : `<p class="petit">Tes indicateurs apparaîtront après ton premier pointage.</p>`;
+}
+async function pointer(type) {
+  $("#p-arr").disabled = $("#p-dep").disabled = true; msg($("#p-msg"), "");
+  try {
+    const r = await api({ action: "pointer", token: E.token, type });
+    const j = r.emojis?.jour;
+    $("#p-resultat").innerHTML = `<div class="resultat">${type === "arrivee" && j ? smileyDe(j, 64, true) : ""}
+      <div><div class="t">${type === "arrivee" ? "Arrivée" : "Départ"} enregistrée à ${esc(r.heure)}</div>
+      <div class="petit">${esc(type === "arrivee" && j ? j.message : r.info)}</div>${type === "arrivee" && j && r.info && !/heure|Retard/.test(r.info) ? `<div class="petit">${esc(r.info)}</div>` : ""}
+      ${type === "depart" && /prochain service/.test(r.info) ? "" : ""}</div></div>`;
+    afficherJournal(r.aujourdhui); afficherIndicateurs(r.emojis, true);
+  } catch (e) { msg($("#p-msg"), e.message); afficherJournal(E.etat.moi.aujourdhui); }
+}
+
+// ---------- Mes demandes ----------
+async function vueMesDemandes() {
+  $("#vue-e").innerHTML = `<div id="e-notifs"></div>
+    <div class="pile"><button class="b-principal b-plein" id="e-nouvelle">Nouvelle demande</button></div>
+    <div class="carte"><h3>Historique</h3><ul class="liste" id="e-liste"><li class="vide">Chargement…</li></ul></div>`;
+  $("#e-nouvelle").onclick = formulaireDemande;
+  try {
+    const [d, n] = await Promise.all([api({ action: "mes_demandes", token: E.token }), api({ action: "mes_notifications", token: E.token, marquer_lues: true })]);
+    const nonlues = (n.notifications || []).filter((x) => !x.lu);
+    $("#e-notifs").innerHTML = nonlues.length ? `<div class="carte"><h3>Nouveautés</h3><ul class="liste">${nonlues.map((x) => `<li><div class="flex"><div>${esc(x.message)}</div><div class="petit">${dateHeure(x.created_at)}</div></div></li>`).join("")}</ul></div>` : "";
+    if ($("#badge-e")) $("#badge-e").innerHTML = "";
+    const liste = d.demandes || [];
+    $("#e-liste").innerHTML = liste.length ? liste.map((x) => `<li class="cliquable" data-id="${x.id}">
+        <div class="flex"><div class="t">${esc(LIB_TYPE[x.type] || x.type)}</div><div class="petit">${esc(periodeDemande(x))}</div>
+        ${x.commentaire_decision ? `<div class="petit">Réponse : ${esc(x.commentaire_decision)}</div>` : ""}</div>
+        <div style="text-align:right"><span class="puce ${CLASSE_STATUT[x.statut]}">${LIB_STATUT[x.statut]}</span>
+        ${x.justificatif_manquant ? `<div style="margin-top:4px"><span class="puce manquant">Justificatif manquant</span></div>` : ""}</div></li>`).join("")
+      : `<li class="vide">Aucune demande pour l'instant.</li>`;
+    $$("#e-liste li[data-id]").forEach((li) => li.onclick = () => detailMaDemande(liste.find((x) => x.id === +li.dataset.id)));
+  } catch (e) { msg($("#e-liste"), e.message); }
+}
+
+const AIDE_TYPE = {
+  absence_autorisee: "Pour être absent(e) une journée ou une partie de journée.",
+  retard_justifie: "Indique l'heure à laquelle tu pourras arriver.",
+  depart_anticipe: "Indique l'heure à laquelle tu dois partir.",
+  conge: "Choisis les dates de début et de fin.",
+  maladie: "Un certificat médical est demandé : tu peux le photographier maintenant ou l'ajouter plus tard.",
+};
+function blocJustificatif(prefixe) {
+  return `<label>Justificatif (facultatif sauf maladie)</label>
+    <div class="ligne"><button type="button" class="b-sec flex" id="${prefixe}-photo">Prendre une photo</button><button type="button" class="b-sec flex" id="${prefixe}-fichier">Choisir un fichier</button></div>
+    <input type="file" id="${prefixe}-in-photo" accept="image/*" capture="environment" class="cache">
+    <input type="file" id="${prefixe}-in-fichier" accept="image/jpeg,image/png,application/pdf" class="cache">
+    <div id="${prefixe}-apercu"></div><p class="petit">Photo, JPG, PNG ou PDF · 5 Mo maximum · visible uniquement par le gérant.</p>`;
+}
+function brancherJustificatif(racine, prefixe, cible) {
+  const montrer = () => {
+    const f = cible.fichier;
+    $(`#${prefixe}-apercu`, racine).innerHTML = f ? `<div class="apercu">${f.apercu ? `<img src="${f.apercu}" alt="Aperçu">` : `<div class="doc">PDF</div>`}
+      <div class="flex"><div class="t">${esc(f.nom)}</div><div class="petit">${taillePropre(f.taille)}</div>
+      <div class="ligne" style="margin-top:4px"><button type="button" class="b-lien" id="${prefixe}-remplacer">Remplacer</button><button type="button" class="b-lien" style="color:var(--rouge)" id="${prefixe}-retirer">Retirer</button></div></div></div>` : "";
+    if (f) {
+      $(`#${prefixe}-remplacer`, racine).onclick = () => $(`#${prefixe}-in-fichier`, racine).click();
+      $(`#${prefixe}-retirer`, racine).onclick = () => { cible.fichier = null; montrer(); };
+    }
+  };
+  const charger = async (input) => {
+    const f = input.files[0]; input.value = "";
+    if (!f) return;
+    try { cible.fichier = await preparerFichier(f); montrer(); } catch (e) { $(`#${prefixe}-apercu`, racine).innerHTML = `<div class="msg mal">${esc(e.message)}</div>`; }
+  };
+  $(`#${prefixe}-photo`, racine).onclick = () => $(`#${prefixe}-in-photo`, racine).click();
+  $(`#${prefixe}-fichier`, racine).onclick = () => $(`#${prefixe}-in-fichier`, racine).click();
+  $(`#${prefixe}-in-photo`, racine).onchange = (e) => charger(e.target);
+  $(`#${prefixe}-in-fichier`, racine).onchange = (e) => charger(e.target);
+  montrer();
+}
+function formulaireDemande() {
+  const auj = E.etat.jour_service;
+  const cible = { fichier: null };
+  const f = feuille(`<div class="entete"><h2>Nouvelle demande</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <label>Type de demande</label>
+    <select id="d-type">${Object.entries({ absence_autorisee: "Autorisation d'absence", retard_justifie: "Autorisation de retard", depart_anticipe: "Départ anticipé", conge: "Congé", maladie: "Absence pour maladie" }).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+    <p class="petit" id="d-aide"></p>
+    <div class="ligne"><div class="flex"><label id="d-l-debut">Date</label><input type="date" id="d-debut" value="${auj}"></div>
+      <div class="flex" id="d-bloc-fin"><label>Jusqu'au</label><input type="date" id="d-fin" value="${auj}"></div></div>
+    <div class="ligne" id="d-heures"><div class="flex" id="d-bloc-hd"><label id="d-l-hd">De</label><input type="time" id="d-hd"></div><div class="flex" id="d-bloc-hf"><label id="d-l-hf">À</label><input type="time" id="d-hf"></div></div>
+    <label>Motif</label><input id="d-motif" maxlength="200" placeholder="Ex. : rendez-vous médical">
+    <label>Explication (facultatif)</label><textarea id="d-expl" maxlength="1000"></textarea>
+    ${blocJustificatif("dj")}
+    <div id="d-msg"></div><div class="pile" style="margin-top:14px"><button class="b-principal b-grand" id="d-ok">Envoyer la demande</button></div>`);
+  const r = f.el;
+  const maj = () => {
+    const t = $("#d-type", r).value;
+    $("#d-aide", r).textContent = AIDE_TYPE[t];
+    const plage = ["conge", "maladie", "absence_autorisee"].includes(t);
+    $("#d-bloc-fin", r).classList.toggle("cache", !plage);
+    $("#d-l-debut", r).textContent = plage ? "Du" : "Date";
+    $("#d-heures", r).classList.toggle("cache", ["conge", "maladie"].includes(t));
+    $("#d-bloc-hd", r).classList.toggle("cache", t === "retard_justifie");
+    $("#d-bloc-hf", r).classList.toggle("cache", t === "depart_anticipe");
+    $("#d-l-hd", r).textContent = t === "depart_anticipe" ? "Heure de départ" : "De (facultatif)";
+    $("#d-l-hf", r).textContent = t === "retard_justifie" ? "Heure d'arrivée prévue" : "À (facultatif)";
+  };
+  $("#d-type", r).onchange = maj; maj();
+  brancherJustificatif(r, "dj", cible);
+  $("#d-ok", r).onclick = async () => {
+    const t = $("#d-type", r).value, plage = ["conge", "maladie", "absence_autorisee"].includes(t);
+    const corps = {
+      action: "demande_creer", token: E.token, type: t, date_debut: $("#d-debut", r).value,
+      date_fin: plage ? $("#d-fin", r).value : $("#d-debut", r).value,
+      heure_debut: t === "retard_justifie" || ["conge", "maladie"].includes(t) ? "" : $("#d-hd", r).value,
+      heure_fin: t === "depart_anticipe" || ["conge", "maladie"].includes(t) ? "" : $("#d-hf", r).value,
+      motif: $("#d-motif", r).value, explication: $("#d-expl", r).value,
+    };
+    if (t === "retard_justifie" && !corps.heure_fin) return msg($("#d-msg", r), "Indique ton heure d'arrivée prévue.");
+    if (t === "depart_anticipe" && !corps.heure_debut) return msg($("#d-msg", r), "Indique ton heure de départ.");
+    if (corps.motif.trim().length < 3) return msg($("#d-msg", r), "Indique le motif de ta demande.");
+    if (cible.fichier) { corps.fichier = cible.fichier.data; corps.nom_fichier = cible.fichier.nom; }
+    $("#d-ok", r).disabled = true; $("#d-ok", r).textContent = "Envoi…";
+    try { await api(corps); f.fermer(); vueMesDemandes(); }
+    catch (e) { msg($("#d-msg", r), e.message); $("#d-ok", r).disabled = false; $("#d-ok", r).textContent = "Envoyer la demande"; }
+  };
+}
+function detailMaDemande(d) {
+  const enAttente = ["demandee", "complement"].includes(d.statut);
+  const cible = { fichier: null };
+  const just = d.hr_justificatifs?.[0];
+  const f = feuille(`<div class="entete"><h2>${esc(LIB_TYPE[d.type])}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span> ${d.justificatif_manquant ? `<span class="puce manquant">Justificatif manquant</span>` : ""}</p>
+    <div class="carte"><div class="petit">Période</div><div>${esc(periodeDemande(d))}</div>
+      <div class="petit" style="margin-top:10px">Motif</div><div>${esc(d.motif || "—")}</div>
+      ${d.explication ? `<div class="petit" style="margin-top:10px">Explication</div><div>${esc(d.explication)}</div>` : ""}
+      <div class="petit" style="margin-top:10px">Envoyée le</div><div>${dateHeure(d.created_at)}</div>
+      ${d.decide_le ? `<div class="petit" style="margin-top:10px">Réponse du ${dateHeure(d.decide_le)}</div><div>${esc(d.commentaire_decision || LIB_STATUT[d.statut])}</div>` : ""}</div>
+    <div class="carte"><h3>Justificatif</h3>${just ? `<p class="sous">${esc(just.nom_origine || "Document")} · ${taillePropre(just.taille)} · envoyé le ${dateHeure(just.created_at)}</p>
+      <div class="pile" style="margin-top:8px"><button class="b-sec" id="md-voir">Voir le document</button></div>` : `<p class="sous">Aucun document envoyé.</p>`}
+      ${enAttente ? `<div style="margin-top:6px">${blocJustificatif("mj")}</div><div class="pile" style="margin-top:8px"><button class="b-principal cache" id="md-envoyer">${just ? "Remplacer le justificatif" : "Envoyer le justificatif"}</button></div>` : ""}
+      <div id="md-msg"></div></div>
+    ${enAttente ? `<div class="pile"><button class="b-danger" id="md-annuler">Annuler ma demande</button></div>` : ""}`);
+  const r = f.el;
+  if (just) $("#md-voir", r).onclick = async () => { try { const x = await api({ action: "mon_justificatif", token: E.token, id: just.id }); ouvrirDocument(x.type_mime, x.fichier, "Mon justificatif"); } catch (e) { msg($("#md-msg", r), e.message); } };
+  if (enAttente) {
+    brancherJustificatif(r, "mj", new Proxy(cible, { set(o, k, v) { o[k] = v; $("#md-envoyer", r).classList.toggle("cache", !v); return true; } }));
+    $("#md-envoyer", r).onclick = async () => {
+      $("#md-envoyer", r).disabled = true;
+      try { await api({ action: "demande_justificatif", token: E.token, id: d.id, fichier: cible.fichier.data, nom_fichier: cible.fichier.nom }); f.fermer(); vueMesDemandes(); }
+      catch (e) { msg($("#md-msg", r), e.message); $("#md-envoyer", r).disabled = false; }
+    };
+    $("#md-annuler", r).onclick = async () => {
+      if (!confirm("Annuler cette demande ?")) return;
+      try { await api({ action: "demande_annuler", token: E.token, id: d.id }); f.fermer(); vueMesDemandes(); } catch (e) { msg($("#md-msg", r), e.message); }
+    };
+  }
+}
+
+// ======================================================================
+// ESPACE GÉRANT
+// ======================================================================
+const G = { code: store.sget("capanna_code_v2"), onglet: "tableau", equipe: [], js: null, cfg: null,
+  filtres: { debut: null, fin: null, employe: "", service: "" } };
+const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
+const ga = (body) => api({ ...body, code: G.code });
+
+async function demarrerGerant() {
+  document.body.classList.add("admin");
+  $("#sous-titre").textContent = "Espace gérant";
+  if (G.code) { try { await ga({ action: "admin_connexion" }); return coquilleGerant(); } catch { G.code = null; store.sset("capanna_code_v2", null); } }
+  let st = { configure: true };
+  try { st = await api({ action: "admin_statut" }); } catch {}
+  $("#app").innerHTML = `<div class="carte" style="max-width:420px;margin:12px auto"><h2>Espace gérant</h2>
+    <p class="sous">${st.configure ? "Entre ton code gérant." : "Choisis un code gérant (6 caractères minimum)."}</p>
+    <input id="g-code" type="password" autocomplete="current-password" placeholder="Code gérant" style="margin-top:12px">
+    ${st.configure ? "" : `<input id="g-code2" type="password" placeholder="Confirme le code" style="margin-top:8px">`}
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-grand" id="g-ok">Entrer</button></div><div id="g-msg"></div></div>`;
+  $("#g-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#g-ok").click(); });
+  $("#g-ok").onclick = async () => {
+    const code = $("#g-code").value;
+    try {
+      if (!st.configure) { if (code !== $("#g-code2").value) throw new Error("Les deux codes sont différents."); await api({ action: "admin_creer", code }); }
+      G.code = code; await ga({ action: "admin_connexion" }); store.sset("capanna_code_v2", code); coquilleGerant();
+    } catch (e) { G.code = null; msg($("#g-msg"), e.message); }
+  };
+}
+
+async function coquilleGerant() {
+  $("#app").innerHTML = `<div class="ligne" style="justify-content:space-between;margin-top:6px"><div class="onglets" id="g-onglets" style="flex:1"></div>
+    <button class="b-lien" id="g-sortir">Quitter</button></div><div id="vue-g"></div>`;
+  $("#g-sortir").onclick = () => { store.sset("capanna_code_v2", null); G.code = null; demarrerGerant(); };
+  try {
+    const [eq, cfg] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_config" })]);
+    G.equipe = eq.equipe; G.js = eq.jour_service; G.cfg = cfg.config;
+    Object.assign(SMILEY_COULEURS, G.cfg.couleurs || {});
+  } catch (e) { return msg($("#vue-g"), e.message); }
+  if (!G.filtres.debut) { G.filtres.debut = debutMois(G.js); G.filtres.fin = G.js; }
+  dessinerOnglets(); allerA(G.onglet);
+  rafraichirBadges();
+}
+function dessinerOnglets() {
+  $("#g-onglets").innerHTML = ONGLETS_G.map(([k, v]) => `<button class="onglet ${G.onglet === k ? "actif" : ""}" data-o="${k}">${v}<span data-badge="${k}"></span></button>`).join("");
+  $$("#g-onglets .onglet").forEach((b) => b.onclick = () => allerA(b.dataset.o));
+}
+async function rafraichirBadges() {
+  try {
+    const d = await ga({ action: "admin_demandes", filtre: "attente" });
+    const n = (d.compteurs?.attente || 0) + (d.compteurs?.complement || 0);
+    const el = $('[data-badge="demandes"]'); if (el) el.innerHTML = n ? `<span class="badge">${n}</span>` : "";
+  } catch {}
+}
+function allerA(o, arg) {
+  G.onglet = o; $$("#g-onglets .onglet").forEach((b) => b.classList.toggle("actif", b.dataset.o === o));
+  const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
+  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche }[o])(v, arg)
+    .catch((e) => msg(v, e.message));
+}
+const services = () => [...new Set(G.equipe.map((x) => x.service))].sort();
+const employeDe = (id) => G.equipe.find((x) => x.id === +id);
+const optionsEmployes = (sel, tous = "Tous les employés") => `<option value="">${tous}</option>` + G.equipe.filter((x) => x.actif).map((x) => `<option value="${x.id}" ${+sel === x.id ? "selected" : ""}>${esc(x.nom)}</option>`).join("");
+const optionsServices = (sel) => `<option value="">Tous les postes</option>` + services().map((s) => `<option ${sel === s ? "selected" : ""}>${esc(s)}</option>`).join("");
+
+// ---------- statistiques (toujours depuis le moteur hr_journees) ----------
+const AVEC_ARRIVEE = (r) => r.arrivee_min !== null && r.arrivee_min !== undefined;
+function stats(rows) {
+  const arr = rows.filter(AVEC_ARRIVEE), prev = arr.filter((r) => r.prevu_debut);
+  const ret = rows.filter((r) => r.retard_min > 0);
+  const cumul = ret.reduce((s, r) => s + r.retard_min, 0);
+  const abs = new Set(rows.filter((r) => r.statut === "absence_injustifiee").map((r) => r.employe_id + "|" + r.jour));
+  const absJ = new Set(rows.filter((r) => r.statut === "absence_justifiee").map((r) => r.employe_id + "|" + r.jour));
+  return {
+    nb_retards: ret.length, cumul, moyenne: ret.length ? Math.round(cumul / ret.length) : 0,
+    ponctualite: prev.length ? Math.round(100 * prev.filter((r) => r.retard_min === 0).length / prev.length) : null,
+    jours: new Set(arr.map((r) => r.employe_id + "|" + r.jour)).size, absences: abs.size, absences_justifiees: absJ.size,
+    heures_sup: rows.reduce((s, r) => s + (r.heures_sup_min || 0), 0), travail: rows.reduce((s, r) => s + (r.travail_min || 0), 0),
+    anomalies: rows.filter((r) => ["depart_non_pointe", "coupure_non_pointee"].includes(r.statut)).length,
+  };
+}
+function filtrer(rows, f) {
+  return rows.filter((r) => (!f.employe || r.employe_id === +f.employe) && (!f.service || r.service === f.service));
+}
+function niveauMois(rows) {
+  const c = G.cfg.mois, s = stats(rows);
+  let n = s.nb_retards > 0 ? 1 : 0;
+  for (let i = 0; i < 3; i++) if (s.nb_retards >= c.nombre[i] || s.cumul >= c.minutes[i]) n = Math.max(n, i + 2);
+  return { smiley: c.smileys[n], niveau: n, s };
+}
+function barres(series, opts = {}) {
+  // histogramme simple en SVG : [{ etiquette, valeur }]
+  const w = 640, h = 190, g = 34, b = 22, max = Math.max(1, ...series.map((x) => x.valeur));
+  const pas = (w - g - 8) / Math.max(1, series.length), lb = Math.min(46, pas * 0.6);
+  const y = (v) => h - b - (v / max) * (h - b - 18);
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.titre || "")}">
+    <line x1="${g}" x2="${w}" y1="${h - b}" y2="${h - b}" stroke="#E6E0CF"/>
+    ${series.map((x, i) => { const cx = g + pas * i + pas / 2; return `<g><rect x="${cx - lb / 2}" y="${y(x.valeur)}" width="${lb}" height="${h - b - y(x.valeur)}" rx="5" fill="${x.couleur || "#0B4F3C"}" opacity="${x.valeur ? 1 : .25}"><title>${esc(x.etiquette)} : ${esc(opts.format ? opts.format(x.valeur) : x.valeur)}</title></rect>
+      <text x="${cx}" y="${y(x.valeur) - 5}" text-anchor="middle" font-size="11" fill="#444">${x.valeur ? esc(opts.format ? opts.format(x.valeur) : x.valeur) : ""}</text>
+      <text x="${cx}" y="${h - 6}" text-anchor="middle" font-size="11" fill="#6b6b6b">${esc(x.etiquette)}</text></g>`; }).join("")}
+  </svg>`;
+}
+
+// ---------- Tableau de bord ----------
+async function vueTableau(v) {
+  const f = G.filtres;
+  const suivi = (await ga({ action: "admin_parametres" })).parametres.debut_suivi || f.debut;
+  const debut6 = [debutMois(plusJours(debutMois(G.js), -150)), suivi].sort()[1];
+  const [jr, hist, eq] = await Promise.all([
+    ga({ action: "admin_journees", debut: f.debut, fin: f.fin }),
+    ga({ action: "admin_journees", debut: debut6, fin: G.js }),
+    ga({ action: "admin_equipe" }),
+  ]);
+  G.equipe = eq.equipe;
+  const rows = filtrer(jr.journees, f), tous = filtrer(hist.journees, f);
+  const aujRows = filtrer(hist.journees.filter((r) => r.jour === G.js), f);
+  const presents = eq.equipe.filter((x) => x.present && (!f.employe || x.id === +f.employe) && (!f.service || x.service === f.service));
+  const absentsAuj = new Set(aujRows.filter((r) => ["absence_injustifiee", "absent_en_cours"].includes(r.statut)).map((r) => r.employe_id));
+  const retardAuj = aujRows.filter((r) => r.retard_min > 0);
+  const s = stats(rows);
+  // classements sur la période filtrée
+  const parEmp = {}; rows.forEach((r) => (parEmp[r.employe_id] ||= []).push(r));
+  const classement = Object.entries(parEmp).map(([id, rs]) => ({ id: +id, nom: rs[0].nom, ...niveauMois(rs) })).filter((x) => x.s.jours > 0);
+  const ponctuels = [...classement].sort((a, b) => (b.s.ponctualite ?? -1) - (a.s.ponctualite ?? -1) || a.s.cumul - b.s.cumul).slice(0, 5);
+  const retardataires = [...classement].filter((x) => x.s.cumul > 0).sort((a, b) => b.s.cumul - a.s.cumul).slice(0, 5);
+  // semaines (période) et mois (historique)
+  const sem = {}; rows.forEach((r) => { const k = lundiDe(r.jour); sem[k] = (sem[k] || 0) + (r.retard_min || 0); });
+  for (let d = lundiDe(f.debut); d <= f.fin; d = plusJours(d, 7)) sem[d] ||= 0;
+  const mois = {}; tous.forEach((r) => { const k = r.jour.slice(0, 7); (mois[k] ||= []).push(r); });
+  const lignesClassement = (l, vide) => l.length ? l.map((x) => `<li class="cliquable" data-fiche="${x.id}">${smiley(x.smiley, { taille: 30, titre: "Discipline : " + x.smiley })}<div class="flex"><div class="t">${esc(x.nom)}</div><div class="petit">${x.s.ponctualite ?? "—"} % ponctuel · ${x.s.nb_retards} retard${x.s.nb_retards > 1 ? "s" : ""} · ${duree(x.s.cumul)}</div></div></li>`).join("") : `<li class="vide">${vide}</li>`;
+  v.innerHTML = `<div class="carte"><div class="ligne">
+      <div class="flex"><label>Du</label><input type="date" id="f-debut" value="${f.debut}"></div><div class="flex"><label>Au</label><input type="date" id="f-fin" value="${f.fin}"></div>
+      <div class="flex"><label>Employé</label><select id="f-emp">${optionsEmployes(f.employe)}</select></div><div class="flex"><label>Poste</label><select id="f-srv">${optionsServices(f.service)}</select></div></div></div>
+    <h3 style="margin:16px 2px 8px">Aujourd'hui · ${esc(dateFr(G.js))}</h3>
+    <div class="kpis">
+      <div class="kpi"><b>${presents.length}</b><span>présents actuellement</span></div>
+      <div class="kpi"><b>${absentsAuj.size}</b><span>absents ou pas encore arrivés</span></div>
+      <div class="kpi"><b>${retardAuj.length}</b><span>en retard aujourd'hui</span></div>
+    </div>
+    <h3 style="margin:18px 2px 8px">Période · ${dateCourte(f.debut)} → ${dateCourte(f.fin)}</h3>
+    <div class="kpis">
+      <div class="kpi"><b>${s.ponctualite ?? "—"}${s.ponctualite === null ? "" : " %"}</b><span>ponctualité de l'équipe</span></div>
+      <div class="kpi"><b>${duree(s.cumul)}</b><span>de retards (${s.nb_retards})</span></div>
+      <div class="kpi"><b>${duree(s.heures_sup)}</b><span>d'heures supplémentaires</span></div>
+      <div class="kpi"><b>${s.absences}</b><span>absences injustifiées</span></div>
+      <div class="kpi"><b>${s.anomalies}</b><span>oublis de pointage</span></div>
+      <div class="kpi"><b>${duree(s.travail)}</b><span>de travail effectif</span></div>
+    </div>
+    <div class="grille2" style="margin-top:12px">
+      <div class="carte" style="margin:0"><h3>Les plus ponctuels</h3><ul class="liste">${lignesClassement(ponctuels, "Pas encore de données.")}</ul></div>
+      <div class="carte" style="margin:0"><h3>Le plus de retards</h3><ul class="liste">${lignesClassement(retardataires, "Aucun retard sur la période.")}</ul></div>
+    </div>
+    <div class="grille2">
+      <div class="carte graph"><h3>Retards par semaine</h3><p class="sous">Minutes de retard, période choisie</p>${barres(Object.keys(sem).sort().map((k) => ({ etiquette: dateCourte(k), valeur: sem[k], couleur: "#A8823C" })), { format: (x) => x + " min", titre: "Retards par semaine" })}</div>
+      <div class="carte graph"><h3>Comparaison des mois</h3><p class="sous">Ponctualité de l'équipe (%)</p>${barres(Object.keys(mois).sort().map((k) => { const p = stats(mois[k]).ponctualite || 0; return { etiquette: MOIS[+k.slice(5) - 1].slice(0, 3) + ".", valeur: p, couleur: p >= 90 ? SMILEY_COULEURS.vert : p >= 75 ? SMILEY_COULEURS.jaune : p >= 60 ? SMILEY_COULEURS.orange : SMILEY_COULEURS.rouge }; }), { format: (x) => x + " %", titre: "Ponctualité par mois" })}</div>
+    </div>
+    <div class="pile" style="margin-top:4px"><div class="ligne"><button class="b-sec flex" id="t-csv">Exporter la période (Excel)</button><button class="b-sec flex" id="t-pdf">Rapport global (PDF)</button></div></div>`;
+  const relancer = () => { Object.assign(G.filtres, { debut: $("#f-debut").value, fin: $("#f-fin").value, employe: $("#f-emp").value, service: $("#f-srv").value }); allerA("tableau"); };
+  ["#f-debut", "#f-fin", "#f-emp", "#f-srv"].forEach((s) => $(s).onchange = relancer);
+  $$("[data-fiche]", v).forEach((li) => li.onclick = () => allerA("fiche", +li.dataset.fiche));
+  $("#t-csv").onclick = () => exporterCSV(rows, `capanna-pointages-${f.debut}-${f.fin}.csv`);
+  $("#t-pdf").onclick = () => rapportGlobalPDF(rows, f);
+}
+
+// ---------- Équipe ----------
+async function vueEquipe(v) {
+  const [eq, em] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_mois" })]);
+  G.equipe = eq.equipe;
+  const disc = Object.fromEntries((em.employes || []).map((x) => [x.id, x]));
+  v.innerHTML = `<div class="carte"><div class="ligne"><input id="e-cherche" placeholder="Rechercher un employé" class="flex"><select id="e-srv" class="flex">${optionsServices("")}</select></div>
+    <ul class="liste" id="e-liste" style="margin-top:8px"></ul></div>`;
+  const dessiner = () => {
+    const q = $("#e-cherche").value.toLowerCase(), s = $("#e-srv").value;
+    $("#e-liste").innerHTML = eq.equipe.filter((x) => x.actif && (!q || x.nom.toLowerCase().includes(q)) && (!s || x.service === s)).map((x) => {
+      const d = disc[x.id];
+      return `<li class="cliquable" data-fiche="${x.id}">${d ? smiley(d.smiley, { taille: 34, couleur: d.couleur, titre: d.message }) : ""}
+        <div class="flex"><div class="t">${esc(x.nom)}</div><div class="petit">${esc(x.service)} · ${d ? esc(d.message) : ""}</div></div>
+        <div style="text-align:right"><span class="puce ${x.present ? "validee" : ""}">${x.present ? "Présent" : "Absent"}</span>
+        <div class="petit" style="margin-top:4px">${x.telephone ? "Téléphone activé" : "Code " + esc(x.pin)}</div></div></li>`;
+    }).join("") || `<li class="vide">Aucun employé.</li>`;
+    $$("[data-fiche]", v).forEach((li) => li.onclick = () => allerA("fiche", +li.dataset.fiche));
+  };
+  $("#e-cherche").oninput = dessiner; $("#e-srv").onchange = dessiner; dessiner();
+}
+
+// ---------- Fiche employé ----------
+async function vueFiche(v, id) {
+  const e = employeDe(id); if (!e) throw new Error("Employé introuvable.");
+  const p = (await ga({ action: "admin_parametres" })).parametres;
+  const suivi = p.debut_suivi || debutMois(G.js);
+  const [jr, dm] = await Promise.all([
+    ga({ action: "admin_journees", employe_id: id, debut: [suivi, G.js].sort()[0], fin: G.js }),
+    ga({ action: "admin_demandes", employe_id: id }),
+  ]);
+  const rows = jr.journees.filter((r) => r.statut !== "a_venir");
+  const parPeriode = (d) => rows.filter((r) => r.jour >= d);
+  const sJ = stats(rows.filter((r) => r.jour === G.js)), sS = stats(parPeriode(lundiDe(G.js))), sM = stats(parPeriode(debutMois(G.js))), sT = stats(rows);
+  const nm = niveauMois(parPeriode(debutMois(G.js)));
+  const histo = [...rows].filter((r) => r.prevu_debut || AVEC_ARRIVEE(r)).sort((a, b) => b.jour.localeCompare(a.jour) || b.creneau_ordre - a.creneau_ordre);
+  v.innerHTML = `<button class="b-lien retour" id="f-retour">‹ Équipe</button>
+    <div class="carte"><div class="ligne">${smiley(nm.smiley, { taille: 56, titre: "Discipline du mois" })}<div class="flex"><h2>${esc(e.nom)}</h2><p class="sous">${esc(e.service)} · ${e.telephone ? "téléphone activé" : "téléphone non activé (code " + esc(e.pin) + ")"} · ${e.present ? "présent" : "absent"} maintenant</p></div></div>
+      <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="f-rapport">Rapport du mois (PDF)</button><button class="b-sec flex" id="f-csv">Historique (Excel)</button>
+      <button class="b-sec flex" id="f-horaires">Horaires</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
+      <div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button></div><div id="f-msg"></div></div>
+    <div class="kpis">
+      <div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>
+      <div class="kpi"><b>${duree(sS.cumul)}</b><span>retard de la semaine</span></div>
+      <div class="kpi"><b>${duree(sM.cumul)}</b><span>retard du mois</span></div>
+      <div class="kpi"><b>${duree(sT.cumul)}</b><span>retard depuis le ${dateCourte(suivi)}</span></div>
+      <div class="kpi"><b>${sT.nb_retards}</b><span>retards au total</span></div>
+      <div class="kpi"><b>${duree(sT.moyenne)}</b><span>de retard en moyenne</span></div>
+      <div class="kpi"><b>${sT.ponctualite ?? "—"}${sT.ponctualite === null ? "" : " %"}</b><span>de ponctualité</span></div>
+      <div class="kpi"><b>${sT.jours}</b><span>jours travaillés</span></div>
+      <div class="kpi"><b>${sT.absences}</b><span>absences injustifiées</span></div>
+      <div class="kpi"><b>${duree(sT.heures_sup)}</b><span>d'heures supplémentaires</span></div>
+    </div>
+    <div class="carte"><h3>Historique</h3><div class="tableau"><table><thead><tr><th></th><th>Date</th><th>Prévu</th><th>Arrivée</th><th class="num">Retard</th><th>Départ</th><th class="num">Travail</th><th>Statut</th></tr></thead><tbody>
+      ${histo.length ? histo.map((r) => `<tr><td>${r.emoji_jour ? smileyDe(r.emoji_jour, 24) : ""}</td><td>${esc(dateCourte(r.jour))} ${JOURS_C[dow(r.jour)]}</td>
+        <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
+        <td class="num">${r.retard_min ? r.retard_min + " min" : r.retard_justifie_min ? "justifié" : "—"}</td><td>${hhmm(r.depart_min)}</td>
+        <td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(LIB_JOUR[r.statut] || r.statut)}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Pas encore de journée suivie.</td></tr>`}
+    </tbody></table></div></div>
+    <div class="carte"><h3>Demandes</h3><ul class="liste">${(dm.demandes || []).slice(0, 10).map((d) => `<li class="cliquable" data-dem="${d.id}"><div class="flex"><div class="t">${esc(LIB_TYPE[d.type])}</div><div class="petit">${esc(periodeDemande(d))}</div></div><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span></li>`).join("") || `<li class="vide">Aucune demande.</li>`}</ul></div>`;
+  $("#f-retour").onclick = () => allerA("equipe");
+  $("#f-horaires").onclick = () => allerA("horaires", id);
+  $("#f-pointages").onclick = () => allerA("pointages", { employe: id });
+  $("#f-absence").onclick = () => saisirAbsence(id, () => allerA("fiche", id));
+  $("#f-csv").onclick = () => exporterCSV(histo, `capanna-${e.nom.replace(/\W+/g, "-")}.csv`);
+  $("#f-rapport").onclick = () => rapportMensuelPDF(e, parPeriode(debutMois(G.js)), nm);
+  $("#f-reset").onclick = () => demanderMotif("Réinitialiser le téléphone", `${esc(e.nom)} devra réactiver son téléphone avec un code.`, async (m) => { await ga({ action: "admin_reinitialiser", employe_id: id, motif: m }); e.telephone = false; allerA("fiche", id); }, { classe: "b-danger", bouton: "Réinitialiser" });
+  $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin; msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}`, "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
+  $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
+}
+function saisirAbsence(employeId, apres) {
+  const f = feuille(`<div class="entete"><h2>Saisir une absence</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">Enregistrée directement comme acceptée.</p>
+    <label>Employé</label><select id="s-emp">${optionsEmployes(employeId, "Choisir…")}</select>
+    <label>Type</label><select id="s-type">${Object.entries(LIB_TYPE).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+    <div class="ligne"><div class="flex"><label>Du</label><input type="date" id="s-debut" value="${G.js}"></div><div class="flex"><label>Au</label><input type="date" id="s-fin" value="${G.js}"></div></div>
+    <div class="ligne"><div class="flex"><label>De (facultatif)</label><input type="time" id="s-hd"></div><div class="flex"><label>À (facultatif)</label><input type="time" id="s-hf"></div></div>
+    <p class="petit">Retard autorisé : heure d'arrivée dans « À ». Départ anticipé : heure de départ dans « De ».</p>
+    <label>Motif (obligatoire)</label><input id="s-motif">
+    <div id="s-msg"></div><div class="pile" style="margin-top:12px"><button class="b-principal" id="s-ok">Enregistrer</button></div>`);
+  $("#s-ok", f.el).onclick = async () => {
+    try {
+      await ga({ action: "admin_demande_creer", employe_id: $("#s-emp", f.el).value, type: $("#s-type", f.el).value, date_debut: $("#s-debut", f.el).value, date_fin: $("#s-fin", f.el).value,
+        heure_debut: $("#s-hd", f.el).value, heure_fin: $("#s-hf", f.el).value, motif: $("#s-motif", f.el).value });
+      f.fermer(); apres && apres();
+    } catch (e) { msg($("#s-msg", f.el), e.message); }
+  };
+}
+
+// ---------- Demandes du personnel ----------
+const FILTRES_D = [["attente", "En attente"], ["complement", "Complément demandé"], ["justificatif_manquant", "Justificatif manquant"], ["acceptees", "Acceptées"], ["refusees", "Refusées"], ["toutes", "Toutes"]];
+async function vueDemandes(v, filtre) {
+  G.filtreD = filtre || G.filtreD || "attente";
+  const d = await ga({ action: "admin_demandes", filtre: G.filtreD });
+  const c = d.compteurs || {};
+  v.innerHTML = `<div class="onglets">${FILTRES_D.map(([k, l]) => `<button class="onglet ${G.filtreD === k ? "actif" : ""}" data-f="${k}">${l}${c[k] ? ` <span class="badge" style="background:${G.filtreD === k ? "#fff;color:#0B4F3C" : ""}">${c[k]}</span>` : ""}</button>`).join("")}</div>
+    <div class="ligne" style="margin:6px 0"><button class="b-sec" id="d-saisir">Saisir une absence</button><button class="b-lien" id="d-notifs">Notifications</button></div>
+    <div class="carte"><ul class="liste">${(d.demandes || []).map((x) => `<li class="cliquable" data-dem="${x.id}">
+      <div class="flex"><div class="t">${esc(x.hr_employes?.nom || "")} · ${esc(LIB_TYPE[x.type])}</div><div class="petit">${esc(periodeDemande(x))} · ${esc(x.motif || "")}</div>
+      <div class="petit">Envoyée le ${dateHeure(x.created_at)}${x.hr_justificatifs?.length ? " · justificatif joint" : ""}</div></div>
+      <div style="text-align:right"><span class="puce ${CLASSE_STATUT[x.statut]}">${LIB_STATUT[x.statut]}</span>${x.justificatif_manquant ? `<div style="margin-top:4px"><span class="puce manquant">Justificatif manquant</span></div>` : ""}</div></li>`).join("") || `<li class="vide">Aucune demande ici.</li>`}</ul></div>`;
+  $$("[data-f]", v).forEach((b) => b.onclick = () => allerA("demandes", b.dataset.f));
+  $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
+  $("#d-saisir").onclick = () => saisirAbsence("", () => allerA("demandes"));
+  $("#d-notifs").onclick = voirNotifications;
+}
+async function voirNotifications() {
+  const n = await ga({ action: "admin_notifications", marquer_lues: true });
+  feuille(`<div class="entete"><h2>Notifications</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <div class="carte"><ul class="liste">${(n.notifications || []).map((x) => `<li><div class="flex"><div ${x.lu ? "" : 'style="font-weight:650"'}>${esc(x.message)}</div><div class="petit">${dateHeure(x.created_at)}</div></div></li>`).join("") || `<li class="vide">Aucune notification.</li>`}</ul></div>`);
+  rafraichirBadges();
+}
+async function ficheDemande(id) {
+  const r = await ga({ action: "admin_demande", id });
+  const d = r.demande, e = employeDe(d.employe_id) || d.hr_employes || {};
+  const just = d.hr_justificatifs?.[0];
+  const ouverte = ["demandee", "complement"].includes(d.statut);
+  const f = feuille(`<div class="entete"><h2>${esc(LIB_TYPE[d.type])}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span> ${d.justificatif_manquant ? `<span class="puce manquant">Justificatif manquant</span>` : ""}</p>
+    <div class="carte"><div class="ligne">${smileyDe(r.mois, 44)}<div class="flex"><div class="t" style="font-weight:650">${esc(e.nom || d.hr_employes?.nom)}</div><div class="petit">${esc(e.service || d.hr_employes?.service || "")} · ${esc(r.mois.message)}</div></div>
+      <button class="b-lien" id="fd-fiche">Fiche</button></div></div>
+    <div class="carte"><div class="petit">Période</div><div>${esc(periodeDemande(d))}</div>
+      <div class="petit" style="margin-top:10px">Motif</div><div>${esc(d.motif || "—")}</div>
+      ${d.explication ? `<div class="petit" style="margin-top:10px">Explication</div><div>${esc(d.explication)}</div>` : ""}
+      <div class="petit" style="margin-top:10px">Envoyée le</div><div>${dateHeure(d.created_at)} · par ${d.demande_par === "gerant" ? "le gérant" : "l'employé"}</div>
+      ${d.decide_le ? `<div class="petit" style="margin-top:10px">Décision du ${dateHeure(d.decide_le)} (${esc(d.decide_par || "")})</div><div>${esc(d.commentaire_decision || LIB_STATUT[d.statut])}</div>` : ""}</div>
+    <div class="carte"><h3>Justificatif</h3>${just ? `<p class="sous">${esc(just.nom_origine || "Document")} · ${taillePropre(just.taille)} · ${dateHeure(just.created_at)}</p><div class="pile" style="margin-top:8px"><button class="b-sec" id="fd-voir">Voir le document</button></div><p class="petit">Chaque consultation est inscrite au journal.</p>` : `<p class="sous">Aucun document joint.</p>`}</div>
+    ${r.historique?.length ? `<div class="carte"><h3>Historique</h3><ul class="liste">${r.historique.map((h) => `<li><div class="flex"><div>${esc(h.action)} : ${esc(h.ancienne?.statut ? LIB_STATUT[h.ancienne.statut] + " → " : "")}${esc(h.nouvelle?.statut ? LIB_STATUT[h.nouvelle.statut] : "")}</div><div class="petit">${dateHeure(h.quand)} · ${esc(h.auteur)} · ${esc(h.motif)}</div></div></li>`).join("")}</ul></div>` : ""}
+    <div id="fd-msg"></div>
+    <div class="pile">${ouverte ? `<div class="ligne"><button class="b-principal flex" id="fd-ok">ACCEPTER</button><button class="b-danger flex" id="fd-non">REFUSER</button></div>
+      <button class="b-sec" id="fd-plus">Demander un complément ou un justificatif</button>` : d.statut !== "annulee" ? `<button class="b-sec" id="fd-annuler">Annuler cette décision</button>` : ""}</div>`);
+  const el = f.el, fin = () => { f.fermer(); allerA("demandes"); rafraichirBadges(); };
+  $("#fd-fiche", el).onclick = () => { f.fermer(); allerA("fiche", d.employe_id); };
+  if (just) $("#fd-voir", el).onclick = async () => { try { const x = await ga({ action: "admin_justificatif", id: just.id }); ouvrirDocument(x.type_mime, x.fichier, "Justificatif"); } catch (e) { msg($("#fd-msg", el), e.message); } };
+  if (ouverte) {
+    $("#fd-ok", el).onclick = () => demanderMotif("Accepter la demande", "Le calcul des retards et des absences sera mis à jour immédiatement.", async (c) => { await ga({ action: "admin_demande_decider", id, decision: "validee", commentaire: c }); fin(); }, { label: "Commentaire (facultatif)", facultatif: true, bouton: "Accepter", placeholder: "" });
+    $("#fd-non", el).onclick = () => demanderMotif("Refuser la demande", "Le pointage sera compté normalement.", async (c) => { await ga({ action: "admin_demande_decider", id, decision: "refusee", commentaire: c }); fin(); }, { label: "Motif du refus (obligatoire)", bouton: "Refuser", classe: "b-danger", placeholder: "" });
+    $("#fd-plus", el).onclick = () => demanderMotif("Demander un complément", "L'employé recevra ta demande sur son téléphone.", async (c, racine) => { await ga({ action: "admin_demande_decider", id, decision: "complement", commentaire: c, justificatif_requis: $("#m-just", racine).checked }); fin(); },
+      { label: "Ce qu'il manque (obligatoire)", bouton: "Envoyer", placeholder: "Ex. : merci d'envoyer le certificat médical", avant: `<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" id="m-just" style="width:auto" ${d.type === "maladie" ? "checked" : ""}> Justificatif obligatoire</label>` });
+  } else if ($("#fd-annuler", el)) {
+    $("#fd-annuler", el).onclick = () => demanderMotif("Annuler la décision", "La demande sera annulée et ne comptera plus.", async (c) => { await ga({ action: "admin_demande_decider", id, decision: "annulee", commentaire: c }); fin(); }, { classe: "b-danger", bouton: "Annuler la décision" });
+  }
+}
+
+// ---------- Calendrier des absences ----------
+async function vueCalendrier(v, mois) {
+  G.moisCal = mois || G.moisCal || G.js.slice(0, 7);
+  const debut = G.moisCal + "-01", fin = finMois(debut);
+  const fc = G.filtreCal ||= { employe: "", service: "", attente: false };
+  const r = await ga({ action: "admin_calendrier", debut, fin, employe_id: fc.employe || undefined, service: fc.service || undefined, inclure_attente: fc.attente });
+  const ev = r.evenements || [];
+  const prem = lundiDe(debut), cases = [];
+  for (let d = prem; d <= fin || dow(d) !== 1; d = plusJours(d, 1)) cases.push(d);
+  const [y, m] = G.moisCal.split("-").map(Number);
+  const autre = (k) => { const d = new Date(Date.UTC(y, m - 1 + k, 1)); return d.toISOString().slice(0, 7); };
+  v.innerHTML = `<div class="carte"><div class="ligne"><button class="b-sec" id="c-prec">‹</button><h2 class="flex" style="text-align:center">${MOIS[m - 1]} ${y}</h2><button class="b-sec" id="c-suiv">›</button></div>
+    <div class="ligne" style="margin-top:10px"><select id="c-emp" class="flex">${optionsEmployes(fc.employe)}</select><select id="c-srv" class="flex">${optionsServices(fc.service)}</select>
+    <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--texte)"><input type="checkbox" id="c-att" style="width:auto" ${fc.attente ? "checked" : ""}> Inclure les demandes en attente</label></div></div>
+    <div class="cal">${[1, 2, 3, 4, 5, 6, 7].map((j) => `<div class="tete">${JOURS_C[j]}</div>`).join("")}
+    ${cases.map((d) => { const du = ev.filter((x) => x.date_debut <= d && x.date_fin >= d);
+      return `<div class="j ${d.slice(0, 7) !== G.moisCal ? "hors" : ""} ${d === G.js ? "auj" : ""}"><div class="n">${+d.slice(8)}</div>${du.map((x) => `<div class="ev ${x.statut !== "validee" ? "attente" : x.type}" title="${esc(x.hr_employes?.nom + " · " + LIB_TYPE[x.type])}">${esc((x.hr_employes?.nom || "").split(" ")[0])}</div>`).join("")}</div>`; }).join("")}</div>
+    <div class="carte"><h3>Liste</h3><ul class="liste">${ev.map((x) => `<li class="cliquable" data-dem="${x.id}"><div class="flex"><div class="t">${esc(x.hr_employes?.nom)} · ${esc(LIB_TYPE[x.type])}</div><div class="petit">${esc(x.hr_employes?.service)} · ${esc(periodeDemande(x))}</div></div><span class="puce ${CLASSE_STATUT[x.statut]}">${LIB_STATUT[x.statut]}</span></li>`).join("") || `<li class="vide">Aucune absence ce mois-ci.</li>`}</ul></div>`;
+  $("#c-prec").onclick = () => allerA("calendrier", autre(-1)); $("#c-suiv").onclick = () => allerA("calendrier", autre(1));
+  $("#c-emp").onchange = (e) => { fc.employe = e.target.value; allerA("calendrier"); };
+  $("#c-srv").onchange = (e) => { fc.service = e.target.value; allerA("calendrier"); };
+  $("#c-att").onchange = (e) => { fc.attente = e.target.checked; allerA("calendrier"); };
+  $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
+}
+
+// ---------- Pointages (historique et corrections) ----------
+async function vuePointages(v, arg) {
+  const fp = G.filtreP ||= { jour: G.js, employe: "" };
+  if (arg?.employe) fp.employe = String(arg.employe);
+  const [pts, jr] = await Promise.all([ga({ action: "admin_pointages", debut: fp.jour, fin: fp.jour, employe_id: fp.employe || undefined }), ga({ action: "admin_journees", debut: fp.jour, fin: fp.jour })]);
+  const emo = {}; jr.journees.forEach((r) => { if (r.emoji_jour) emo[r.employe_id] = r.emoji_jour; });
+  v.innerHTML = `<div class="carte"><div class="ligne"><div class="flex"><label>Journée de service</label><input type="date" id="p-jour" value="${fp.jour}"></div><div class="flex"><label>Employé</label><select id="p-emp">${optionsEmployes(fp.employe)}</select></div></div>
+    <div class="pile" style="margin-top:10px"><button class="b-sec" id="p-ajout">Ajouter un pointage oublié</button></div></div>
+    <div class="carte"><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
+    ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
+      <td>${esc(e.nom || "?")}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td>${esc(p.heure)}</td>
+      <td>${p.accepte ? (p.source === "manuel" ? "Manuel" : "Wi-Fi") : `<span class="puce refusee">Refusé</span>`}</td>
+      <td class="petit" style="white-space:normal;max-width:260px">${esc(p.annule ? "Annulé" : p.motif || "")}${p.remplace_id ? " (correction)" : ""}</td>
+      <td>${p.accepte && !p.annule ? `<button class="b-lien" data-cor="${p.id}">Corriger</button><button class="b-lien" style="color:var(--rouge)" data-ann="${p.id}">Annuler</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="7" class="vide">Aucun pointage ce jour-là.</td></tr>`}
+    </tbody></table></div><p class="petit">Rien n'est jamais effacé : une correction annule l'ancien pointage et en crée un nouveau, avec le motif inscrit au journal.</p></div>`;
+  $("#p-jour").onchange = (e) => { fp.jour = e.target.value; allerA("pointages"); };
+  $("#p-emp").onchange = (e) => { fp.employe = e.target.value; allerA("pointages"); };
+  $$("[data-cor]", v).forEach((b) => b.onclick = () => demanderMotif("Corriger l'heure", "", async (m, r) => { await ga({ action: "admin_pointage_corriger", id: +b.dataset.cor, heure: $("#m-heure", r).value, motif: m }); allerA("pointages"); }, { avant: `<label>Nouvelle heure</label><input type="time" id="m-heure">` }));
+  $$("[data-ann]", v).forEach((b) => b.onclick = () => demanderMotif("Annuler ce pointage", "Il restera visible, barré, dans l'historique.", async (m) => { await ga({ action: "admin_pointage_annuler", id: +b.dataset.ann, motif: m }); allerA("pointages"); }, { classe: "b-danger", bouton: "Annuler le pointage" }));
+  $("#p-ajout").onclick = () => demanderMotif("Ajouter un pointage", "", async (m, r) => {
+    await ga({ action: "admin_pointage_ajouter", employe_id: $("#m-emp", r).value, type: $("#m-type", r).value, jour: fp.jour, heure: $("#m-heure", r).value, motif: m }); allerA("pointages");
+  }, { avant: `<label>Employé</label><select id="m-emp">${optionsEmployes(fp.employe, "Choisir…")}</select><label>Type</label><select id="m-type"><option value="arrivee">Arrivée</option><option value="depart">Départ</option></select>
+    <label>Heure (journée du ${esc(dateFr(fp.jour))} ; avant 05h00 = nuit suivante)</label><input type="time" id="m-heure">` });
+}
+
+// ---------- Horaires ----------
+async function vueHoraires(v, id) {
+  G.empH = id ? String(id) : (G.empH || String(G.equipe.find((x) => x.actif)?.id || ""));
+  const cr = (await ga({ action: "admin_creneaux", employe_id: G.empH })).creneaux;
+  const parJour = {}; for (let j = 1; j <= 7; j++) parJour[j] = cr.filter((c) => c.jour === j).map((c) => ({ debut: c.debut.slice(0, 5), fin: c.fin.slice(0, 5), pause_min: c.pause_min }));
+  const ligneC = (c) => `<div class="creneau"><input type="time" value="${c.debut}" data-k="debut" aria-label="Début"><input type="time" value="${c.fin}" data-k="fin" aria-label="Fin"><input type="number" min="0" max="240" value="${c.pause_min || 0}" data-k="pause_min" aria-label="Pause (min)" title="Pause en minutes"><button class="x" data-suppr aria-label="Retirer">×</button></div>`;
+  v.innerHTML = `<div class="carte"><label>Employé</label><select id="h-emp">${optionsEmployes(G.empH, "Choisir…")}</select>
+    <p class="petit" style="margin-top:8px">Pour chaque jour : début, fin et pause (minutes). Aucun créneau = jour OFF. Un service après minuit se termine le lendemain (ex. 19:00 → 02:00).</p>
+    <div id="h-jours">${[1, 2, 3, 4, 5, 6, 7].map((j) => `<div class="creneaux-jour" data-j="${j}"><div><b>${JOURS[j]}</b><div><button class="b-lien" data-ajout style="padding:4px 0">+ créneau</button></div></div>
+      <div data-liste>${parJour[j].map(ligneC).join("") || `<span class="petit">OFF</span>`}</div></div>`).join("")}</div>
+    <div id="h-msg"></div><div class="pile" style="margin-top:12px"><button class="b-principal" id="h-ok">Enregistrer les modifications</button></div></div>`;
+  $("#h-emp").onchange = (e) => allerA("horaires", e.target.value);
+  const lire = (bloc) => $$(".creneau", bloc).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause_min"]', l).value || 0 })).filter((c) => c.debut && c.fin);
+  const origine = JSON.stringify(parJour);
+  $$(".creneaux-jour", v).forEach((bloc) => {
+    const liste = $("[data-liste]", bloc);
+    const brancher = () => $$("[data-suppr]", liste).forEach((b) => b.onclick = () => { b.parentElement.remove(); if (!$(".creneau", liste)) liste.innerHTML = `<span class="petit">OFF</span>`; });
+    $("[data-ajout]", bloc).onclick = () => { if ($$(".creneau", liste).length >= 4) return; if (!$(".creneau", liste)) liste.innerHTML = ""; liste.insertAdjacentHTML("beforeend", ligneC({ debut: "", fin: "", pause_min: 0 })); brancher(); };
+    brancher();
+  });
+  $("#h-ok").onclick = () => {
+    const nouveaux = {}; $$(".creneaux-jour", v).forEach((b) => nouveaux[b.dataset.j] = lire(b));
+    const changes = Object.keys(nouveaux).filter((j) => JSON.stringify(nouveaux[j]) !== JSON.stringify(JSON.parse(origine)[j]));
+    if (!changes.length) return msg($("#h-msg"), "Aucune modification.", "info");
+    demanderMotif("Enregistrer les horaires", `${changes.length} jour(s) modifié(s) : ${changes.map((j) => JOURS[j]).join(", ")}.`, async (m) => {
+      for (const j of changes) await ga({ action: "admin_creneaux_enregistrer", employe_id: G.empH, jour: +j, creneaux: nouveaux[j], motif: m });
+      allerA("horaires", G.empH);
+    }, { placeholder: "Ex. : nouveau planning de décembre" });
+  };
+}
+
+// ---------- Réglages ----------
+async function vueReglages(v) {
+  const [p, cx, cfgR] = await Promise.all([ga({ action: "admin_parametres" }), ga({ action: "admin_connexion" }), ga({ action: "admin_emojis_config" })]);
+  const P = p.parametres, c = cfgR.config;
+  const champ = (cle, lib, type = "number", aide = "") => `<div class="flex"><label>${lib}</label><input type="${type}" data-p="${cle}" value="${esc(P[cle] ?? "")}">${aide ? `<div class="petit">${aide}</div>` : ""}</div>`;
+  v.innerHTML = `<div class="carte"><h3>Règles de calcul</h3>
+      <div class="ligne">${champ("tolerance_retard_min", "Tolérance de retard (min)")}${champ("seuil_heures_sup_min", "Heures sup comptées au-delà de (min)")}</div>
+      <div class="ligne"><div class="flex"><label>Calcul du retard</label><select data-p="mode_retard"><option value="complet" ${P.mode_retard === "complet" ? "selected" : ""}>Tout le retard dès que la tolérance est dépassée</option><option value="deduit" ${P.mode_retard === "deduit" ? "selected" : ""}>Retard moins la tolérance</option></select></div>
+      ${champ("debut_suivi", "Début du suivi", "date")}</div>
+      <div class="ligne">${champ("alerte_cumul_1_min", "Alerte retard cumulé 1 (min)")}${champ("alerte_cumul_2_min", "Alerte retard cumulé 2 (min)")}</div>
+      <div id="r-msg1"></div><div class="pile" style="margin-top:10px"><button class="b-principal" id="r-ok1">Enregistrer</button></div></div>
+    <div class="carte"><h3>Smileys</h3><p class="sous">Le smiley n'est qu'un repère : les minutes restent toujours affichées.</p>
+      <div class="ligne" style="margin:12px 0">${["vert", "jaune", "orange", "rouge"].map((n) => `<div style="text-align:center">${smiley(n, { taille: 40, couleur: c.couleurs[n] })}<input type="color" data-coul="${n}" value="${c.couleurs[n]}" style="width:56px;height:34px;padding:2px;margin-top:4px"></div>`).join("")}</div>
+      <div class="ligne"><div class="flex"><label>« En avance » à partir de (min avant)</label><input type="number" id="s-av" value="${c.jour.avance_min}"></div>
+        <div class="flex"><label>Petit retard jusqu'à (min)</label><input type="number" id="s-p1" value="${c.jour.paliers[0]}"></div><div class="flex"><label>Retard moyen jusqu'à (min)</label><input type="number" id="s-p2" value="${c.jour.paliers[1]}"></div></div>
+      <div class="ligne"><div class="flex"><label>Mois : retards répétés dès (nombre / minutes)</label><div class="ligne"><input type="number" id="s-n1" value="${c.mois.nombre[0]}"><input type="number" id="s-m1" value="${c.mois.minutes[0]}"></div></div>
+        <div class="flex"><label>Retards importants dès</label><div class="ligne"><input type="number" id="s-n2" value="${c.mois.nombre[1]}"><input type="number" id="s-m2" value="${c.mois.minutes[1]}"></div></div>
+        <div class="flex"><label>Très importants dès</label><div class="ligne"><input type="number" id="s-n3" value="${c.mois.nombre[2]}"><input type="number" id="s-m3" value="${c.mois.minutes[2]}"></div></div></div>
+      <details style="margin-top:12px"><summary class="petit" style="cursor:pointer">Messages affichés</summary>
+        ${Object.entries(c.jour.messages).map(([k, m]) => `<label>Jour · ${esc(k)}</label><input data-mj="${k}" value="${esc(m)}" maxlength="160">`).join("")}
+        ${c.mois.messages.map((m, i) => `<label>Mois · niveau ${i}</label><input data-mm="${i}" value="${esc(m)}" maxlength="160">`).join("")}
+        <p class="petit">{retard} = minutes de retard · {retards} = « 3 retards » · {cumul} = minutes cumulées</p></details>
+      <div id="r-msg2"></div><div class="ligne" style="margin-top:10px"><button class="b-principal flex" id="r-ok2">Enregistrer</button><button class="b-sec flex" id="r-defaut">Valeurs par défaut</button></div></div>
+    <div class="carte"><h3>Wi-Fi du restaurant</h3><p class="sous">Adresse vue maintenant : ${esc(cx.ip_vue)} · ${cx.wifi ? "réseau autorisé" : "réseau non autorisé"}</p>
+      <ul class="liste">${cx.reseaux.map((r) => `<li><div class="flex"><div class="t">${esc(r.libelle || "Wi-Fi")}</div><div class="petit">${esc(r.reseau)}</div></div><button class="b-lien" style="color:var(--rouge)" data-ret="${esc(r.reseau)}">Retirer</button></li>`).join("") || `<li class="vide">Aucun réseau enregistré.</li>`}</ul>
+      <div class="pile" style="margin-top:8px"><button class="b-sec" id="r-wifi">Enregistrer le réseau actuel comme Wi-Fi Capanna</button></div><p class="petit">À faire depuis le restaurant, connecté au Wi-Fi Capanna. Si la box change d'adresse, refais-le.</p></div>`;
+  $("#r-ok1").onclick = () => {
+    const changes = $$("[data-p]", v).filter((i) => String(i.value) !== String(P[i.dataset.p] ?? ""));
+    if (!changes.length) return msg($("#r-msg1"), "Aucune modification.", "info");
+    demanderMotif("Modifier les règles", "Les statistiques seront recalculées immédiatement.", async (m) => { for (const i of changes) await ga({ action: "admin_parametre_modifier", cle: i.dataset.p, valeur: i.value, motif: m }); allerA("reglages"); });
+  };
+  $("#r-ok2").onclick = () => {
+    const n = (s) => +$(s).value;
+    const config = { couleurs: Object.fromEntries($$("[data-coul]", v).map((i) => [i.dataset.coul, i.value])),
+      jour: { avance_min: n("#s-av"), paliers: [n("#s-p1"), n("#s-p2")], messages: Object.fromEntries($$("[data-mj]", v).map((i) => [i.dataset.mj, i.value])) },
+      mois: { nombre: [n("#s-n1"), n("#s-n2"), n("#s-n3")], minutes: [n("#s-m1"), n("#s-m2"), n("#s-m3")], messages: $$("[data-mm]", v).map((i) => i.value) } };
+    demanderMotif("Modifier les smileys", "", async (m) => { const r = await ga({ action: "admin_emojis_config_modifier", config, motif: m }); G.cfg = r.config; Object.assign(SMILEY_COULEURS, r.config.couleurs); allerA("reglages"); });
+  };
+  $("#r-defaut").onclick = () => demanderMotif("Revenir aux valeurs par défaut", "", async (m) => { const r = await ga({ action: "admin_emojis_config_modifier", defaut: true, motif: m }); G.cfg = r.config; Object.assign(SMILEY_COULEURS, r.config.couleurs); allerA("reglages"); });
+  $("#r-wifi").onclick = async () => { try { await ga({ action: "admin_ajouter_wifi" }); allerA("reglages"); } catch (e) { alert(e.message); } };
+  $$("[data-ret]", v).forEach((b) => b.onclick = async () => { if (!confirm("Retirer ce réseau ? Plus personne ne pourra pointer depuis celui-ci.")) return; await ga({ action: "admin_retirer_wifi", reseau: b.dataset.ret }); allerA("reglages"); });
+}
+
+// ---------- Journal ----------
+async function vueJournal(v) {
+  const j = await ga({ action: "admin_journal", limite: 200 });
+  const resume = (x) => { if (!x) return ""; if (typeof x !== "object") return String(x); if (Array.isArray(x)) return x.map((c) => c.debut ? `${String(c.debut).slice(0, 5)}–${String(c.fin).slice(0, 5)}` : JSON.stringify(c)).join(", ") || "OFF";
+    return Object.entries(x).filter(([k]) => !["id"].includes(k)).map(([k, val]) => `${k} : ${typeof val === "object" ? "…" : val}`).join(" · "); };
+  v.innerHTML = `<div class="carte"><h3>Journal des modifications</h3><p class="sous">Toutes les modifications, avec leur auteur et leur motif. Rien ne peut être effacé.</p>
+    <div class="tableau" style="margin-top:8px"><table><thead><tr><th>Quand</th><th>Qui</th><th>Objet</th><th>Action</th><th>Avant</th><th>Après</th><th>Motif</th></tr></thead><tbody>
+    ${j.journal.map((x) => `<tr><td>${dateHeure(x.quand)}</td><td>${esc(x.auteur)}</td><td>${esc(x.objet)} ${esc(x.objet_id || "")}</td><td>${esc(x.action)}</td>
+      <td class="petit" style="white-space:normal;max-width:220px">${esc(resume(x.ancienne))}</td><td class="petit" style="white-space:normal;max-width:220px">${esc(resume(x.nouvelle))}</td><td style="white-space:normal;max-width:240px">${esc(x.motif)}</td></tr>`).join("") || `<tr><td colspan="7" class="vide">Journal vide.</td></tr>`}
+    </tbody></table></div></div>`;
+}
+
+// ---------- Exports ----------
+function exporterCSV(rows, nom) {
+  const cols = [["Date", (r) => r.jour], ["Employé", (r) => r.nom], ["Poste", (r) => r.service], ["Prévu début", (r) => hcourt(r.prevu_debut)], ["Prévu fin", (r) => hcourt(r.prevu_fin)],
+    ["Arrivée", (r) => r.arrivee_min == null ? "" : hhmm(r.arrivee_min)], ["Départ", (r) => r.depart_min == null ? "" : hhmm(r.depart_min)], ["Retard (min)", (r) => r.retard_min || 0],
+    ["Retard justifié (min)", (r) => r.retard_justifie_min || 0], ["Départ anticipé (min)", (r) => r.depart_anticipe_min || 0], ["Heures sup (min)", (r) => r.heures_sup_min || 0],
+    ["Présence (min)", (r) => r.presence_min ?? ""], ["Travail effectif (min)", (r) => r.travail_min ?? ""], ["Statut", (r) => LIB_JOUR[r.statut] || r.statut], ["Absence", (r) => LIB_TYPE[r.absence_type] || ""]];
+  const cell = (x) => { const s = String(x ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = "﻿" + [cols.map((c) => c[0]).join(";"), ...[...rows].sort((a, b) => a.jour.localeCompare(b.jour) || a.nom.localeCompare(b.nom)).map((r) => cols.map((c) => cell(c[1](r))).join(";"))].join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function imprimer(html) { $("#impression").innerHTML = html; setTimeout(() => window.print(), 50); }
+function rapportMensuelPDF(e, rows, nm) {
+  const s = stats(rows), mois = MOIS[+G.js.slice(5, 7) - 1] + " " + G.js.slice(0, 4);
+  imprimer(`<h1>Rapport mensuel · ${esc(e.nom)}</h1><p>${esc(e.service)} · ${esc(mois)} (jusqu'au ${dateCourte(G.js)}) · Capanna</p>
+    <div style="display:flex;align-items:center;gap:10px;margin:8px 0">${smiley(nm.smiley, { taille: 36 })}<span>Discipline du mois</span></div>
+    <div class="kpis">${[["Jours travaillés", s.jours], ["Retards", s.nb_retards], ["Retard cumulé", duree(s.cumul)], ["Retard moyen", duree(s.moyenne)], ["Ponctualité", (s.ponctualite ?? "—") + " %"], ["Absences injustifiées", s.absences], ["Heures sup", duree(s.heures_sup)], ["Travail effectif", duree(s.travail)]].map(([l, x]) => `<div class="kpi"><b>${esc(x)}</b><span>${l}</span></div>`).join("")}</div>
+    <table style="margin-top:12px"><thead><tr><th>Date</th><th>Prévu</th><th>Arrivée</th><th>Retard</th><th>Départ</th><th>Travail</th><th>Statut</th></tr></thead><tbody>
+    ${[...rows].sort((a, b) => a.jour.localeCompare(b.jour)).map((r) => `<tr><td>${dateCourte(r.jour)} ${JOURS_C[dow(r.jour)]}</td><td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td><td>${r.retard_min ? r.retard_min + " min" : "—"}</td><td>${hhmm(r.depart_min)}</td><td>${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(LIB_JOUR[r.statut] || "")}</td></tr>`).join("")}</tbody></table>
+    <p style="margin-top:14px;font-size:10px;color:#666">Édité le ${new Date().toLocaleString("fr-FR", { timeZone: TZ })} · calculé à partir des pointages réels et des horaires prévus.</p>`);
+}
+function rapportGlobalPDF(rows, f) {
+  const par = {}; rows.forEach((r) => (par[r.employe_id] ||= []).push(r));
+  const lignes = Object.values(par).map((rs) => ({ nom: rs[0].nom, service: rs[0].service, ...stats(rs), n: niveauMois(rs) })).sort((a, b) => a.nom.localeCompare(b.nom));
+  const s = stats(rows);
+  imprimer(`<h1>Rapport du personnel · Capanna</h1><p>Du ${dateCourte(f.debut)} au ${dateCourte(f.fin)}</p>
+    <div class="kpis">${[["Ponctualité", (s.ponctualite ?? "—") + " %"], ["Retards", s.nb_retards], ["Retard cumulé", duree(s.cumul)], ["Heures sup", duree(s.heures_sup)]].map(([l, x]) => `<div class="kpi"><b>${esc(x)}</b><span>${l}</span></div>`).join("")}</div>
+    <table style="margin-top:12px"><thead><tr><th></th><th>Employé</th><th>Poste</th><th>Jours</th><th>Retards</th><th>Cumul</th><th>Ponctualité</th><th>Absences</th><th>Heures sup</th><th>Travail</th></tr></thead><tbody>
+    ${lignes.map((x) => `<tr><td>${smiley(x.n.smiley, { taille: 18 })}</td><td>${esc(x.nom)}</td><td>${esc(x.service)}</td><td>${x.jours}</td><td>${x.nb_retards}</td><td>${duree(x.cumul)}</td><td>${x.ponctualite ?? "—"} %</td><td>${x.absences}</td><td>${duree(x.heures_sup)}</td><td>${duree(x.travail)}</td></tr>`).join("")}</tbody></table>`);
+}
+
+// ======================================================================
+// Démarrage
+// ======================================================================
+function route() { (location.hash === "#gerant" ? demarrerGerant : demarrerEmploye)(); }
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
