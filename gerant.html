@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B4F3C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Capanna RH">
+<meta name="robots" content="noindex">
+<title>Capanna – Espace gérant</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<script src="lib/chart.umd.js"></script>
+<style>
+  :root {
+    --vert:#0B4F3C; --vert-2:#13684F; --vert-clair:#E6EFEA; --or:#A8823C; --or-clair:#F4ECDD;
+    --fond:#F6F3EA; --carte:#FFFFFF; --texte:#1C1F1D; --gris:#6E726F; --ligne:#E7E2D5;
+    --rouge:#B3261E; --rouge-clair:#FBE9E7; --orange:#B86A00; --orange-clair:#FDF1DE; --ok:#1E7A4C; --ok-clair:#E4F3EA;
+    --r:16px;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; background:var(--fond); color:var(--texte); font-size:15px; -webkit-font-smoothing:antialiased; }
+  a { color:var(--vert); }
+  button { font:inherit; cursor:pointer; border:0; border-radius:10px; padding:10px 14px; background:var(--vert); color:#fff; font-weight:600; }
+  button.sec { background:var(--vert-clair); color:var(--vert); }
+  button.or { background:var(--or); }
+  button.lien { background:none; color:var(--vert); padding:4px 6px; font-weight:500; text-decoration:underline; }
+  button.danger { background:var(--rouge-clair); color:var(--rouge); }
+  button:disabled { opacity:.45; cursor:default; }
+  input, select, textarea { font:inherit; padding:10px 12px; border:1px solid var(--ligne); border-radius:10px; background:#fff; color:var(--texte); width:100%; }
+  label { display:block; font-size:13px; color:var(--gris); margin:10px 0 4px; }
+  .cache { display:none !important; }
+
+  /* --- mise en page --- */
+  .app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+  nav.lat { background:var(--vert); color:#fff; padding:22px 14px; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:4px; }
+  nav.lat .marque { background:#F2EEE1; border-radius:14px; padding:14px; margin-bottom:16px; text-align:center; }
+  nav.lat .marque img { width:130px; display:block; margin:0 auto; }
+  nav.lat .marque small { color:var(--or); letter-spacing:2px; font-size:10px; text-transform:uppercase; }
+  nav.lat a { color:#E8F0EC; text-decoration:none; padding:10px 12px; border-radius:10px; display:flex; gap:10px; align-items:center; font-weight:500; }
+  nav.lat a:hover { background:rgba(255,255,255,.08); }
+  nav.lat a.actif { background:#fff; color:var(--vert); }
+  nav.lat .bas { margin-top:auto; font-size:12px; color:#B9D0C5; padding:8px 12px; }
+  nav.lat .badge { margin-left:auto; background:var(--or); color:#fff; border-radius:20px; font-size:11px; padding:1px 7px; }
+  main { padding:26px 30px 60px; max-width:1200px; width:100%; }
+  h1 { font-family:Georgia,"Times New Roman",serif; font-weight:400; font-size:30px; margin:0 0 4px; color:var(--vert); }
+  h2 { font-size:17px; margin:0 0 12px; }
+  .sous { color:var(--gris); margin:0 0 20px; }
+  .barre { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:0 0 18px; }
+  .barre > div { min-width:150px; }
+  .barre label { margin-top:0; }
+  .grille { display:grid; gap:14px; }
+  .g4 { grid-template-columns:repeat(4,minmax(0,1fr)); } .g3 { grid-template-columns:repeat(3,minmax(0,1fr)); } .g2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .grille > * { min-width:0; }
+  main { min-width:0; overflow-x:hidden; }
+  .carte { background:var(--carte); border-radius:var(--r); padding:18px; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(30,40,30,.05); border:1px solid #EFEBE0; }
+  .kpi .v { font-size:28px; font-weight:700; letter-spacing:-.5px; margin-top:4px; }
+  .kpi .l { font-size:12.5px; color:var(--gris); text-transform:uppercase; letter-spacing:.6px; }
+  .kpi .d { font-size:13px; color:var(--gris); margin-top:4px; }
+  .kpi.or .v { color:var(--or); } .kpi.rouge .v { color:var(--rouge); } .kpi.vert .v { color:var(--vert); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--gris); font-weight:600; padding:8px 8px; border-bottom:1px solid var(--ligne); white-space:nowrap; }
+  td { padding:9px 8px; border-bottom:1px solid #F1EDE3; vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  tr.clic { cursor:pointer; } tr.clic:hover td { background:#FAF8F2; }
+  .tab { overflow-x:auto; }
+  .pastille { display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+  .p-ok { background:var(--ok-clair); color:var(--ok); } .p-rouge { background:var(--rouge-clair); color:var(--rouge); }
+  .p-orange { background:var(--orange-clair); color:var(--orange); } .p-gris { background:#EFEDE6; color:var(--gris); }
+  .p-or { background:var(--or-clair); color:var(--or); }
+  .alerte { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid #F1EDE3; }
+  .alerte:last-child { border-bottom:0; }
+  .alerte .pt { width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none; }
+  .pt.rouge { background:var(--rouge); } .pt.orange { background:var(--orange); } .pt.info { background:#9AA39E; }
+  .vide { color:var(--gris); font-style:italic; padding:8px 0; }
+  .ligne-flex { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .entete-fiche { display:flex; justify-content:space-between; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  .avatar { width:52px; height:52px; border-radius:50%; background:var(--vert-clair); color:var(--vert); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; font-family:Georgia,serif; }
+  .chart-box { position:relative; height:260px; }
+  .msg { padding:10px 14px; border-radius:10px; margin:10px 0; font-size:14px; }
+  .msg.bon { background:var(--ok-clair); color:var(--ok); } .msg.mal { background:var(--rouge-clair); color:var(--rouge); }
+  .chargement { color:var(--gris); padding:30px 0; text-align:center; }
+  .jours7 { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+  .jours7 .j { background:#FAF8F2; border:1px solid var(--ligne); border-radius:12px; padding:10px; min-height:84px; font-size:13px; }
+  .jours7 .j b { display:block; font-size:12px; color:var(--gris); text-transform:uppercase; margin-bottom:6px; }
+  .jours7 .j.off { opacity:.55; }
+
+  /* --- connexion --- */
+  .login { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login .carte { width:100%; max-width:380px; text-align:center; padding:30px; }
+  .login img { width:170px; }
+
+  /* --- fenêtre --- */
+  .voile { position:fixed; inset:0; background:rgba(20,30,25,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+  .fenetre { background:#fff; border-radius:18px; padding:22px; width:100%; max-width:460px; max-height:90vh; overflow:auto; }
+  .fenetre h2 { margin-bottom:6px; }
+  .fenetre .actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+
+  /* --- mobile --- */
+  .menu-mobile { display:none; }
+  @media (max-width: 900px) {
+    .app { grid-template-columns:1fr; }
+    nav.lat { position:fixed; bottom:0; top:auto; left:0; right:0; height:auto; flex-direction:row; padding:6px; z-index:20; overflow-x:auto; gap:2px; }
+    nav.lat .marque, nav.lat .bas { display:none; }
+    nav.lat a { flex-direction:column; gap:2px; font-size:11px; padding:6px 8px; white-space:nowrap; }
+    nav.lat .badge { margin:0; position:absolute; }
+    main { padding:18px 14px 90px; }
+    .g4 { grid-template-columns:repeat(2,minmax(0,1fr)); } .g3, .g2 { grid-template-columns:minmax(0,1fr); }
+    .barre > div { min-width:0; flex:1 1 140px; }
+    .kpi .d { font-size:12px; }
+    .carte { padding:14px; }
+    h1 { font-size:24px; }
+    .kpi .v { font-size:22px; }
+    .jours7 { grid-template-columns:repeat(2,1fr); }
+    .masque-mobile { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ CONNEXION ============ -->
+<div class="login" id="ecran-login">
+  <div class="carte">
+    <img src="logo.png" alt="Capanna Restaurante">
+    <p style="color:var(--or);letter-spacing:2px;font-size:12px;text-transform:uppercase;margin:10px 0 18px">Espace gérant</p>
+    <h2 id="titre-login" style="text-align:left">Connexion</h2>
+    <input id="code" type="password" placeholder="Code gérant" autocomplete="current-password">
+    <input id="code2" type="password" placeholder="Confirme le code" class="cache" style="margin-top:8px" autocomplete="new-password">
+    <button id="btn-login" style="width:100%;margin-top:12px;padding:13px">Entrer</button>
+    <div id="msg-login"></div>
+  </div>
+</div>
+
+<!-- ============ APPLICATION ============ -->
+<div class="app cache" id="ecran-app">
+  <nav class="lat" id="nav">
+    <div class="marque"><img src="logo.png" alt="Capanna"><small>Gestion du personnel</small></div>
+    <a href="#tableau" data-v="tableau">📊 <span>Tableau de bord</span></a>
+    <a href="#equipe" data-v="equipe">👥 <span>Équipe</span></a>
+    <a href="#absences" data-v="absences">🗓️ <span>Congés</span><span class="badge cache" id="badge-dem"></span></a>
+    <a href="#planning" data-v="planning">🕒 <span>Planning</span></a>
+    <a href="#rapports" data-v="rapports">📄 <span>Rapports</span></a>
+    <a href="#reglages" data-v="reglages">⚙️ <span>Réglages</span></a>
+    <div class="bas">Pointage Wi-Fi Capanna<br><a href="#" id="deconnexion" style="color:#B9D0C5;padding:0">Se déconnecter</a></div>
+  </nav>
+  <main id="vue"></main>
+</div>
+
+<div id="fenetre"></div>
+
+<script>
+const API = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/pointage";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const JOURS = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const TYPES = { conge: "Congé", maladie: "Maladie", absence_autorisee: "Absence autorisée", absence_injustifiee: "Absence injustifiée", retard_justifie: "Retard justifié" };
+const STATUTS = {
+  travaille: ["Travaillé", "p-ok"], present: ["Sur place", "p-ok"], depart_non_pointe: ["Départ non pointé", "p-orange"],
+  absence_injustifiee: ["Absence injustifiée", "p-rouge"], absence_justifiee: ["Absence justifiée", "p-gris"],
+  absent_en_cours: ["Pas encore arrivé", "p-orange"], a_venir: ["À venir", "p-gris"], hors_planning: ["Hors planning", "p-or"],
+};
+const ST_DEM = { demandee: ["En attente", "p-orange"], validee: ["Validée", "p-ok"], refusee: ["Refusée", "p-rouge"], annulee: ["Annulée", "p-gris"] };
+
+let CODE = "";
+try { CODE = sessionStorage.getItem("capanna_code") || ""; } catch {}
+let EMPLOYES = [];
+const charts = [];
+
+// ---------- utilitaires ----------
+async function api(action, corps = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, code: CODE, ...corps }) });
+  const j = await r.json().catch(() => ({ erreur: "Réponse illisible" }));
+  if (!r.ok || j.erreur) throw new Error(j.erreur || "Erreur " + r.status);
+  return j;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function duree(m) { // 75 -> "1 h 15"
+  if (m == null) return "—";
+  m = Math.round(m); if (m === 0) return "0";
+  const h = Math.floor(Math.abs(m) / 60), r = Math.abs(m) % 60;
+  return (m < 0 ? "−" : "") + (h ? `${h} h ${String(r).padStart(2, "0")}` : `${r} min`);
+}
+const hm = (m) => m == null ? "—" : `${String(Math.floor(m / 60) % 24).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`;
+const tm = (t) => t ? t.slice(0, 5).replace(":", "h") : "—";
+const dfr = (d) => d ? d.split("-").reverse().join("/") : "";
+const djour = (d) => { const x = new Date(d + "T12:00:00Z"); return x.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" }); };
+const pct = (p) => p == null ? "—" : `${p.toString().replace(".", ",")} %`;
+const pastille = (txt, cls) => `<span class="pastille ${cls}">${esc(txt)}</span>`;
+const statut = (s) => { const x = STATUTS[s] || [s, "p-gris"]; return pastille(x[0], x[1]); };
+const aujourdhui = () => { const d = new Date(Date.now() - 5 * 3600e3); return d.toLocaleDateString("en-CA", { timeZone: "Africa/Casablanca" }); };
+function addJ(d, n) { return new Date(new Date(d + "T12:00:00Z").getTime() + n * 864e5).toISOString().slice(0, 10); }
+function lundi(d) { const w = new Date(d + "T12:00:00Z").getUTCDay() || 7; return addJ(d, 1 - w); }
+function periode(code) {
+  const a = aujourdhui();
+  if (code === "jour") return [a, a];
+  if (code === "semaine") return [lundi(a), a];
+  if (code === "mois") return [a.slice(0, 8) + "01", a];
+  if (code === "mois-1") { const p = addJ(a.slice(0, 8) + "01", -1); return [p.slice(0, 8) + "01", p]; }
+  if (code === "30j") return [addJ(a, -29), a];
+  return [a.slice(0, 8) + "01", a];
+}
+function message(el, txt, bon) { el.innerHTML = `<div class="msg ${bon ? "bon" : "mal"}">${esc(txt)}</div>`; }
+function viderCharts() { while (charts.length) charts.pop().destroy(); }
+
+// ---------- fenêtre (remplace prompt/confirm) ----------
+function fenetre({ titre, texte = "", champs = [], ok = "Valider", danger = false }) {
+  return new Promise((res) => {
+    const f = $("#fenetre");
+    f.innerHTML = `<div class="voile"><div class="fenetre">
+      <h2>${esc(titre)}</h2>${texte ? `<p class="sous" style="margin-bottom:6px">${texte}</p>` : ""}
+      ${champs.map((c, i) => `<label>${esc(c.label)}</label>${
+        c.type === "select" ? `<select data-i="${i}">${c.options.map((o) => `<option value="${esc(o[0])}" ${o[0] === c.valeur ? "selected" : ""}>${esc(o[1])}</option>`).join("")}</select>`
+        : c.type === "textarea" ? `<textarea data-i="${i}" rows="3" placeholder="${esc(c.placeholder || "")}">${esc(c.valeur || "")}</textarea>`
+        : `<input data-i="${i}" type="${c.type || "text"}" value="${esc(c.valeur || "")}" placeholder="${esc(c.placeholder || "")}">`}`).join("")}
+      <div id="msg-fen"></div>
+      <div class="actions"><button class="sec" data-x="non">Annuler</button><button class="${danger ? "danger" : ""}" data-x="oui">${esc(ok)}</button></div>
+    </div></div>`;
+    const fermer = (v) => { f.innerHTML = ""; res(v); };
+    $("[data-x=non]", f).onclick = () => fermer(null);
+    $("[data-x=oui]", f).onclick = () => {
+      const vals = $$("[data-i]", f).map((x) => x.value.trim());
+      const manque = champs.findIndex((c, i) => c.requis && !vals[i]);
+      if (manque >= 0) return message($("#msg-fen"), `« ${champs[manque].label} » est obligatoire.`, false);
+      fermer(vals);
+    };
+    const premier = $("[data-i]", f); if (premier) premier.focus();
+  });
+}
+const champMotif = { label: "Motif (obligatoire, conservé dans l'historique)", type: "textarea", requis: true, placeholder: "Ex. : oubli de pointage confirmé par le chef" };
+
+// ---------- connexion ----------
+let creation = false;
+async function demarrer() {
+  try {
+    const s = await api("admin_statut");
+    if (!s.configure) {
+      creation = true;
+      $("#titre-login").textContent = "Créer le code gérant";
+      $("#code2").classList.remove("cache"); $("#btn-login").textContent = "Créer";
+    }
+    if (CODE) { try { await api("admin_connexion"); return ouvrir(); } catch { CODE = ""; } }
+  } catch (e) { message($("#msg-login"), e.message, false); }
+}
+$("#btn-login").onclick = async () => {
+  const c = $("#code").value;
+  try {
+    if (creation) {
+      if (c !== $("#code2").value) return message($("#msg-login"), "Les deux codes ne sont pas identiques.", false);
+      await api("admin_creer", { code: c });
+    }
+    CODE = c; await api("admin_connexion");
+    try { sessionStorage.setItem("capanna_code", c); } catch {}
+    ouvrir();
+  } catch (e) { CODE = ""; message($("#msg-login"), e.message, false); }
+};
+$("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#btn-login").click(); });
+$("#deconnexion").onclick = (e) => { e.preventDefault(); CODE = ""; try { sessionStorage.removeItem("capanna_code"); } catch {} location.hash = ""; location.reload(); };
+
+async function ouvrir() {
+  $("#ecran-login").classList.add("cache"); $("#ecran-app").classList.remove("cache");
+  const eq = await api("admin_equipe"); EMPLOYES = eq.equipe;
+  majBadge();
+  router();
+}
+async function majBadge() {
+  try {
+    const a = await api("admin_absences", { statut: "demandee" });
+    const b = $("#badge-dem"); b.textContent = a.absences.length; b.classList.toggle("cache", !a.absences.length);
+  } catch {}
+}
+window.addEventListener("hashchange", () => { if (CODE) router(); });
+function router() {
+  const h = location.hash.replace("#", "") || "tableau";
+  const [v, arg] = h.split("-");
+  $$("#nav a[data-v]").forEach((a) => a.classList.toggle("actif", a.dataset.v === v || (v === "fiche" && a.dataset.v === "equipe")));
+  viderCharts();
+  const vues = { tableau: vueTableau, equipe: vueEquipe, fiche: vueFiche, absences: vueAbsences, planning: vuePlanning, rapports: vueRapports, reglages: vueReglages };
+  (vues[v] || vueTableau)(arg);
+  window.scrollTo(0, 0);
+}
+const services = () => [...new Set(EMPLOYES.map((e) => e.service))].sort();
+
+// ======================= TABLEAU DE BORD =======================
+let filtreT = { per: "mois", service: "", employe: "" };
+async function vueTableau() {
+  const V = $("#vue");
+  V.innerHTML = `<h1>Tableau de bord</h1><p class="sous" id="t-sous">Chargement…</p>
+  <div class="barre">
+    <div><label>Période</label><select id="f-per">
+      <option value="jour">Aujourd'hui</option><option value="semaine">Cette semaine</option><option value="mois">Ce mois</option>
+      <option value="mois-1">Mois dernier</option><option value="30j">30 derniers jours</option><option value="perso">Personnalisée…</option></select></div>
+    <div id="f-dates" class="cache ligne-flex"><div><label>Du</label><input type="date" id="f-d"></div><div><label>Au</label><input type="date" id="f-f"></div></div>
+    <div><label>Poste</label><select id="f-svc"><option value="">Tous</option>${services().map((s) => `<option>${esc(s)}</option>`).join("")}</select></div>
+    <div><label>Employé</label><select id="f-emp"><option value="">Tous</option>${EMPLOYES.map((e) => `<option value="${e.id}">${esc(e.nom)}</option>`).join("")}</select></div>
+  </div>
+  <div id="t-corps"><div class="chargement">Calcul en cours…</div></div>`;
+  $("#f-per").value = filtreT.per; $("#f-svc").value = filtreT.service; $("#f-emp").value = filtreT.employe;
+  const go = () => {
+    filtreT = { per: $("#f-per").value, service: $("#f-svc").value, employe: $("#f-emp").value };
+    $("#f-dates").classList.toggle("cache", filtreT.per !== "perso");
+    if (filtreT.per === "perso" && !($("#f-d").value && $("#f-f").value)) return;
+    chargerTableau();
+  };
+  ["#f-per", "#f-svc", "#f-emp", "#f-d", "#f-f"].forEach((s) => $(s).onchange = go);
+  chargerTableau();
+}
+async function chargerTableau() {
+  const [debut, fin] = filtreT.per === "perso" ? [$("#f-d").value, $("#f-f").value] : periode(filtreT.per);
+  let t;
+  try { t = await api("admin_tableau", { debut, fin, service: filtreT.service || undefined, employe_id: filtreT.employe || undefined }); }
+  catch (e) { return message($("#t-corps"), e.message, false); }
+  viderCharts();
+  const E = t.equipe, J = t.jour;
+  const avantSuivi = t.aujourdhui < t.debut_suivi;
+  $("#t-sous").innerHTML = `Du ${dfr(t.debut)} au ${dfr(t.fin)} · suivi officiel depuis le ${dfr(t.debut_suivi)} · tolérance ${t.parametres.tolerance_retard_min} min · heures sup après ${t.parametres.seuil_heures_sup_min} min`;
+  const classe = t.classement.filter((c) => c.creneaux_travailles > 0);
+  const ponct = [...classe].sort((a, b) => (b.ponctualite_pct ?? -1) - (a.ponctualite_pct ?? -1) || b.creneaux_travailles - a.creneaux_travailles).slice(0, 5);
+  const retards = [...t.classement].filter((c) => c.retard_total_min > 0).sort((a, b) => b.retard_total_min - a.retard_total_min).slice(0, 5);
+  $("#t-corps").innerHTML = `
+  ${avantSuivi ? `<div class="msg bon">Le suivi officiel commence le ${dfr(t.debut_suivi)}. Les cumuls ci-dessous démarrent à cette date.</div>` : ""}
+  <div class="grille g4">
+    <div class="carte kpi vert"><div class="l">Présents maintenant</div><div class="v">${J.presents.length}</div><div class="d">${J.presents.map(esc).join(", ") || "Personne"}</div></div>
+    <div class="carte kpi ${J.absents.length ? "rouge" : ""}"><div class="l">Pas encore arrivés</div><div class="v">${J.absents.length}</div><div class="d">${J.absents.map(esc).join(", ") || "Aucun"}</div></div>
+    <div class="carte kpi ${J.retards.length ? "or" : ""}"><div class="l">En retard aujourd'hui</div><div class="v">${J.retards.length}</div><div class="d">${J.retards.map((r) => `${esc(r.nom)} (${r.retard_min} min)`).join(", ") || "Aucun"}</div></div>
+    <div class="carte kpi"><div class="l">Ponctualité de l'équipe</div><div class="v">${pct(E.ponctualite_pct)}</div><div class="d">${E.creneaux_travailles} services pointés</div></div>
+    <div class="carte kpi or"><div class="l">Retards cumulés</div><div class="v">${duree(E.retard_total_min)}</div><div class="d">${E.nb_retards} retard${E.nb_retards > 1 ? "s" : ""} · moyenne ${duree(E.retard_moyen_min)}</div></div>
+    <div class="carte kpi rouge"><div class="l">Absences injustifiées</div><div class="v">${E.absences_injustifiees}</div><div class="d">${E.absences_justifiees} absence(s) justifiée(s)</div></div>
+    <div class="carte kpi vert"><div class="l">Heures supplémentaires</div><div class="v">${duree(E.heures_sup_min)}</div><div class="d">Travail effectif : ${duree(E.travail_min)}</div></div>
+    <div class="carte kpi"><div class="l">Départs non pointés</div><div class="v">${E.departs_non_pointes}</div><div class="d">${E.hors_planning} pointage(s) hors planning</div></div>
+  </div>
+  <div class="grille g2" style="margin-top:14px">
+    <div class="carte"><h2>Alertes</h2><div id="t-alertes">${t.alertes.length ? t.alertes.slice(0, 14).map((a) => `<div class="alerte"><span class="pt ${a.niveau}"></span><div><b>${esc(a.nom || "")}</b> ${a.jour ? `<span class="pastille p-gris">${djour(a.jour)}</span>` : ""}<br><span style="color:var(--gris)">${esc(a.texte)}</span></div></div>`).join("") : `<div class="vide">Aucune alerte.</div>`}</div></div>
+    <div class="carte"><h2>Retards par semaine</h2><div class="chart-box"><canvas id="c-sem"></canvas></div></div>
+  </div>
+  <div class="grille g2" style="margin-top:14px">
+    <div class="carte"><h2>🏅 Les plus ponctuels</h2>${tableClassement(ponct, "p")}</div>
+    <div class="carte"><h2>⏱️ Les plus de retards</h2>${tableClassement(retards, "r")}</div>
+  </div>
+  <div class="carte" style="margin-top:14px"><h2>Par mois</h2><div class="chart-box"><canvas id="c-mois"></canvas></div></div>
+  <div class="carte" style="margin-top:14px"><h2>Toute l'équipe sur la période</h2><div class="tab">${tableEquipeStats(t.classement)}</div></div>`;
+  $$("[data-fiche]").forEach((tr) => tr.onclick = () => location.hash = "fiche-" + tr.dataset.fiche);
+  graphe("c-sem", t.semaines.map((s) => "Sem. " + dfr(s.periode).slice(0, 5)), t.semaines);
+  graphe("c-mois", t.mois.map((s) => new Date(s.periode + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })), t.mois);
+}
+function tableClassement(l, mode) {
+  if (!l.length) return `<div class="vide">Pas encore de données.</div>`;
+  return `<table><tr><th>#</th><th>Employé</th><th>${mode === "p" ? "Ponctualité" : "Retard cumulé"}</th><th class="masque-mobile">${mode === "p" ? "Services" : "Nb retards"}</th></tr>
+  ${l.map((c, i) => `<tr class="clic" data-fiche="${c.employe_id}"><td>${i + 1}</td><td><b>${esc(c.nom)}</b><br><small style="color:var(--gris)">${esc(c.service)}</small></td>
+  <td>${mode === "p" ? pct(c.ponctualite_pct) : duree(c.retard_total_min)}</td><td class="masque-mobile">${mode === "p" ? c.creneaux_travailles : c.nb_retards}</td></tr>`).join("")}</table>`;
+}
+function tableEquipeStats(l) {
+  if (!l.length) return `<div class="vide">Pas encore de données sur cette période.</div>`;
+  return `<table><tr><th>Employé</th><th>Poste</th><th>Jours</th><th>Retards</th><th>Cumul</th><th>Ponctualité</th><th>Absences inj.</th><th>Heures sup</th><th>Travail effectif</th></tr>
+  ${[...l].sort((a, b) => a.nom.localeCompare(b.nom)).map((c) => `<tr class="clic" data-fiche="${c.employe_id}"><td><b>${esc(c.nom)}</b></td><td>${esc(c.service)}</td><td>${c.jours_travailles}</td><td>${c.nb_retards}</td><td>${duree(c.retard_total_min)}</td><td>${pct(c.ponctualite_pct)}</td><td>${c.absences_injustifiees || ""}</td><td>${c.heures_sup_min ? duree(c.heures_sup_min) : ""}</td><td>${duree(c.travail_min)}</td></tr>`).join("")}</table>`;
+}
+function graphe(id, labels, serie) {
+  const el = document.getElementById(id); if (!el || !window.Chart) return;
+  charts.push(new Chart(el, {
+    data: { labels, datasets: [
+      { type: "bar", label: "Retards (min)", data: serie.map((s) => s.retard_total_min), backgroundColor: "#A8823C", borderRadius: 6, maxBarThickness: 46, yAxisID: "y" },
+      { type: "bar", label: "Heures sup (min)", data: serie.map((s) => s.heures_sup_min), backgroundColor: "#9CC5B2", borderRadius: 6, maxBarThickness: 46, yAxisID: "y" },
+      { type: "line", label: "Ponctualité (%)", data: serie.map((s) => s.ponctualite_pct), borderColor: "#0B4F3C", backgroundColor: "#0B4F3C", tension: .3, yAxisID: "y2" },
+    ] },
+    options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } },
+      scales: { y: { beginAtZero: true, grid: { color: "#EFEBE0" } }, y2: { position: "right", min: 0, max: 100, grid: { display: false } }, x: { grid: { display: false } } } },
+  }));
+}
+
+// ======================= ÉQUIPE =======================
+async function vueEquipe() {
+  const V = $("#vue");
+  V.innerHTML = `<h1>Équipe</h1><p class="sous">Touchez un employé pour ouvrir sa fiche.</p><div class="carte"><div class="chargement">Chargement…</div></div>`;
+  const eq = await api("admin_equipe"); EMPLOYES = eq.equipe;
+  const parSvc = {};
+  for (const e of EMPLOYES) (parSvc[e.service] ||= []).push(e);
+  V.innerHTML = `<h1>Équipe</h1><p class="sous">${EMPLOYES.length} employés · ${EMPLOYES.filter((e) => e.telephone).length} téléphones activés · ${EMPLOYES.filter((e) => e.present).length} sur place maintenant</p>
+  ${Object.entries(parSvc).map(([svc, l]) => `<div class="carte" style="margin-bottom:14px"><h2>${esc(svc)}</h2><div class="tab"><table>
+    <tr><th>Employé</th><th>Statut</th><th>Téléphone</th><th>Code</th><th></th></tr>
+    ${l.map((e) => `<tr class="clic" data-fiche="${e.id}"><td><b>${esc(e.nom)}</b></td>
+      <td>${e.present ? pastille("Sur place", "p-ok") : ""}</td>
+      <td>${e.telephone ? pastille("Activé", "p-ok") : pastille("Non activé", "p-gris")}</td>
+      <td><b>${esc(e.pin)}</b></td><td style="text-align:right">›</td></tr>`).join("")}
+  </table></div></div>`).join("")}`;
+  $$("[data-fiche]").forEach((tr) => tr.onclick = () => location.hash = "fiche-" + tr.dataset.fiche);
+}
+
+// ======================= FICHE =======================
+async function vueFiche(id) {
+  const V = $("#vue");
+  V.innerHTML = `<div class="chargement">Chargement de la fiche…</div>`;
+  let f, pts;
+  try { [f, pts] = await Promise.all([api("admin_fiche", { employe_id: id }), api("admin_pointages", { employe_id: id, debut: addJ(aujourdhui(), -13), fin: aujourdhui() })]); }
+  catch (e) { return message(V, e.message, false); }
+  const e = f.employe, emp = EMPLOYES.find((x) => x.id == id) || {};
+  const S = (s) => s;
+  const hist = f.historique.filter((l) => l.statut !== "a_venir");
+  V.innerHTML = `
+  <p style="margin:0 0 10px"><a href="#equipe">‹ Équipe</a></p>
+  <div class="entete-fiche">
+    <div class="ligne-flex"><div class="avatar">${esc(e.nom[0])}</div><div><h1 style="margin:0">${esc(e.nom)}</h1><div style="color:var(--gris)">${esc(e.service)} · code ${esc(emp.pin || "")} · ${emp.telephone ? "téléphone activé" : "téléphone non activé"}</div></div></div>
+    <div class="ligne-flex">
+      <button class="sec" id="b-abs">+ Absence / congé</button>
+      <button class="sec" id="b-pt">+ Pointage manuel</button>
+      <button class="sec" id="b-pdf">PDF du mois</button>
+      <button class="danger" id="b-reset" ${emp.telephone ? "" : "disabled"}>Réinitialiser le téléphone</button>
+    </div>
+  </div>
+  <div class="grille g4">
+    <div class="carte kpi or"><div class="l">Retard du jour</div><div class="v">${duree(f.retard_jour_min)}</div></div>
+    <div class="carte kpi or"><div class="l">Retard de la semaine</div><div class="v">${duree(f.semaine.retard_total_min)}</div><div class="d">${f.semaine.nb_retards} retard(s)</div></div>
+    <div class="carte kpi or"><div class="l">Retard du mois</div><div class="v">${duree(f.mois.retard_total_min)}</div><div class="d">${f.mois.nb_retards} retard(s)</div></div>
+    <div class="carte kpi rouge"><div class="l">Retard depuis le ${dfr(f.debut_suivi).slice(0, 5)}</div><div class="v">${duree(f.total.retard_total_min)}</div><div class="d">${f.total.nb_retards} retard(s) · moyenne ${duree(f.total.retard_moyen_min)}</div></div>
+    <div class="carte kpi vert"><div class="l">Ponctualité</div><div class="v">${pct(f.total.ponctualite_pct)}</div><div class="d">${f.total.creneaux_travailles} services pointés</div></div>
+    <div class="carte kpi"><div class="l">Jours travaillés</div><div class="v">${f.total.jours_travailles}</div><div class="d">Travail effectif : ${duree(f.total.travail_min)}</div></div>
+    <div class="carte kpi rouge"><div class="l">Absences</div><div class="v">${f.total.absences_injustifiees}</div><div class="d">injustifiée(s) · ${f.total.absences_justifiees} justifiée(s)</div></div>
+    <div class="carte kpi vert"><div class="l">Heures supplémentaires</div><div class="v">${duree(f.total.heures_sup_min)}</div><div class="d">${f.total.departs_non_pointes} départ(s) non pointé(s)</div></div>
+  </div>
+  <div class="carte" style="margin-top:14px"><h2>Planning de la semaine</h2>
+    <div class="jours7">${[1, 2, 3, 4, 5, 6, 7].map((j) => { const cs = f.creneaux.filter((c) => c.jour === j);
+      return `<div class="j ${cs.length ? "" : "off"}"><b>${JOURS[j]}</b>${cs.length ? cs.map((c) => `${tm(c.debut)} – ${tm(c.fin)}${c.pause_min ? `<br><small>pause ${c.pause_min} min</small>` : ""}`).join("<hr style='border:0;border-top:1px dashed #ddd;margin:6px 0'>") : "OFF"}<br><button class="lien" data-planj="${j}">modifier</button></div>`; }).join("")}</div></div>
+  <div class="carte" style="margin-top:14px"><h2>Historique</h2><div class="tab"><table>
+    <tr><th>Date</th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th>Retard</th><th>Heures sup</th><th>Travail</th><th>Statut</th></tr>
+    ${hist.length ? hist.map((l) => `<tr ${l.jour < f.debut_suivi ? 'style="opacity:.5" title="Avant le début du suivi : non compté"' : ""}><td>${djour(l.jour)}</td>
+      <td>${l.prevu_debut ? `${tm(l.prevu_debut)}–${tm(l.prevu_fin)}` : "—"}</td><td>${hm(l.arrivee_min)}</td><td>${hm(l.depart_min)}</td>
+      <td>${l.retard_min ? `<b style="color:var(--orange)">${l.retard_min} min</b>` : l.retard_justifie_min ? `<span title="justifié">(${l.retard_justifie_min} min justifiées)</span>` : ""}</td>
+      <td>${l.heures_sup_min ? duree(l.heures_sup_min) : ""}</td><td>${l.travail_min != null ? duree(l.travail_min) : ""}</td><td>${statut(l.statut)}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Aucun historique pour l'instant.</td></tr>`}
+  </table></div></div>
+  <div class="carte" style="margin-top:14px"><h2>Pointages des 14 derniers jours <small style="color:var(--gris);font-weight:400">– corrections avec motif obligatoire</small></h2><div class="tab"><table>
+    <tr><th>Date</th><th>Type</th><th>Heure</th><th>Source</th><th>État</th><th></th></tr>
+    ${pts.pointages.length ? pts.pointages.map((p) => `<tr><td>${djour(p.jour_service)}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td><b>${p.heure}</b></td>
+      <td>${p.source === "manuel" ? pastille("Manuel", "p-or") : "Wi-Fi"}</td>
+      <td>${!p.accepte ? pastille("Refusé : " + (p.motif || ""), "p-rouge") : p.annule ? pastille("Annulé", "p-gris") : pastille("Valide", "p-ok")}</td>
+      <td style="white-space:nowrap">${p.accepte && !p.annule ? `<button class="lien" data-mod="${p.id}" data-h="${p.heure}" data-t="${p.type}">corriger</button><button class="lien" data-ann="${p.id}">annuler</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="vide">Aucun pointage.</td></tr>`}
+  </table></div></div>
+  <div class="carte" style="margin-top:14px"><h2>Absences et congés</h2><div class="tab"><table>
+    <tr><th>Type</th><th>Du</th><th>Au</th><th>Statut</th><th>Commentaire</th></tr>
+    ${f.absences.length ? f.absences.map((a) => `<tr><td>${TYPES[a.type]}</td><td>${dfr(a.date_debut)}</td><td>${dfr(a.date_fin)}</td><td>${pastille(...ST_DEM[a.statut])}</td><td>${esc(a.commentaire || "")}</td></tr>`).join("") : `<tr><td colspan="5" class="vide">Aucune.</td></tr>`}
+  </table></div></div>`;
+
+  $("#b-reset").onclick = async () => {
+    const r = await fenetre({ titre: `Réinitialiser le téléphone de ${e.nom} ?`, texte: "Il devra réactiver son téléphone avec son code, depuis le Wi-Fi Capanna.", ok: "Réinitialiser", danger: true });
+    if (r) { await api("admin_reinitialiser", { employe_id: id }); EMPLOYES = (await api("admin_equipe")).equipe; vueFiche(id); }
+  };
+  $("#b-abs").onclick = () => nouvelleAbsence(id);
+  $("#b-pt").onclick = async () => {
+    const r = await fenetre({ titre: `Ajouter un pointage pour ${e.nom}`, texte: "Pour un oubli de pointage. Après minuit, garde la date de la journée de service.", champs: [
+      { label: "Journée de service", type: "date", valeur: aujourdhui(), requis: true },
+      { label: "Type", type: "select", options: [["arrivee", "Arrivée"], ["depart", "Départ"]], valeur: "arrivee" },
+      { label: "Heure (ex. 10:00 ou 01:15)", type: "time", requis: true }, champMotif], ok: "Ajouter" });
+    if (!r) return;
+    try { await api("admin_corriger", { op: "ajouter", employe_id: id, jour: r[0], type: r[1], heure: r[2], motif: r[3] }); vueFiche(id); } catch (x) { alerteErreur(x); }
+  };
+  $$("[data-ann]").forEach((b) => b.onclick = async () => {
+    const r = await fenetre({ titre: "Annuler ce pointage ?", texte: "Il ne sera pas effacé : il restera visible comme « Annulé », avec ton motif.", champs: [champMotif], ok: "Annuler le pointage", danger: true });
+    if (!r) return;
+    try { await api("admin_corriger", { op: "annuler", employe_id: id, pointage_id: b.dataset.ann, motif: r[0] }); vueFiche(id); } catch (x) { alerteErreur(x); }
+  });
+  $$("[data-mod]").forEach((b) => b.onclick = async () => {
+    const r = await fenetre({ titre: "Corriger ce pointage", texte: `Heure actuelle : <b>${b.dataset.h}</b>. L'ancien pointage est conservé comme « Annulé ».`, champs: [
+      { label: "Type", type: "select", options: [["arrivee", "Arrivée"], ["depart", "Départ"]], valeur: b.dataset.t },
+      { label: "Nouvelle heure", type: "time", valeur: b.dataset.h.replace("h", ":"), requis: true }, champMotif], ok: "Corriger" });
+    if (!r) return;
+    try { await api("admin_corriger", { op: "modifier", employe_id: id, pointage_id: b.dataset.mod, type: r[0], heure: r[1], motif: r[2] }); vueFiche(id); } catch (x) { alerteErreur(x); }
+  });
+  $$("[data-planj]").forEach((b) => b.onclick = () => modifierJour(id, e.nom, +b.dataset.planj, f.creneaux.filter((c) => c.jour === +b.dataset.planj), () => vueFiche(id)));
+  $("#b-pdf").onclick = () => pdfEmploye(id);
+}
+function alerteErreur(x) { fenetre({ titre: "Impossible", texte: esc(x.message), ok: "OK" }); }
+
+async function modifierJour(id, nom, j, cs, apres) {
+  const c1 = cs[0] || {}, c2 = cs[1] || {};
+  const r = await fenetre({ titre: `${nom} – ${JOURS[j]}`, texte: "Laisse le 2e service vide s'il n'y en a pas. Vide aussi le 1er pour un jour OFF.", champs: [
+    { label: "Service 1 – début", type: "time", valeur: c1.debut?.slice(0, 5) || "" }, { label: "Service 1 – fin", type: "time", valeur: c1.fin?.slice(0, 5) || "" },
+    { label: "Service 1 – pause (min)", type: "number", valeur: String(c1.pause_min ?? 0) },
+    { label: "Service 2 – début (double service)", type: "time", valeur: c2.debut?.slice(0, 5) || "" }, { label: "Service 2 – fin", type: "time", valeur: c2.fin?.slice(0, 5) || "" },
+    { label: "Service 2 – pause (min)", type: "number", valeur: String(c2.pause_min ?? 0) }, champMotif], ok: "Enregistrer" });
+  if (!r) return;
+  const creneaux = [];
+  if (r[0] && r[1]) creneaux.push({ debut: r[0], fin: r[1], pause_min: +r[2] || 0 });
+  if (r[3] && r[4]) creneaux.push({ debut: r[3], fin: r[4], pause_min: +r[5] || 0 });
+  try { await api("admin_creneaux_jour", { employe_id: id, jour: j, creneaux, motif: r[6] }); apres(); } catch (x) { alerteErreur(x); }
+}
+
+async function nouvelleAbsence(id) {
+  const r = await fenetre({ titre: "Enregistrer une absence ou un congé", texte: "Enregistrée par toi, elle est directement validée.", champs: [
+    { label: "Employé", type: "select", options: EMPLOYES.map((e) => [String(e.id), e.nom]), valeur: String(id || EMPLOYES[0]?.id) },
+    { label: "Type", type: "select", options: Object.entries(TYPES), valeur: "conge" },
+    { label: "Du", type: "date", valeur: aujourdhui(), requis: true }, { label: "Au (inclus)", type: "date", valeur: aujourdhui(), requis: true }, champMotif], ok: "Enregistrer" });
+  if (!r) return;
+  try { await api("admin_absence_creer", { employe_id: r[0], type: r[1], date_debut: r[2], date_fin: r[3], motif: r[4] }); router(); } catch (x) { alerteErreur(x); }
+}
+
+// ======================= CONGÉS =======================
+async function vueAbsences() {
+  const V = $("#vue");
+  V.innerHTML = `<h1>Congés et absences</h1><p class="sous">Les demandes des employés arrivent ici. Une absence validée ne compte jamais comme injustifiée.</p>
+  <div class="ligne-flex" style="margin-bottom:14px"><button id="b-new">+ Enregistrer une absence</button></div><div id="a-corps"><div class="chargement">Chargement…</div></div>`;
+  $("#b-new").onclick = () => nouvelleAbsence();
+  const a = (await api("admin_absences")).absences;
+  const att = a.filter((x) => x.statut === "demandee"), autres = a.filter((x) => x.statut !== "demandee");
+  const ligne = (x, actions) => `<tr><td><b>${esc(x.hr_employes?.nom)}</b><br><small style="color:var(--gris)">${esc(x.hr_employes?.service)}</small></td><td>${TYPES[x.type]}</td><td>${dfr(x.date_debut)}${x.date_fin !== x.date_debut ? " → " + dfr(x.date_fin) : ""}</td><td>${esc(x.commentaire || "")}</td><td>${pastille(...ST_DEM[x.statut])}<br><small style="color:var(--gris)">${x.demande_par === "employe" ? "demandée par l'employé" : "saisie par le gérant"}</small></td>
+    <td style="white-space:nowrap">${actions ? `<button data-val="${x.id}">Valider</button> <button class="danger" data-ref="${x.id}">Refuser</button>` : x.statut === "validee" ? `<button class="lien" data-annabs="${x.id}">annuler</button>` : ""}</td></tr>`;
+  $("#a-corps").innerHTML = `
+  <div class="carte"><h2>En attente de validation (${att.length})</h2><div class="tab"><table><tr><th>Employé</th><th>Type</th><th>Dates</th><th>Commentaire</th><th>Statut</th><th></th></tr>
+    ${att.length ? att.map((x) => ligne(x, true)).join("") : `<tr><td colspan="6" class="vide">Aucune demande en attente.</td></tr>`}</table></div></div>
+  <div class="carte" style="margin-top:14px"><h2>Historique</h2><div class="tab"><table><tr><th>Employé</th><th>Type</th><th>Dates</th><th>Commentaire</th><th>Statut</th><th></th></tr>
+    ${autres.length ? autres.map((x) => ligne(x, false)).join("") : `<tr><td colspan="6" class="vide">Rien pour l'instant.</td></tr>`}</table></div></div>`;
+  const decider = async (id, decision, motifObligatoire) => {
+    let motif = "";
+    if (motifObligatoire || decision === "refusee") {
+      const r = await fenetre({ titre: decision === "refusee" ? "Refuser la demande" : "Annuler l'absence", champs: [{ ...champMotif, requis: motifObligatoire }], ok: "Confirmer", danger: true });
+      if (!r) return; motif = r[0];
+    }
+    try { await api("admin_absence_decider", { absence_id: id, decision, motif }); majBadge(); vueAbsences(); } catch (x) { alerteErreur(x); }
+  };
+  $$("[data-val]").forEach((b) => b.onclick = () => decider(b.dataset.val, "validee"));
+  $$("[data-ref]").forEach((b) => b.onclick = () => decider(b.dataset.ref, "refusee"));
+  $$("[data-annabs]").forEach((b) => b.onclick = () => decider(b.dataset.annabs, "annulee", true));
+}
+
+// ======================= PLANNING =======================
+async function vuePlanning() {
+  const V = $("#vue");
+  V.innerHTML = `<h1>Planning</h1><p class="sous">Horaires par employé et par jour. Double service et pause possibles. Chaque modification est tracée avec son motif.</p><div class="carte"><div class="chargement">Chargement…</div></div>`;
+  const cr = (await api("admin_creneaux")).creneaux;
+  V.innerHTML = `<h1>Planning</h1><p class="sous">Touchez une case pour modifier. Chaque modification est tracée avec son motif.</p>
+  <div class="carte tab"><table><tr><th>Employé</th>${[1, 2, 3, 4, 5, 6, 7].map((j) => `<th>${JOURS[j].slice(0, 3)}</th>`).join("")}</tr>
+  ${EMPLOYES.map((e) => `<tr><td><b>${esc(e.nom)}</b><br><small style="color:var(--gris)">${esc(e.service)}</small></td>${[1, 2, 3, 4, 5, 6, 7].map((j) => {
+    const cs = cr.filter((c) => c.employe_id === e.id && c.jour === j);
+    return `<td class="clic" data-e="${e.id}" data-j="${j}" style="cursor:pointer;font-size:12.5px;white-space:nowrap">${cs.length ? cs.map((c) => `${tm(c.debut)}–${tm(c.fin)}`).join("<br>") : `<span style="color:var(--gris)">OFF</span>`}</td>`; }).join("")}</tr>`).join("")}
+  </table></div>`;
+  $$("td[data-e]").forEach((td) => td.onclick = () => {
+    const e = EMPLOYES.find((x) => x.id == td.dataset.e), j = +td.dataset.j;
+    modifierJour(e.id, e.nom, j, cr.filter((c) => c.employe_id === e.id && c.jour === j), vuePlanning);
+  });
+}
+
+// ======================= RAPPORTS =======================
+async function vueRapports() {
+  const V = $("#vue");
+  const a = aujourdhui(), m0 = a.slice(0, 7);
+  const moisOpts = []; for (let i = 0; i < 12; i++) { const d = new Date(m0 + "-15"); d.setMonth(d.getMonth() - i); moisOpts.push(d.toISOString().slice(0, 7)); }
+  V.innerHTML = `<h1>Rapports</h1><p class="sous">Rapport mensuel global ou individuel, comparaison avec le mois précédent, exports PDF et Excel.</p>
+  <div class="barre"><div><label>Mois</label><select id="r-mois">${moisOpts.map((m) => `<option value="${m}">${new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</option>`).join("")}</select></div>
+  <div><label>Employé</label><select id="r-emp"><option value="">Toute l'équipe</option>${EMPLOYES.map((e) => `<option value="${e.id}">${esc(e.nom)}</option>`).join("")}</select></div>
+  <div><button id="r-xls" class="sec">⬇ Excel</button></div><div><button id="r-pdf" class="sec">⬇ PDF</button></div></div>
+  <div id="r-corps"><div class="chargement">Calcul…</div></div>`;
+  const charger = async () => {
+    const m = $("#r-mois").value, emp = $("#r-emp").value;
+    const [d, f] = bornesMois(m), mp = new Date(m + "-15"); mp.setMonth(mp.getMonth() - 1);
+    const [dp, fp] = bornesMois(mp.toISOString().slice(0, 7));
+    const [t, tp] = await Promise.all([api("admin_tableau", { debut: d, fin: f, employe_id: emp || undefined }), api("admin_tableau", { debut: dp, fin: fp, employe_id: emp || undefined })]);
+    RAPPORT = { mois: m, t, tp, emp };
+    const cmp = (k, fmt) => { const a = t.equipe[k] ?? 0, b = tp.equipe[k] ?? 0; const dlt = (a ?? 0) - (b ?? 0); return `<td>${fmt(a)}</td><td style="color:var(--gris)">${fmt(b)}</td><td>${dlt === 0 ? "=" : (dlt > 0 ? "+" : "") + (fmt === pct ? String(Math.round(dlt * 10) / 10).replace(".", ",") + " pt" : fmt(dlt))}</td>`; };
+    $("#r-corps").innerHTML = `
+    ${t.debut > f || t.debut !== d ? `<div class="msg bon">Période comptée : du ${dfr(t.debut)} au ${dfr(t.fin)} (le suivi commence le ${dfr(t.debut_suivi)}).</div>` : ""}
+    <div class="carte"><h2>Comparaison avec le mois précédent</h2><div class="tab"><table><tr><th></th><th>Ce mois</th><th>Mois précédent</th><th>Écart</th></tr>
+      <tr><td>Retards cumulés</td>${cmp("retard_total_min", duree)}</tr><tr><td>Nombre de retards</td>${cmp("nb_retards", String)}</tr>
+      <tr><td>Ponctualité</td>${cmp("ponctualite_pct", pct)}</tr><tr><td>Absences injustifiées</td>${cmp("absences_injustifiees", String)}</tr>
+      <tr><td>Heures supplémentaires</td>${cmp("heures_sup_min", duree)}</tr><tr><td>Travail effectif</td>${cmp("travail_min", duree)}</tr></table></div></div>
+    <div class="carte" style="margin-top:14px"><h2>Détail par employé</h2><div class="tab">${tableEquipeStats(t.classement)}</div></div>`;
+    $$("[data-fiche]").forEach((tr) => tr.onclick = () => location.hash = "fiche-" + tr.dataset.fiche);
+  };
+  $("#r-mois").onchange = charger; $("#r-emp").onchange = charger;
+  $("#r-xls").onclick = () => excelRapport(); $("#r-pdf").onclick = () => pdfRapport();
+  charger();
+}
+let RAPPORT = null;
+// Bibliothèques d'export chargées seulement au moment de l'export (plus léger sur téléphone)
+function charger(src) { return new Promise((ok, ko) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
+async function libsPdf() { await charger("lib/jspdf.umd.min.js"); await charger("lib/jspdf.plugin.autotable.min.js"); }
+async function libXls() { await charger("lib/xlsx.full.min.js"); }
+function bornesMois(m) { const d = m + "-01"; const f = addJ(new Date(new Date(d + "T12:00:00Z").setUTCMonth(new Date(d + "T12:00:00Z").getUTCMonth() + 1)).toISOString().slice(0, 10), -1); return [d, f]; }
+const nomMois = (m) => new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+function lignesRapport(cl) {
+  return [...cl].sort((a, b) => a.nom.localeCompare(b.nom)).map((c) => ({
+    "Employé": c.nom, "Poste": c.service, "Jours travaillés": c.jours_travailles, "Services pointés": c.creneaux_travailles,
+    "Nb retards": c.nb_retards, "Retard cumulé (min)": c.retard_total_min, "Retard moyen (min)": c.retard_moyen_min,
+    "Ponctualité (%)": c.ponctualite_pct, "Absences injustifiées": c.absences_injustifiees, "Absences justifiées": c.absences_justifiees,
+    "Heures sup (min)": c.heures_sup_min, "Travail effectif (h)": Math.round(c.travail_min / 6) / 10, "Départs non pointés": c.departs_non_pointes,
+  }));
+}
+async function excelRapport() {
+  if (!RAPPORT) return; await libXls();
+  const { t, mois } = RAPPORT;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lignesRapport(t.classement)), "Par employé");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t.semaines.map((s) => ({ "Semaine du": dfr(s.periode), "Retards (min)": s.retard_total_min, "Nb retards": s.nb_retards, "Ponctualité (%)": s.ponctualite_pct, "Absences inj.": s.absences_injustifiees, "Heures sup (min)": s.heures_sup_min }))), "Par semaine");
+  XLSX.writeFile(wb, `Capanna-pointage-${mois}.xlsx`);
+}
+function pdfBase(titre, sousTitre) {
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFillColor(11, 79, 60); doc.rect(0, 0, 297, 22, "F");
+  doc.setTextColor(255); doc.setFont("times", "italic"); doc.setFontSize(18); doc.text("Capanna", 12, 14);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(titre, 60, 14);
+  doc.setTextColor(60); doc.setFontSize(9); doc.text(sousTitre, 12, 30);
+  return doc;
+}
+async function pdfRapport() {
+  if (!RAPPORT) return; await libsPdf();
+  const { t, mois } = RAPPORT;
+  const doc = pdfBase(`Rapport de présence – ${nomMois(mois)}`, `Du ${dfr(t.debut)} au ${dfr(t.fin)} · tolérance ${t.parametres.tolerance_retard_min} min · heures sup après ${t.parametres.seuil_heures_sup_min} min · édité le ${new Date().toLocaleString("fr-FR")}`);
+  const L = lignesRapport(t.classement);
+  doc.autoTable({ startY: 35, head: [Object.keys(L[0] || { "Aucune donnée": "" })], body: L.map((x) => Object.values(x)), styles: { fontSize: 8 }, headStyles: { fillColor: [168, 130, 60] } });
+  doc.save(`Capanna-rapport-${mois}.pdf`);
+}
+async function pdfEmploye(id) {
+  await libsPdf();
+  const m = aujourdhui().slice(0, 7), [d, f] = bornesMois(m);
+  const [t, fi] = await Promise.all([api("admin_tableau", { debut: d, fin: f, employe_id: id }), api("admin_fiche", { employe_id: id })]);
+  const e = fi.employe, s = t.equipe;
+  const doc = pdfBase(`Fiche individuelle – ${e.nom} (${e.service}) – ${nomMois(m)}`, `Du ${dfr(t.debut)} au ${dfr(t.fin)} · édité le ${new Date().toLocaleString("fr-FR")}`);
+  doc.autoTable({ startY: 35, head: [["Jours travaillés", "Nb retards", "Retard cumulé", "Retard moyen", "Ponctualité", "Absences inj.", "Absences just.", "Heures sup", "Travail effectif"]],
+    body: [[s.jours_travailles, s.nb_retards, duree(s.retard_total_min), duree(s.retard_moyen_min), pct(s.ponctualite_pct), s.absences_injustifiees, s.absences_justifiees, duree(s.heures_sup_min), duree(s.travail_min)]],
+    styles: { fontSize: 9 }, headStyles: { fillColor: [11, 79, 60] } });
+  const H = fi.historique.filter((l) => l.jour >= t.debut && l.jour <= t.fin && l.statut !== "a_venir").reverse();
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 8, head: [["Date", "Prévu", "Arrivée", "Départ", "Retard", "Heures sup", "Travail", "Statut"]],
+    body: H.map((l) => [djour(l.jour), l.prevu_debut ? `${tm(l.prevu_debut)}–${tm(l.prevu_fin)}` : "—", hm(l.arrivee_min), hm(l.depart_min), l.retard_min ? l.retard_min + " min" : "", l.heures_sup_min ? duree(l.heures_sup_min) : "", l.travail_min != null ? duree(l.travail_min) : "", (STATUTS[l.statut] || [l.statut])[0]]),
+    styles: { fontSize: 8 }, headStyles: { fillColor: [168, 130, 60] } });
+  doc.save(`Capanna-${e.nom}-${m}.pdf`);
+}
+
+// ======================= RÉGLAGES =======================
+async function vueReglages() {
+  const V = $("#vue");
+  V.innerHTML = `<h1>Réglages</h1><p class="sous">Chaque changement est enregistré dans l'historique avec son motif.</p><div class="chargement">Chargement…</div>`;
+  const [p, c, j] = await Promise.all([api("admin_parametres"), api("admin_connexion"), api("admin_journal")]);
+  const P = p.parametres;
+  const champ = (cle, label, aide, type = "number") => `<div class="carte"><div class="l" style="font-size:12.5px;color:var(--gris);text-transform:uppercase;letter-spacing:.6px">${label}</div>
+    <div style="font-size:24px;font-weight:700;margin:4px 0">${cle === "debut_suivi" ? dfr(P[cle]) : cle.startsWith("mode") ? (P[cle] === "complet" ? "Tout compter" : "Déduire le seuil") : P[cle] + " min"}</div>
+    <div style="color:var(--gris);font-size:13px">${aide}</div><button class="lien" data-param="${cle}" data-type="${type}">modifier</button></div>`;
+  V.innerHTML = `<h1>Réglages</h1><p class="sous">Chaque changement est enregistré dans l'historique avec son motif.</p>
+  <div class="grille g3">
+    ${champ("tolerance_retard_min", "Tolérance de retard", "Arrivée jusqu'à cette limite = pas de retard.")}
+    ${champ("mode_retard", "Calcul du retard", "« Tout compter » : 10h07 = 7 min de retard.", "mode")}
+    ${champ("seuil_heures_sup_min", "Seuil des heures sup", "Dépassement de la fin prévue à partir duquel on compte.")}
+    ${champ("mode_heures_sup", "Calcul des heures sup", "« Tout compter » : 17h00 pour 16h00 = 60 min.", "mode")}
+    ${champ("alerte_cumul_1_min", "Alerte retard cumulé n°1", "Seuil mensuel (60 = 1 h).")}
+    ${champ("alerte_cumul_2_min", "Alerte retard cumulé n°2", "Seuil mensuel (180 = 3 h).")}
+    ${champ("debut_suivi", "Début du suivi officiel", "Rien n'est compté avant cette date.", "date")}
+  </div>
+  <div class="carte" style="margin-top:14px"><h2>Wi-Fi du restaurant</h2>
+    <p style="margin:0 0 8px">${c.wifi ? pastille("Cet appareil est sur le Wi-Fi Capanna", "p-ok") : pastille("Cet appareil n'est pas sur un réseau enregistré (" + c.ip_vue + ")", "p-orange")}</p>
+    <div>${c.reseaux.map((r) => `${pastille(r.reseau, "p-ok")} <button class="lien" data-ret="${esc(r.reseau)}">retirer</button>`).join(" ") || "Aucun réseau enregistré."}</div>
+    <p style="color:var(--gris);font-size:13px">À faire uniquement depuis le restaurant, connecté au Wi-Fi Capanna (si la box change d'adresse).</p>
+    <button class="sec" id="b-wifi" ${c.wifi ? "disabled" : ""}>Enregistrer le réseau actuel comme Wi-Fi Capanna</button></div>
+  <div class="carte" style="margin-top:14px"><h2>Historique des modifications</h2><p style="color:var(--gris);font-size:13px;margin-top:-6px">Ne peut être ni modifié ni effacé.</p><div class="tab"><table>
+    <tr><th>Date</th><th>Objet</th><th>Action</th><th>Avant</th><th>Après</th><th>Motif</th><th>Par</th></tr>
+    ${j.journal.map((x) => `<tr><td style="white-space:nowrap">${new Date(x.quand).toLocaleString("fr-FR", { timeZone: "Africa/Casablanca", dateStyle: "short", timeStyle: "short" })}</td><td>${esc(x.objet)} ${esc(nomObjet(x))}</td><td>${esc(x.action)}</td>
+      <td><small>${esc(resume(x.ancienne))}</small></td><td><small>${esc(resume(x.nouvelle))}</small></td><td>${esc(x.motif)}</td><td>${esc(x.auteur)}</td></tr>`).join("")}
+  </table></div></div>`;
+  $$("[data-param]").forEach((b) => b.onclick = async () => {
+    const cle = b.dataset.param, type = b.dataset.type;
+    const champV = type === "mode" ? { label: "Nouvelle valeur", type: "select", options: [["complet", "Tout compter"], ["deduit", "Déduire le seuil"]], valeur: P[cle] }
+      : { label: "Nouvelle valeur", type: type === "date" ? "date" : "number", valeur: P[cle], requis: true };
+    const r = await fenetre({ titre: "Modifier le réglage", texte: "Les statistiques sont recalculées immédiatement avec la nouvelle valeur.", champs: [champV, champMotif], ok: "Enregistrer" });
+    if (!r) return;
+    try { await api("admin_parametre_modifier", { cle, valeur: r[0], motif: r[1] }); vueReglages(); } catch (x) { alerteErreur(x); }
+  });
+  $$("[data-ret]").forEach((b) => b.onclick = async () => {
+    const r = await fenetre({ titre: "Retirer ce réseau ?", texte: "Plus personne ne pourra pointer depuis ce réseau.", ok: "Retirer", danger: true });
+    if (r) { await api("admin_retirer_wifi", { reseau: b.dataset.ret }); vueReglages(); }
+  });
+  $("#b-wifi").onclick = async () => { await api("admin_ajouter_wifi"); vueReglages(); };
+}
+function resume(o) {
+  if (o == null) return "—";
+  if (Array.isArray(o)) return o.length ? o.map((c) => `${(c.debut || "").slice(0, 5)}–${(c.fin || "").slice(0, 5)}${c.pause_min ? ` (pause ${c.pause_min})` : ""}`).join(" + ") : "OFF";
+  return Object.entries(o).filter(([k]) => !["employe_id", "nouveau_id", "decide_par", "decide_le", "demande_par"].includes(k)).map(([k, v]) => `${k} : ${v}`).join(", ");
+}
+function nomObjet(x) {
+  if (x.objet === "creneau") { const [id, j] = String(x.objet_id).split("/"); const e = EMPLOYES.find((e) => e.id == id); return `${e ? e.nom : id} (${j})`; }
+  if (x.objet === "appareil" || x.objet === "employe") { const e = EMPLOYES.find((e) => e.id == x.objet_id); return e ? e.nom : ""; }
+  if (x.objet === "parametre") return x.objet_id;
+  return "";
+}
+
+demarrer();
+</script>
+</body>
+</html>
