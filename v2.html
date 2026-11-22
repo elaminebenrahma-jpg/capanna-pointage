@@ -321,6 +321,12 @@ function msg(el, texte, genre = "mal") { if (!el) return; el.innerHTML = texte ?
 const heure = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 const hhmm = (m) => (m === null || m === undefined) ? "—" : `${String(Math.floor(m / 60) % 24).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`;
 const tmin = (t) => { if (!t) return null; const [h, m] = String(t).split(":").map(Number); return h * 60 + m; };
+// minutes écoulées depuis l'heure prévue, pour quelqu'un attendu aujourd'hui qui n'a pas pointé
+function sansPointage(r) {
+  const n = new Date(); let m = n.getHours() * 60 + n.getMinutes(); if (n.getHours() < 5) m += 1440;
+  const [h, mi] = String(r.prevu_debut || "0:0").split(":").map(Number);
+  return Math.max(0, m - (h * 60 + mi));
+}
 const hcourt = (t) => t ? String(t).slice(0, 5).replace(":", "h") : "";
 const duree = (m) => { m = Math.round(m || 0); if (m < 60) return `${m} min`; const h = Math.floor(m / 60), r = m % 60; return r ? `${h} h ${String(r).padStart(2, "0")}` : `${h} h`; };
 const JOURS = ["", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
@@ -415,7 +421,7 @@ function demanderMotif(titre, aide, valider, opts = {}) {
 const LIB_TYPE = { absence_autorisee: "Absence autorisée", retard_justifie: "Retard autorisé", depart_anticipe: "Départ anticipé", conge: "Congé", maladie: "Maladie", absence_injustifiee: "Absence injustifiée" };
 const LIB_STATUT = { demandee: "En attente", complement: "Complément demandé", validee: "Acceptée", refusee: "Refusée", annulee: "Annulée" };
 const CLASSE_STATUT = { demandee: "attente", complement: "complement", validee: "validee", refusee: "refusee", annulee: "annulee" };
-const LIB_JOUR = { travaille: "Travaillé", present: "Présent", depart_non_pointe: "Départ non pointé", coupure_non_pointee: "Coupure non pointée", absence_justifiee: "Absence justifiée", absence_injustifiee: "Absent", absent_en_cours: "Pas encore arrivé", a_venir: "À venir", hors_planning: "Hors planning" };
+const LIB_JOUR = { travaille: "Travaillé", present: "Présent", depart_non_pointe: "Départ non pointé", coupure_non_pointee: "Coupure non pointée", absence_justifiee: "Absence justifiée", absence_injustifiee: "Absent", absent_en_cours: "Absent (pas de pointage)", a_venir: "À venir", hors_planning: "Hors planning" };
 function periodeDemande(d) {
   let t = d.date_debut === d.date_fin ? dateFr(d.date_debut) : `du ${dateCourte(d.date_debut)} au ${dateCourte(d.date_fin)}`;
   if (d.type === "retard_justifie" && d.heure_fin) t += ` · arrivée prévue ${hcourt(d.heure_fin)}`;
@@ -1108,6 +1114,9 @@ async function vueTableau(v) {
       <div class="kpi"><b>${absentsAuj.size}</b><span>absents ou pas encore arrivés</span></div>
       <div class="kpi"><b>${retardAuj.length}</b><span>en retard aujourd'hui</span></div>
     </div>
+    ${aujRows.filter((r) => r.statut === "absent_en_cours").length ? `<div class="carte bandeau-attente"><h3>Pas de pointage aujourd'hui</h3><ul class="liste">${aujRows.filter((r) => r.statut === "absent_en_cours").map((r) => `<li class="cliquable" data-fiche="${r.employe_id}"><div class="flex"><div class="t">${esc(r.nom)}</div>
+      <div class="petit">attendu(e) à ${hcourt(r.prevu_debut)} · ${duree(sansPointage(r))} sans pointage</div></div><span class="puce refusee">Absent</span></li>`).join("")}</ul>
+      <p class="petit">Sans pointage ni absence justifiée, la journée sera comptée « absence injustifiée » demain.</p></div>` : ""}
     <h3 style="margin:18px 2px 8px">Période · ${dateCourte(f.debut)} → ${dateCourte(f.fin)}</h3>
     <div class="kpis">
       <div class="kpi"><b>${s.ponctualite ?? "—"}${s.ponctualite === null ? "" : " %"}</b><span>ponctualité de l'équipe</span></div>
@@ -1191,14 +1200,16 @@ async function vueFiche(v, id) {
   const parPeriode = (d) => rows.filter((r) => r.jour >= d);
   const sJ = stats(rows.filter((r) => r.jour === G.js)), sS = stats(parPeriode(lundiDe(G.js))), sM = stats(parPeriode(debutMois(G.js))), sT = stats(rows);
   const nm = niveauMois(parPeriode(debutMois(G.js)));
+  const absAuj = rows.filter((r) => r.jour === G.js && r.statut === "absent_en_cours");
   const histo = [...rows].filter((r) => r.prevu_debut || AVEC_ARRIVEE(r)).sort((a, b) => b.jour.localeCompare(a.jour) || b.creneau_ordre - a.creneau_ordre);
   v.innerHTML = `<button class="b-lien retour" id="f-retour">‹ Équipe</button>
     <div class="carte"><div class="ligne">${smiley(nm.smiley, { taille: 56, titre: "Discipline du mois" })}<div class="flex"><h2>${esc(e.nom)}</h2><p class="sous">${esc(e.service)} · ${e.telephone ? "téléphone activé" : "téléphone non activé (code " + esc(e.pin) + ")"} · ${e.present ? "présent" : "absent"} maintenant</p></div></div>
       <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="f-rapport">Rapport du mois (PDF)</button><button class="b-sec flex" id="f-csv">Historique (Excel)</button>
       <button class="b-sec flex" id="f-horaires">Horaires</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
       <div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button></div><div id="f-msg"></div></div>
+    ${absAuj.length ? `<div class="msg mal">Aucun pointage aujourd'hui : attendu(e) à ${hcourt(absAuj[0].prevu_debut)}, ${duree(sansPointage(absAuj[0]))} sans pointage. Si c'est une absence prévue ou justifiée, saisis-la avec « Saisir une absence ».</div>` : ""}
     <div class="kpis">
-      <div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>
+      ${absAuj.length ? `<div class="kpi"><b style="color:var(--rouge)">Absent(e)</b><span>aujourd'hui · aucun pointage</span></div>` : `<div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>`}
       <div class="kpi"><b>${duree(sS.cumul)}</b><span>retard de la semaine</span></div>
       <div class="kpi"><b>${duree(sM.cumul)}</b><span>retard du mois</span></div>
       <div class="kpi"><b>${duree(sT.cumul)}</b><span>retard depuis le ${dateCourte(suivi)}</span></div>
@@ -1206,7 +1217,7 @@ async function vueFiche(v, id) {
       <div class="kpi"><b>${duree(sT.moyenne)}</b><span>de retard en moyenne</span></div>
       <div class="kpi"><b>${sT.ponctualite ?? "—"}${sT.ponctualite === null ? "" : " %"}</b><span>de ponctualité</span></div>
       <div class="kpi"><b>${sT.jours}</b><span>jours travaillés</span></div>
-      <div class="kpi"><b>${sT.absences}</b><span>absences injustifiées</span></div>
+      <div class="kpi"><b>${sT.absences + absAuj.length}</b><span>absences injustifiées${absAuj.length ? " (dont aujourd'hui)" : ""}</span></div>
       <div class="kpi"><b>${duree(sT.heures_sup)}</b><span>d'heures supplémentaires</span></div>
     </div>
     <div class="carte"><h3>Historique</h3><div class="tableau"><table><thead><tr><th></th><th>Date</th><th>Prévu</th><th>Arrivée</th><th class="num">Retard</th><th>Départ</th><th class="num">Travail</th><th>Statut</th></tr></thead><tbody>
@@ -1799,7 +1810,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-171309";
+const VERSION_APP = "20261122-173212";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
