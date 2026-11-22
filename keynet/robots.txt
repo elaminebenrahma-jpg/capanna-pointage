@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+
+Host: https://keynet.ma
+Sitemap: https://keynet.ma/sitemap.xml

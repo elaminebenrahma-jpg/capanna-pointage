@@ -1,0 +1,32 @@
+3:"$Sreact.fragment"
+4:"/capanna-pointage/keynet/_next/static/chunks/3qfy96eoyh-ek.js"
+5:I[39756,["$4"],"default"]
+6:I[37457,["$4"],"default"]
+b:"/capanna-pointage/keynet/_next/static/chunks/2s9k-4fya6z2j.js"
+c:"/capanna-pointage/keynet/_next/static/chunks/0gz5czvxis141.js"
+d:"/capanna-pointage/keynet/_next/static/chunks/1cvukzvg-tf2i.js"
+e:I[91284,["$b","$c","$d"],"Revele"]
+f:"$Sreact.suspense"
+10:"FormulaireContact"
+11:I[42776,["$b","$c","$d"],"$10"]
+12:I[97367,["$4"],"OutletBoundary"]
+15:"ViewportBoundary"
+16:I[97367,["$4"],"$15"]
+17:"MetadataBoundary"
+18:I[97367,["$4"],"$17"]
+19:I[27201,["$4"],"IconMark"]
+8:X
+8:C
+9:X
+a:[["children",{"s":"__PAGE__","h":160,"d":{"r":["$","$3","c",{"children":[["$","section",null,{"className":"conteneur grid gap-16 pt-[calc(var(--haut-entete)+5rem)] pb-28 md:grid-cols-[0.9fr_1.1fr] md:gap-24 md:pt-[calc(var(--haut-entete)+8rem)]","children":[["$","div",null,{"children":[["$","p",null,{"className":"mono flex items-center gap-3 text-ardoise ","children":["$undefined",["$","span",null,{"className":"h-px w-8 bg-current opacity-50","aria-hidden":true}],["$","span",null,{"children":"اتصل بنا"}]]}],["$","$Le",null,{"as":"h1","lignes":"لنتحدّث عمّا تريدون بناءه.","immediat":true,"className":"titre-xl mt-8 max-w-[13ch]"}],["$","p",null,{"className":"chapeau mt-8 max-w-md","children":"صِفوا حاجتكم في بضعة أسطر، وسنعود إليكم في أقرب وقت."}],["$","dl",null,{"className":"mt-14 space-y-6 border-t border-graphite/10 pt-8 text-sm","children":[["$","div",null,{"children":["$","dt",null,{"className":"mono text-acier","children":"المغرب · العالم"}]}],null,null]}]]}],["$","$f",null,{"fallback":null,"children":["$","$L11",null,{"locale":"ar","c":{"surtitre":"اتصل بنا","titre":"لنتحدّث عمّا تريدون بناءه.","intro":"صِفوا حاجتكم في بضعة أسطر، وسنعود إليكم في أقرب وقت.","types":{"contact":"طلب تواصل","partenariat":"شراكة","consultation":"استشارة"},"champs":{"nom":"الاسم الكامل","societe":"المؤسسة","pays":"البلد","email":"البريد الإلكتروني","telephone":"الهاتف (مع رمز البلد)","typeProjet":"نوع المشروع","budget":"الميزانية (اختياري)","message":"رسالتكم","consentement":"أوافق على أن تستعمل KeyNet هذه المعلومات للردّ على طلبي، وفق سياسة الخصوصية."},"typesProjet":["برنامج أو تطبيق","الذكاء الاصطناعي والأتمتة","البنية التحتية","الأمن السيبراني","التحوّل الرقمي","KeyNet للحضور","أخرى"],"budgets":["يُحدَّد لاحقاً","أقل من 50.000 درهم","50.000 – 200.000 درهم","200.000 – 500.000 درهم","أكثر من 500.000 درهم"],"choisir":"اختر…","envoyer":"إرسال الطلب","envoi":"جارٍ الإرسال…","succes":"شكراً لكم. وصلنا طلبكم، وسنردّ عليكم قريباً.","erreurs":{"requis":"هذا الحقل إلزامي.","email":"عنوان بريد إلكتروني غير صالح.","telephone":"رقم غير صالح (مثال: ‎+212 6 12 34 56 78).","consentement":"يُرجى قبول سياسة الخصوصية.","court":"الرسالة قصيرة جداً (20 حرفاً على الأقل).","serveur":"تعذّر الإرسال. حاولوا مجدداً بعد قليل.","trop":"تم إرسال طلبات كثيرة. حاولوا لاحقاً."},"confidentialite":"تُستعمل معلوماتكم للردّ على طلبكم فقط، ولا تُباع ولا تُشارَك."}}]}]]}],[["$","script","script-0",{"src":"/capanna-pointage/keynet/_next/static/chunks/1cvukzvg-tf2i.js","async":true}]],["$","$L12",null,{"children":["$","$f",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]]}],"p":"$@14","v":null,"s":"$9"}}]]
+2:[["children",{"s":"contact","h":64,"d":{"r":["$","$3","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","template":["$","$L6",null,{}]}]]}],"p":"$@7","v":"$8","s":"$9"},"c":"$Qa"}]]
+1:[["children",{"s":{"n":"locale","t":"d","k":"ar","s":[]},"h":65584,"c":"$Q2"}]]
+0:{"t":{"t":{"s":"","h":131152,"c":"$Q1"},"h":{"r":["$","$3","h",{"children":[null,["$","$L16",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}],["$","meta","2",{"name":"theme-color","content":"#ffffff"}]]}],["$","$L18",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$f",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"اتصل بنا — KeyNet"}],["$","meta","1",{"name":"description","content":"حدّثونا عن مشروعكم أو عن شراكة، أو اطلبوا استشارة."}],["$","link","2",{"rel":"manifest","href":"/capanna-pointage/keynet/site.webmanifest"}],["$","meta","3",{"name":"robots","content":"noindex, nofollow"}],["$","link","4",{"rel":"canonical","href":"https://keynet.ma/ar/contact/"}],["$","link","5",{"rel":"alternate","hrefLang":"fr-MA","href":"https://keynet.ma/fr/contact/"}],["$","link","6",{"rel":"alternate","hrefLang":"en","href":"https://keynet.ma/en/contact/"}],["$","link","7",{"rel":"alternate","hrefLang":"ar-MA","href":"https://keynet.ma/ar/contact/"}],["$","link","8",{"rel":"alternate","hrefLang":"x-default","href":"https://keynet.ma/fr/contact/"}],["$","meta","9",{"property":"og:title","content":"اتصل بنا — KeyNet"}],["$","meta","10",{"property":"og:description","content":"حدّثونا عن مشروعكم أو عن شراكة، أو اطلبوا استشارة."}],["$","meta","11",{"property":"og:url","content":"https://keynet.ma/ar/contact/"}],["$","meta","12",{"property":"og:site_name","content":"KeyNet"}],["$","meta","13",{"property":"og:locale","content":"ar_AR"}],["$","meta","14",{"property":"og:image","content":"https://keynet.ma/og/ar.png"}],["$","meta","15",{"property":"og:image:width","content":"1200"}],["$","meta","16",{"property":"og:image:height","content":"630"}],["$","meta","17",{"property":"og:image:alt","content":"KeyNet"}],["$","meta","18",{"property":"og:locale:alternate","content":"fr_FR"}],["$","meta","19",{"property":"og:locale:alternate","content":"en_US"}],["$","meta","20",{"property":"og:type","content":"website"}],["$","meta","21",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","22",{"name":"twitter:title","content":"اتصل بنا — KeyNet"}],["$","meta","23",{"name":"twitter:description","content":"حدّثونا عن مشروعكم أو عن شراكة، أو اطلبوا استشارة."}],["$","meta","24",{"name":"twitter:image","content":"https://keynet.ma/og/ar.png"}],["$","link","25",{"rel":"icon","href":"/capanna-pointage/keynet/favicon.ico"}],["$","link","26",{"rel":"icon","href":"/capanna-pointage/keynet/icon.svg","type":"image/svg+xml"}],["$","link","27",{"rel":"apple-touch-icon","href":"/capanna-pointage/keynet/apple-icon.png"}],["$","$L19","28",{}]]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1a","v":null,"s":"$9"}},"a":"$@1b","u":"$@1c","b":"N_v2abpYo2JA9zC-onbQr"}
+13:null
+1c:true
+9:300
+9:C
+1b:0
+7:"$undefined"
+1a:"$undefined"
+14:"$undefined"
