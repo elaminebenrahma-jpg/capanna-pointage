@@ -129,6 +129,100 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 .segments{display:inline-flex;gap:2px;padding:3px;margin:10px 0 2px;border-radius:12px;background:rgba(51,56,61,.07)}
 .segments button{background:none;border-radius:9px;padding:7px 14px;font-size:14px;font-weight:600;color:#6E7378;transition:background .2s,color .2s}
 .segments button.actif{background:#fff;color:var(--nav-actif);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* ---------- planning hebdomadaire ---------- */
+.pl-barre{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:12px 0 8px}
+.pl-sem{display:flex;align-items:center;gap:8px}
+.pl-fl{width:40px;height:40px;padding:0;border-radius:12px;background:#fff;color:#33383D;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.pl-fl svg{width:20px;height:20px}
+.pl-titre{display:flex;flex-direction:column;line-height:1.2;padding:0 4px;min-width:0}.pl-titre b{font-size:16px;white-space:nowrap}.pl-titre>span{font-size:12px;color:var(--gris)}
+.pl-auj{padding:0;font-size:12px}
+.pl-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pl-actions select{width:auto;padding:10px 12px;font-size:14px}
+.pl-actions button{padding:11px 15px;font-size:14px}
+.pl-ic{display:inline-flex;align-items:center;justify-content:center;gap:8px}.pl-ic svg{width:17px;height:17px;flex:none}
+.pl-bandeau{background:#FFF7E0;border:1px solid #F0DFA8;color:#6B5310;border-radius:12px;padding:10px 12px;font-size:13.5px;margin:4px 0 8px}
+.pl-bandeau b{display:block;margin-bottom:2px;color:#4f3c06}
+.pl-legende{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--gris);margin:6px 2px 10px}
+.pl-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.pl-legende .pl-exc-l{width:7px;height:7px;border-radius:50%;background:#33383D;opacity:.55;vertical-align:0}
+.pl-carte{padding:0;overflow:hidden;margin-top:4px}
+.pl.edition .pl-carte{box-shadow:0 0 0 2px rgba(51,56,61,.22),0 4px 14px rgba(0,0,0,.05)}
+.pl-scroll{overflow:auto;-webkit-overflow-scrolling:touch}
+.pl-table{border-collapse:separate;border-spacing:0;width:100%;min-width:880px;font-size:13px;table-layout:fixed}
+.pl-table th,.pl-table td{border-top:1px solid #F0EBDD;padding:0;white-space:normal;vertical-align:top;text-align:left}
+.pl-table thead th{position:sticky;top:0;background:#FBF9F3;z-index:2;text-align:center;padding:10px 4px;font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.05em;border-top:0;border-bottom:1px solid #EDE7D6;font-weight:600}
+.pl-table thead th b{display:block;font-size:17px;color:var(--texte);letter-spacing:0;margin:3px auto 0;width:30px;height:30px;line-height:30px;border-radius:9px}
+.pl-table thead th.auj{color:var(--vert)}.pl-table thead th.auj b{color:#fff;background:var(--vert)}
+.pl-table thead th.passe b{color:#9a9a9a}
+.pl-col-nom{position:sticky;left:0;z-index:1;background:#fff;text-align:left!important;min-width:172px;width:172px;padding:10px 12px!important;border-right:1px solid #F0EBDD;vertical-align:middle!important}
+.pl-table thead .pl-col-nom{z-index:3;background:#FBF9F3;vertical-align:bottom!important}
+.pl-nom{font-weight:650;font-size:14px;color:var(--texte);text-transform:none;letter-spacing:0}
+.pl-poste{font-size:12px;color:var(--gris);font-weight:500;text-transform:none;letter-spacing:0;margin-top:1px}
+.pl-neuf{display:inline-block;font-size:10px;font-weight:700;background:#33383D;color:#fff;border-radius:5px;padding:1px 5px;vertical-align:1px;letter-spacing:.03em}
+.pl-retirer{padding:2px 0;font-size:12px;color:var(--rouge)}
+.pl-sel-poste{width:100%;margin-top:5px;padding:5px 7px;font-size:12.5px;border-radius:8px}
+.pl-col-tot{text-align:right!important;padding:10px 12px!important;color:#55595d;font-variant-numeric:tabular-nums;width:76px;font-weight:650;vertical-align:middle!important}
+.pl-table thead .pl-col-tot{vertical-align:bottom!important}
+.pl-groupe td{background:#F7F4EC;padding:7px 0!important;font-size:11.5px;font-weight:700;color:#4a4a4a;text-transform:uppercase;letter-spacing:.06em}
+.pl-groupe .st{position:sticky;left:12px;display:inline-flex;align-items:center;gap:7px;padding-left:12px}
+.pl-groupe .nb{font-weight:600;color:#9a9a9a}
+.pl-pastille{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.pl-case{min-width:98px;position:relative}
+.pl-case-in{display:flex;flex-direction:column;gap:3px;padding:7px 6px;min-height:56px;border-radius:9px;transition:background .15s}
+.pl-case.auj{background:rgba(11,79,60,.035)}
+.pl-case.passe .pl-case-in{opacity:.55}
+.pl-cr{display:block;background:#F4F5F6;border-left:3px solid var(--c);border-radius:6px;padding:4px 6px;font-weight:600;font-size:12.5px;font-variant-numeric:tabular-nums;color:#2b2f33;white-space:nowrap}
+.pl-cr.barre{text-decoration:line-through;color:#a3a3a3;border-left-color:#d4d4d4;font-weight:500}
+.pl-repos{display:block;text-align:center;color:#A6A9AC;font-size:12px;padding:6px 0;border:1px dashed #E3E0D7;border-radius:6px}
+.pl-repos.grand{padding:16px;font-size:14px;margin-top:10px}
+.pl-plus{display:block;text-align:center;color:#9AA0A6;font-size:18px;line-height:1;padding:7px 0;border:1px dashed #D5D8DB;border-radius:6px}
+.pl-abs{display:block;border-radius:6px;padding:4px 6px;font-size:12px;font-weight:650;text-align:center}
+.t-conge{background:#E6EEFA;color:#2F5A9A}.t-maladie{background:#FBEAEA;color:#A33B3B}.t-absence_autorisee{background:#EFEAF8;color:#664A9E}.t-absence_injustifiee{background:#F3F0EA;color:#7A6A4A}
+.pl-tag{display:block;font-size:11px;font-weight:600;color:#8A6400;background:#FFF4D6;border-radius:5px;padding:2px 5px;text-align:center;white-space:nowrap}
+.pl-tag.attente{color:#7a7a7a;background:#F0EEE8;font-weight:500}
+.pl-exc{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:#33383D;opacity:.5}
+.pl-eff{text-align:center!important;padding:8px 4px!important;font-weight:650;color:#55595d;font-variant-numeric:tabular-nums;background:#FBF9F3}
+.pl-table tfoot .pl-col-nom{background:#FBF9F3}
+.pl-case.editable{cursor:pointer}
+.pl-case.editable:hover .pl-case-in{background:rgba(51,56,61,.05)}
+.pl-case.editable:focus-visible{outline:none}.pl-case.editable:focus-visible .pl-case-in{box-shadow:inset 0 0 0 2px rgba(51,56,61,.5)}
+.pl-case.modifie .pl-case-in,.pl-ligne.modifie{box-shadow:inset 0 0 0 2px #33383D;background:#FAFAF8}
+.pl.edition .pl-case.passe{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.03) 6px 12px)}
+.pl-ajout{margin-top:12px;border:1.5px dashed #CFC9B8;background:transparent}
+.pl-mob,.pl-jchips,.pl-jliste{display:none}
+.pl-jchips{grid-template-columns:repeat(7,1fr);gap:5px;margin:8px 0 6px}
+.pl-jchips button{background:#fff;border-radius:12px;padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--gris);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:background .15s,color .15s}
+.pl-jchips button b{font-size:16px;color:var(--texte)}
+.pl-jchips button.actif{background:#33383D;color:#d9dbdd}.pl-jchips button.actif b{color:#fff}
+.pl-jchips button.auj:not(.actif){box-shadow:inset 0 0 0 1.5px var(--vert)}
+.pl-grp{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4a4a4a;margin:16px 4px 6px;display:flex;align-items:center;gap:7px}
+.pl-ligne{display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:11px 12px;margin:6px 0;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative}
+.pl-ligne .qui{flex:1;min-width:0}.pl-ligne .qui b{display:block;font-size:14.5px}.pl-ligne .qui span{font-size:12px;color:var(--gris)}
+.pl-ligne .quoi{display:flex;flex-direction:column;gap:3px;align-items:stretch;min-width:118px}
+.pl-ligne.passe .quoi{opacity:.6}
+.pl-ligne.editable{cursor:pointer}
+.pl-ligne.editable::after{content:"";width:7px;height:7px;border-right:2px solid #b5b8bb;border-top:2px solid #b5b8bb;transform:rotate(45deg);margin-left:2px;flex:none}
+.ce-ligne{display:grid;grid-template-columns:1fr 1fr 96px 40px;gap:8px;align-items:end;margin-top:10px}
+.ce-ligne label{margin:0 0 4px}
+.ce-x{width:40px;height:46px;padding:0;background:#FBE7E6;color:var(--rouge);border-radius:12px;font-size:20px;font-weight:500}
+.pl-recap{list-style:none;padding:0;margin:8px 0 4px;max-height:230px;overflow:auto;font-size:13.5px;background:#fff;border-radius:12px;padding:2px 12px}
+.pl-recap li{padding:8px 0;border-top:1px solid #F0EBDD}.pl-recap li:first-child{border-top:0}
+.pl-recap .avant{color:#9a9a9a;text-decoration:line-through}
+.pl-choix{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #E6E0CF;border-radius:12px;padding:12px;margin:8px 0;cursor:pointer;color:var(--texte);font-size:14px}
+.pl-choix input{width:auto;margin:3px 0 0;accent-color:#33383D}
+.pl-choix small{display:block;color:var(--gris);font-size:12.5px;margin-top:2px;line-height:1.35}
+.pl-choix:has(input:checked){border-color:#33383D;box-shadow:0 0 0 1px #33383D}
+@media(max-width:699px){
+  .pl-mob{display:inline-flex}
+  .pl-m-jour .pl-jchips{display:grid}.pl-m-jour .pl-jliste{display:block}.pl-m-jour .pl-carte{display:none}
+  .pl-barre{flex-direction:column;align-items:stretch}
+  .pl-sem{justify-content:space-between}.pl-titre{align-items:center;text-align:center;flex:1}
+  .pl-actions select{flex:1 1 100%;min-width:0}.pl-actions button{flex:1}
+  #pl-imprimer{flex:none;width:48px;padding:11px 0}#pl-imprimer span{display:none}
+  .pl-legende{font-size:11px;gap:4px 10px}.pl-m-jour .pl-legende{display:none}
+  .pl-table{min-width:740px;font-size:12px}.pl-col-nom{min-width:120px;width:120px;padding:8px 9px!important}.pl-nom{font-size:13px}.pl-case{min-width:86px}
+  .pl-cr{font-size:11.5px;padding:3px 5px}
+  .ce-ligne{grid-template-columns:1fr 1fr 40px}.ce-ligne>div:nth-child(3){grid-column:1/3}.ce-ligne .ce-x{grid-row:1;grid-column:3}
+}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -506,14 +600,14 @@ function detailMaDemande(d) {
 // ======================================================================
 const G = { code: store.sget("capanna_code_v2"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
-const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
+const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
 // Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
 // avec des sous-onglets dans la rubrique quand elle contient plusieurs vues.
 const RUBRIQUES_G = [
   { k: "tableau", lib: "Tableau de bord", court: "Tableau", vues: ["tableau"] },
   { k: "equipe", lib: "Équipe", court: "Équipe", vues: ["equipe", "fiche"] },
   { k: "conges", lib: "Congés", court: "Congés", vues: ["demandes", "calendrier"], badge: "demandes" },
-  { k: "planning", lib: "Planning", court: "Planning", vues: ["horaires"] },
+  { k: "planning", lib: "Planning", court: "Planning", vues: ["planning", "horaires"] },
   { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "journal"] },
   { k: "reglages", lib: "Réglages", court: "Réglages", vues: ["reglages"] },
 ];
@@ -568,7 +662,7 @@ function dessinerOnglets() {
   document.body.appendChild(nav);
   $$(".nav-item", nav).forEach((b) => b.onclick = () => {
     const r = RUBRIQUES_G.find((x) => x.k === b.dataset.r);
-    if (rubriqueDe(G.onglet).k === r.k && r.vues.includes(G.onglet) && G.onglet !== "fiche") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    if (rubriqueDe(G.onglet).k === r.k && r.vues.includes(G.onglet) && !["fiche", "horaires"].includes(G.onglet)) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     allerA(r.vues[0]);
   });
   // sur téléphone, la barre se range pendant la saisie au clavier
@@ -584,7 +678,7 @@ function marquerNavigation(o) {
   $$("#g-nav .nav-item").forEach((b) => { const a = b.dataset.r === r.k; b.classList.toggle("actif", a); a ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"); });
   const t = $("#g-titre"); if (t) t.textContent = r.lib;
   const s = $("#g-segments"); if (!s) return;
-  const vues = r.vues.filter((x) => x !== "fiche");
+  const vues = r.vues.filter((x) => x !== "fiche" && x !== "horaires");
   s.innerHTML = vues.length > 1 ? `<div class="segments" role="tablist">${vues.map((x) => `<button role="tab" data-o="${x}" class="${x === o ? "actif" : ""}" aria-selected="${x === o}">${libVue(x)}${x === "demandes" ? `<span data-badge="demandes-seg"></span>` : ""}</button>`).join("")}</div>` : "";
   $$("[data-o]", s).forEach((b) => b.onclick = () => allerA(b.dataset.o));
 }
@@ -599,11 +693,15 @@ async function rafraichirBadges() {
   } catch {}
 }
 function allerA(o, arg) {
+  if (o !== "planning" && PL.edition) {
+    if (nbChangementsPl() && !confirm("Des modifications du planning ne sont pas enregistrées. Les abandonner ?")) return;
+    PL.edition = false; PL.br = null;
+  }
   const avant = G.onglet; G.onglet = o; marquerNavigation(o);
   if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
-  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche }[o])(v, arg)
+  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche }[o])(v, arg)
     .catch((e) => msg(v, e.message));
 }
 const services = () => [...new Set(G.equipe.map((x) => x.service))].sort();
@@ -932,6 +1030,297 @@ async function vueHoraires(v, id) {
       allerA("horaires", G.empH);
     }, { placeholder: "Ex. : nouveau planning de décembre" });
   };
+}
+
+// ---------- Planning hebdomadaire (consultation, puis modification groupée) ----------
+const PL = { lundi: null, d: null, edition: false, br: null, jour: null, vueM: "jour", poste: "" };
+const IC_PL = {
+  g: '<path d="m15 18-6-6 6-6"/>', d: '<path d="m9 18 6-6-6-6"/>',
+  crayon: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  impr: '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+};
+const svgPl = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC_PL[k]}</svg>`;
+const COUL_POSTES = ["#5B7FA6", "#B07A3B", "#5E8C6A", "#9A5C8F", "#7A7F86", "#A65B5B", "#4F8A8B", "#8C8A3E"];
+function couleurPoste(s) {
+  const l = [...new Set((PL.d?.employes || []).map((e) => e.service))].sort();
+  let i = l.indexOf(s); if (i < 0) i = [...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return COUL_POSTES[i % COUL_POSTES.length];
+}
+const cleCase = (e, j) => `${e}|${j}`;
+const minH = (h) => +h.slice(0, 2) * 60 + +h.slice(3, 5);
+const dureeCr = (c) => { let d = minH(c.fin) - minH(c.debut); if (d <= 0) d += 1440; return Math.max(0, d - (c.pause_min || 0)); };
+const fmtDuree = (m) => m ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : "—";
+const ABS_JOUR = ["conge", "maladie", "absence_autorisee", "absence_injustifiee"];
+const nbChangementsPl = () => PL.br ? Object.keys(PL.br.cases).length + Object.keys(PL.br.postes).length + PL.br.nouveaux.length : 0;
+window.addEventListener("beforeunload", (e) => { if (PL.edition && nbChangementsPl()) { e.preventDefault(); e.returnValue = ""; } });
+
+function titreSemaine(l, dim) {
+  const [a, b] = [l, dim].map((x) => ({ j: +x.slice(8), m: MOIS[+x.slice(5, 7) - 1], y: x.slice(0, 4) }));
+  if (a.m === b.m) return `${a.j} – ${b.j} ${b.m} ${b.y}`;
+  return `${a.j} ${a.m.slice(0, 4)}. – ${b.j} ${b.m.slice(0, 4)}. ${b.y}`;
+}
+function indexerPlanning(d) {
+  d.jours = [0, 1, 2, 3, 4, 5, 6].map((i) => plusJours(d.lundi, i));
+  d.parCase = {}; d.absParCase = {}; d.attParCase = {};
+  for (const p of d.planning) (d.parCase[cleCase(p.employe_id, p.jour)] ||= []).push(p);
+  for (const k in d.parCase) d.parCase[k].sort((a, b) => a.ordre - b.ordre);
+  const etaler = (liste, cible) => { for (const a of liste) for (const j of d.jours) if (a.date_debut <= j && a.date_fin >= j) (cible[cleCase(a.employe_id, j)] ||= []).push(a); };
+  etaler(d.absences, d.absParCase); etaler(d.en_attente, d.attParCase);
+}
+function creneauxServeur(e, j) { return (PL.d.parCase[cleCase(e, j)] || []).map((c) => ({ debut: c.debut, fin: c.fin, pause_min: c.pause_min })); }
+function creneauxCase(e, j) { const k = cleCase(e, j); return PL.br && k in PL.br.cases ? PL.br.cases[k] : creneauxServeur(e, j); }
+function employesPlanning() {
+  const l = PL.d.employes.map((e) => ({ ...e, service: PL.br?.postes[e.id] ?? e.service }));
+  if (PL.br) for (const n of PL.br.nouveaux) l.push({ id: n.ref, nom: n.nom, service: n.service, actif: true, nouveau: true });
+  return l.filter((e) => !PL.poste || e.service === PL.poste)
+    .sort((a, b) => a.service.localeCompare(b.service) || a.nom.localeCompare(b.nom));
+}
+const grouper = (l) => l.reduce((g, e) => ((g[e.service] ||= []).push(e), g), {});
+function postesConnus() {
+  const s = new Set(PL.d.employes.map((e) => e.service));
+  if (PL.br) { Object.values(PL.br.postes).forEach((x) => s.add(x)); PL.br.nouveaux.forEach((n) => s.add(n.service)); }
+  return [...s].sort();
+}
+
+function contenuCase(e, j) {
+  const k = cleCase(e.id, j), crs = creneauxCase(e.id, j), js = PL.d.jour_service;
+  const abs = PL.d.absParCase[k] || [], att = PL.d.attParCase[k] || [];
+  const absJour = abs.find((a) => ABS_JOUR.includes(a.type) && !a.heure_debut);
+  const partiels = abs.filter((a) => a !== absJour);
+  const modif = !!(PL.br && k in PL.br.cases), passe = j < js;
+  const exc = !modif && (PL.d.parCase[k] || []).some((c) => c.source === "jour");
+  const col = couleurPoste(e.service);
+  let h = absJour ? `<span class="pl-abs t-${absJour.type}">${LIB_TYPE[absJour.type]}</span>` : "";
+  h += crs.length ? crs.map((c) => `<span class="pl-cr ${absJour ? "barre" : ""}" style="--c:${col}" title="${c.pause_min ? `Pause ${c.pause_min} min` : "Sans pause"}">${c.debut}–${c.fin}</span>`).join("")
+    : absJour ? "" : (PL.edition && !passe ? `<span class="pl-plus" aria-hidden="true">+</span>` : `<span class="pl-repos">Repos</span>`);
+  for (const a of partiels) h += `<span class="pl-tag">${LIB_TYPE[a.type] || a.type}${a.type === "retard_justifie" && a.heure_fin ? ` · ${a.heure_fin.slice(0, 5)}` : ""}${a.type === "depart_anticipe" && a.heure_debut ? ` · ${a.heure_debut.slice(0, 5)}` : ""}</span>`;
+  if (att.length) h += `<span class="pl-tag attente" title="Demande pas encore validée : sans effet sur le planning">Demande en attente</span>`;
+  const editable = PL.edition && !passe;
+  const label = `${e.nom}, ${JOURS[dow(j)]} ${+j.slice(8)} : ${crs.length ? crs.map((c) => `${c.debut} à ${c.fin}`).join(" puis ") : "repos"}`;
+  return { h, modif, passe, exc, editable, absJour, crs, label };
+}
+
+async function vuePlanning(v, arg) {
+  if (arg && arg.lundi) PL.lundi = arg.lundi;
+  const d = await ga({ action: "admin_planning", lundi: PL.lundi || undefined });
+  PL.lundi = d.lundi; PL.d = d; indexerPlanning(d);
+  if (!PL.jour || PL.jour < d.lundi || PL.jour > d.dimanche) PL.jour = d.jour_service >= d.lundi && d.jour_service <= d.dimanche ? d.jour_service : d.lundi;
+  dessinerPlanning(v);
+}
+
+function dessinerPlanning(v = $("#vue-g")) {
+  const d = PL.d, ed = PL.edition, n = nbChangementsPl(), js = d.jour_service;
+  const emps = employesPlanning(), groupes = grouper(emps);
+  const etat = d.dimanche < js ? "Semaine passée" : d.lundi > js ? "Semaine à venir" : "Cette semaine";
+  const entetes = d.jours.map((j) => `<th scope="col" class="${j === js ? "auj" : ""} ${j < js ? "passe" : ""}"><span>${JOURS_C[dow(j)]}</span><b>${+j.slice(8)}</b></th>`).join("");
+  let corps = "";
+  for (const [poste, liste] of Object.entries(groupes)) {
+    corps += `<tr class="pl-groupe"><td colspan="9"><span class="st"><span class="pl-pastille" style="background:${couleurPoste(poste)}"></span>${esc(poste)} <span class="nb">${liste.length}</span></span></td></tr>`;
+    for (const e of liste) {
+      let total = 0;
+      const cases = d.jours.map((j) => {
+        const c = contenuCase(e, j);
+        if (!c.absJour) total += c.crs.reduce((s, x) => s + dureeCr(x), 0);
+        return `<td class="pl-case ${c.passe ? "passe" : ""} ${j === js ? "auj" : ""} ${c.modif ? "modifie" : ""} ${c.editable ? "editable" : ""}" ${c.editable ? `data-e="${e.id}" data-j="${j}" tabindex="0" role="button" aria-label="Modifier : ${esc(c.label)}"` : ""}>${c.exc ? `<i class="pl-exc" title="Horaire modifié pour cette date uniquement"></i>` : ""}<div class="pl-case-in">${c.h}</div></td>`;
+      }).join("");
+      const tete = ed
+        ? `<select class="pl-sel-poste" data-poste="${e.id}" aria-label="Poste de ${esc(e.nom)}">${postesConnus().map((p) => `<option ${p === e.service ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>`
+        : `<div class="pl-poste">${esc(e.service)}${e.actif ? "" : " · inactif"}</div>`;
+      corps += `<tr><th scope="row" class="pl-col-nom"><div class="pl-nom">${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</div>${tete}${e.nouveau ? `<button class="b-lien pl-retirer" data-retirer="${e.id}">Retirer</button>` : ""}</th>${cases}<td class="pl-col-tot">${fmtDuree(total)}</td></tr>`;
+    }
+  }
+  if (!emps.length) corps = `<tr><td colspan="9"><div class="vide">Aucun employé pour ce poste.</div></td></tr>`;
+  const effectifs = d.jours.map((j) => emps.filter((e) => { const c = contenuCase(e, j); return c.crs.length && !c.absJour; }).length);
+  const pied = `<tfoot><tr><th scope="row" class="pl-col-nom"><div class="pl-poste">Prévus au travail</div></th>${effectifs.map((x, i) => `<td class="pl-eff ${d.jours[i] === js ? "auj" : ""}">${x}</td>`).join("")}<td class="pl-col-tot"></td></tr></tfoot>`;
+
+  // vue « jour » (téléphone)
+  const jr = PL.jour;
+  let liste = "";
+  for (const [poste, l] of Object.entries(groupes)) {
+    liste += `<div class="pl-grp"><span class="pl-pastille" style="background:${couleurPoste(poste)}"></span>${esc(poste)}</div>`;
+    liste += l.map((e) => { const c = contenuCase(e, jr);
+      return `<div class="pl-ligne ${c.modif ? "modifie" : ""} ${c.editable ? "editable" : ""} ${c.passe ? "passe" : ""}" ${c.editable ? `data-e="${e.id}" data-j="${jr}" tabindex="0" role="button" aria-label="Modifier : ${esc(c.label)}"` : ""}>
+        <div class="qui"><b>${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</b><span>${esc(e.service)}</span></div><div class="quoi">${c.h}</div></div>`; }).join("");
+  }
+
+  v.innerHTML = `<div class="pl ${ed ? "edition" : ""} pl-m-${PL.vueM}">
+    <div class="pl-barre">
+      <div class="pl-sem">
+        <button class="pl-fl" data-sem="-7" aria-label="Semaine précédente">${svgPl("g")}</button>
+        <div class="pl-titre"><b>${titreSemaine(d.lundi, d.dimanche)}</b><span>${etat}${d.lundi > js || d.dimanche < js ? ` · <button class="b-lien pl-auj" data-sem="0">Revenir à aujourd'hui</button>` : ""}</span></div>
+        <button class="pl-fl" data-sem="7" aria-label="Semaine suivante">${svgPl("d")}</button>
+      </div>
+      <div class="pl-actions">
+        <select id="pl-poste" aria-label="Filtrer par poste"><option value="">Tous les postes</option>${postesConnus().map((p) => `<option ${p === PL.poste ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
+        ${ed ? `<button class="b-sec" id="pl-annuler">Annuler</button><button class="b-principal" id="pl-enreg" ${n ? "" : "disabled"}>Enregistrer les modifications${n ? ` (${n})` : ""}</button>`
+             : `<button class="b-sec pl-ic" id="pl-imprimer" title="Imprimer le planning de la semaine">${svgPl("impr")}<span>Imprimer</span></button><button class="b-principal pl-ic" id="pl-modifier">${svgPl("crayon")}<span>Modifier le planning</span></button>`}
+      </div>
+    </div>
+    ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer les horaires, le repos ou les services. Rien n'est enregistré avant « Enregistrer les modifications ». Les jours passés sont verrouillés.</div>` : ""}
+    <div class="pl-legende"><span><i style="background:#F4F5F6;box-shadow:inset 3px 0 0 #7A7F86"></i>Service</span><span><i style="border:1px dashed #cfcac0"></i>Repos</span><span><i class="t-conge"></i>Congé</span><span><i class="t-maladie"></i>Maladie</span><span><i class="t-absence_autorisee"></i>Absence autorisée</span><span><i style="background:#FFF4D6"></i>Retard / départ autorisé</span><span><i class="pl-exc-l"></i>Modifié pour cette date</span></div>
+    <div class="segments pl-mob" role="tablist"><button data-vm="jour" class="${PL.vueM === "jour" ? "actif" : ""}">Jour</button><button data-vm="semaine" class="${PL.vueM === "semaine" ? "actif" : ""}">Semaine</button></div>
+    <div class="pl-jchips">${d.jours.map((j) => `<button data-jour="${j}" class="${j === jr ? "actif" : ""} ${j === js ? "auj" : ""}"><span>${JOURS_C[dow(j)]}</span><b>${+j.slice(8)}</b></button>`).join("")}</div>
+    <div class="pl-jliste">${liste || `<div class="vide">Aucun employé.</div>`}</div>
+    <div class="carte pl-carte"><div class="pl-scroll"><table class="pl-table"><thead><tr><th scope="col" class="pl-col-nom">Employé</th>${entetes}<th scope="col" class="pl-col-tot">Total</th></tr></thead><tbody>${corps}</tbody>${pied}</table></div></div>
+    ${ed ? `<button class="b-sec b-plein pl-ajout" id="pl-ajout-emp">+ Ajouter un employé au planning</button>` : ""}
+  </div>`;
+
+  $$("[data-sem]", v).forEach((b) => b.onclick = () => allerA("planning", { lundi: b.dataset.sem === "0" ? lundiDe(js) : plusJours(d.lundi, +b.dataset.sem) }));
+  $("#pl-poste", v).onchange = (e) => { PL.poste = e.target.value; dessinerPlanning(v); };
+  $$("[data-vm]", v).forEach((b) => b.onclick = () => { PL.vueM = b.dataset.vm; dessinerPlanning(v); });
+  $$("[data-jour]", v).forEach((b) => b.onclick = () => { PL.jour = b.dataset.jour; dessinerPlanning(v); });
+  $$("[data-e][data-j]", v).forEach((c) => {
+    c.onclick = () => editerCase(c.dataset.e, c.dataset.j);
+    c.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); editerCase(c.dataset.e, c.dataset.j); } };
+  });
+  if (!ed) {
+    $("#pl-modifier", v).onclick = () => { PL.edition = true; PL.br = { cases: {}, postes: {}, nouveaux: [], n: 0 }; dessinerPlanning(v); };
+    $("#pl-imprimer", v).onclick = imprimerPlanning;
+    return;
+  }
+  $("#pl-annuler", v).onclick = () => {
+    const sortir = () => { PL.edition = false; PL.br = null; dessinerPlanning(); };
+    if (!nbChangementsPl()) return sortir();
+    const f = feuille(`<div class="entete"><h2>Abandonner les modifications ?</h2></div>
+      <p class="sous">${nbChangementsPl()} modification(s) non enregistrée(s) seront perdues. Le planning actuel reste inchangé.</p>
+      <div class="ligne" style="margin-top:14px"><button class="b-sec flex" data-fermer>Continuer à modifier</button><button class="b-danger flex" id="pl-abandon">Abandonner</button></div>`);
+    $("#pl-abandon", f.el).onclick = () => { f.fermer(); sortir(); };
+  };
+  $("#pl-enreg", v).onclick = confirmerPlanning;
+  $("#pl-ajout-emp", v).onclick = ajouterEmployePlanning;
+  $$("[data-poste]", v).forEach((s) => s.onchange = () => {
+    const id = s.dataset.poste, nv = PL.br.nouveaux.find((x) => x.ref === id);
+    if (nv) nv.service = s.value;
+    else { const orig = PL.d.employes.find((e) => String(e.id) === id)?.service; if (s.value === orig) delete PL.br.postes[id]; else PL.br.postes[id] = s.value; }
+    dessinerPlanning(v);
+  });
+  $$("[data-retirer]", v).forEach((b) => b.onclick = () => {
+    const r = b.dataset.retirer; PL.br.nouveaux = PL.br.nouveaux.filter((x) => x.ref !== r);
+    for (const k of Object.keys(PL.br.cases)) if (k.startsWith(r + "|")) delete PL.br.cases[k];
+    dessinerPlanning(v);
+  });
+}
+
+function editerCase(eId, j) {
+  const e = employesPlanning().find((x) => String(x.id) === String(eId)) || PL.d.employes.find((x) => String(x.id) === String(eId));
+  if (!e || j < PL.d.jour_service) return;
+  const k = cleCase(e.id, j);
+  let crs = creneauxCase(e.id, j).map((c) => ({ ...c }));
+  const abs = (PL.d.absParCase[k] || []).map((a) => `<div class="msg info">${LIB_TYPE[a.type] || a.type} validé(e) ce jour-là${a.heure_debut || a.heure_fin ? ` (${(a.heure_debut || "").slice(0, 5)}${a.heure_fin ? "–" + a.heure_fin.slice(0, 5) : ""})` : ""}. Le planning reste modifiable, l'absence reste prise en compte.</div>`).join("");
+  const pauses = [0, 15, 20, 30, 45, 60, 90, 120];
+  const f = feuille(`<div class="entete"><h2>${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">${JOURS[dow(j)].replace(/^./, (c) => c.toUpperCase())} ${+j.slice(8)} ${MOIS[+j.slice(5, 7) - 1]} · ${esc(e.service)}</p>${abs}
+    <div id="ce-liste"></div>
+    <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="ce-ajout">+ Ajouter un service</button><button class="b-sec flex" id="ce-repos">Mettre en repos</button></div>
+    <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00).</p>
+    <div id="ce-msg"></div>
+    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="ce-ok">Valider cette case</button></div>`);
+  const el = f.el, liste = $("#ce-liste", el);
+  const lire = () => $$(".ce-ligne", liste).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
+  const rendre = () => {
+    liste.innerHTML = crs.length ? crs.map((c, i) => `<div class="ce-ligne" data-i="${i}">
+        <div><label>Début</label><input type="time" data-k="debut" value="${c.debut}"></div>
+        <div><label>Fin</label><input type="time" data-k="fin" value="${c.fin}"></div>
+        <div><label>Pause</label><select data-k="pause">${pauses.concat(pauses.includes(c.pause_min) ? [] : [c.pause_min]).map((p) => `<option value="${p}" ${p === c.pause_min ? "selected" : ""}>${p ? p + " min" : "Aucune"}</option>`).join("")}</select></div>
+        <button class="ce-x" data-suppr="${i}" aria-label="Retirer ce service" title="Retirer ce service">×</button></div>`).join("")
+      : `<div class="pl-repos grand">Jour de repos</div>`;
+    $$("[data-suppr]", liste).forEach((b) => b.onclick = () => { crs = lire(); crs.splice(+b.dataset.suppr, 1); rendre(); });
+    $("#ce-ajout", el).disabled = crs.length >= 4;
+  };
+  rendre();
+  $("#ce-ajout", el).onclick = () => { crs = lire(); const der = crs[crs.length - 1]; crs.push(der ? { debut: der.fin, fin: der.fin, pause_min: 0 } : { debut: "10:00", fin: "15:00", pause_min: 0 }); rendre(); $$('[data-k="debut"]', liste).pop()?.focus(); };
+  $("#ce-repos", el).onclick = () => { crs = []; rendre(); };
+  $("#ce-ok", el).onclick = () => {
+    const l = lire();
+    if (l.some((c) => !c.debut || !c.fin)) return msg($("#ce-msg", el), "Indique l'heure de début et de fin de chaque service.");
+    if (l.some((c) => c.debut === c.fin)) return msg($("#ce-msg", el), "Un service ne peut pas commencer et finir à la même heure.");
+    const tri = [...l].sort((a, b) => minH(a.debut) - minH(b.debut));
+    for (let i = 0; i < tri.length; i++) {
+      const dur = dureeCr({ ...tri[i], pause_min: 0 });
+      if (tri[i].pause_min >= dur) return msg($("#ce-msg", el), "La pause est plus longue que le service.");
+      if (i && minH(tri[i].debut) < minH(tri[i - 1].debut) + dureeCr({ ...tri[i - 1], pause_min: 0 })) return msg($("#ce-msg", el), "Deux services se chevauchent.");
+    }
+    const avant = JSON.stringify(creneauxServeur(e.id, j));
+    if (typeof e.id === "number" && JSON.stringify(tri) === avant) delete PL.br.cases[k]; else PL.br.cases[k] = tri;
+    f.fermer(); dessinerPlanning();
+  };
+}
+
+function ajouterEmployePlanning() {
+  const postes = postesConnus();
+  const f = feuille(`<div class="entete"><h2>Ajouter un employé</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">Il apparaîtra dans le planning ; touche ensuite ses cases pour lui donner des horaires. Il sera créé à l'enregistrement, avec un code d'activation pour son téléphone.</p>
+    <label>Nom et prénom</label><input id="ae-nom" autocomplete="off" placeholder="Ex. : Karim Alaoui">
+    <label>Poste</label><select id="ae-poste">${postes.map((p) => `<option>${esc(p)}</option>`).join("")}<option value="__autre">Autre poste…</option></select>
+    <input id="ae-autre" class="cache" placeholder="Nom du nouveau poste" style="margin-top:8px">
+    <div id="ae-msg"></div><div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="ae-ok">Ajouter au planning</button></div>`);
+  const el = f.el;
+  $("#ae-poste", el).onchange = (e) => $("#ae-autre", el).classList.toggle("cache", e.target.value !== "__autre");
+  $("#ae-ok", el).onclick = () => {
+    const nom = $("#ae-nom", el).value.trim().replace(/\s+/g, " ");
+    const service = $("#ae-poste", el).value === "__autre" ? $("#ae-autre", el).value.trim() : $("#ae-poste", el).value;
+    if (nom.length < 2) return msg($("#ae-msg", el), "Indique le nom de l'employé.");
+    if (!service) return msg($("#ae-msg", el), "Indique le poste.");
+    const pris = [...PL.d.employes, ...G.equipe, ...PL.br.nouveaux].some((x) => x.nom.toLowerCase() === nom.toLowerCase());
+    if (pris) return msg($("#ae-msg", el), "Un employé porte déjà ce nom. Ajoute l'initiale du nom pour les distinguer.");
+    PL.br.nouveaux.push({ ref: "n" + (++PL.br.n), nom, service });
+    if (PL.poste && PL.poste !== service) PL.poste = "";
+    f.fermer(); dessinerPlanning();
+  };
+  setTimeout(() => $("#ae-nom", el)?.focus(), 50);
+}
+
+function confirmerPlanning() {
+  const br = PL.br, nomDe = (id) => (PL.d.employes.find((e) => String(e.id) === String(id)) || br.nouveaux.find((n) => n.ref === id) || {}).nom || "?";
+  const txt = (l) => l.length ? l.map((c) => `${c.debut}–${c.fin}`).join(" + ") : "Repos";
+  const lignes = [
+    ...br.nouveaux.map((n) => `<b>${esc(n.nom)}</b> ajouté (${esc(n.service)})`),
+    ...Object.entries(br.postes).map(([id, s]) => `<b>${esc(nomDe(id))}</b> : poste ${esc(PL.d.employes.find((e) => String(e.id) === id)?.service || "")} → ${esc(s)}`),
+    ...Object.entries(br.cases).sort(([a], [b]) => a.split("|")[1].localeCompare(b.split("|")[1])).map(([k, l]) => {
+      const [id, j] = k.split("|"), avant = /^n\d+$/.test(id) ? [] : creneauxServeur(+id, j);
+      return `<b>${esc(nomDe(/^n\d+$/.test(id) ? id : +id))}</b> · ${JOURS_C[dow(j)]} ${+j.slice(8)}/${j.slice(5, 7)} : <span class="avant">${txt(avant)}</span> → ${txt(l)}`;
+    }),
+  ];
+  const aCases = Object.keys(br.cases).length > 0;
+  const f = feuille(`<div class="entete"><h2>Enregistrer le planning</h2><button class="b-sec" data-fermer>Retour</button></div>
+    <p class="sous">${lignes.length} modification(s) à confirmer :</p>
+    <ul class="pl-recap">${lignes.map((l) => `<li>${l}</li>`).join("")}</ul>
+    ${aCases ? `<label>Ces nouveaux horaires valent pour :</label>
+      <label class="pl-choix"><input type="radio" name="pl-portee" value="semaine" checked><span><b>Seulement les jours modifiés</b><small>Pour un remplacement ou un changement ponctuel. Les autres semaines ne bougent pas.</small></span></label>
+      <label class="pl-choix"><input type="radio" name="pl-portee" value="suivantes"><span><b>Ces jours-là et toutes les semaines suivantes</b><small>Le nouvel horaire devient l'horaire habituel de ce jour de la semaine. Les semaines passées ne changent jamais.</small></span></label>` : ""}
+    <label>Motif (obligatoire)</label><textarea id="pl-motif" placeholder="Ex. : planning de décembre, remplacement de Salma"></textarea>
+    <div id="pl-msg"></div>
+    <div class="ligne" style="margin-top:12px"><button class="b-sec flex" data-fermer>Retour</button><button class="b-principal flex" id="pl-go">Confirmer et enregistrer</button></div>`);
+  const el = f.el;
+  $("#pl-go", el).onclick = async () => {
+    const motif = $("#pl-motif", el).value.trim();
+    if (motif.length < 3) return msg($("#pl-msg", el), "Le motif est obligatoire (3 caractères minimum).");
+    const portee = $('input[name="pl-portee"]:checked', el)?.value || "semaine";
+    $("#pl-go", el).disabled = true; $("#pl-go", el).textContent = "Enregistrement…";
+    try {
+      const r = await ga({ action: "admin_planning_enregistrer", portee, motif, nouveaux: br.nouveaux.map(({ ref, nom, service }) => ({ ref, nom, service })),
+        postes: Object.entries(br.postes).map(([id, service]) => ({ employe_id: +id, service })),
+        cellules: Object.entries(br.cases).map(([k, creneaux]) => { const [employe, jour] = k.split("|"); return { employe, jour, creneaux }; }) });
+      f.fermer(); PL.edition = false; PL.br = null;
+      try { G.equipe = (await ga({ action: "admin_equipe" })).equipe; } catch {}
+      if (r.crees?.length) feuille(`<div class="entete"><h2>Employé${r.crees.length > 1 ? "s" : ""} ajouté${r.crees.length > 1 ? "s" : ""}</h2><button class="b-sec" data-fermer>OK</button></div>
+        <p class="sous">Donne ce code à chacun pour activer son téléphone dans l'appli de pointage.</p>
+        <ul class="liste">${r.crees.map((c) => `<li><div class="flex"><div class="t">${esc(c.nom)}</div><div class="petit">${esc(c.service)}</div></div><b style="font-size:22px;letter-spacing:.12em">${esc(c.pin)}</b></li>`).join("")}</ul>`);
+      allerA("planning");
+    } catch (e) { msg($("#pl-msg", el), e.message); $("#pl-go", el).disabled = false; $("#pl-go", el).textContent = "Confirmer et enregistrer"; }
+  };
+}
+
+function imprimerPlanning() {
+  const d = PL.d, groupes = grouper(employesPlanning());
+  let lignes = "";
+  for (const [poste, l] of Object.entries(groupes)) {
+    lignes += `<tr><td colspan="9" style="background:#f2f2f2;font-weight:700">${esc(poste)}</td></tr>`;
+    lignes += l.map((e) => `<tr><td><b>${esc(e.nom)}</b></td>${d.jours.map((j) => { const c = contenuCase(e, j);
+      return `<td>${c.absJour ? `<b>${LIB_TYPE[c.absJour.type]}</b>` : c.crs.length ? c.crs.map((x) => `${x.debut}–${x.fin}`).join("<br>") : "Repos"}</td>`; }).join("")}</tr>`).join("");
+  }
+  imprimer(`<h1>Planning · ${titreSemaine(d.lundi, d.dimanche)}</h1><p>Capanna${PL.poste ? " · " + esc(PL.poste) : ""} · imprimé le ${dateCourte(d.jour_service)}</p>
+    <table><thead><tr><th>Employé</th>${d.jours.map((j) => `<th>${JOURS_C[dow(j)]} ${+j.slice(8)}</th>`).join("")}</tr></thead><tbody>${lignes}</tbody></table>`);
 }
 
 // ---------- Réglages ----------
