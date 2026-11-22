@@ -1269,22 +1269,31 @@ function bandeauAttente(v, d) {
   $$("[data-refuser]", v).forEach((b) => b.onclick = () => demanderMotif("Refuser ces pointages", "Ils resteront visibles dans l'historique, marqués refusés.", async (m) => { await ga({ action: "admin_refuser_attente", reseau: b.dataset.refuser, motif: m }); allerA("tableau"); }));
 }
 
+// état du jour : présent, parti (départ pointé) ou pas encore pointé — « absent » n'est affiché que par le moteur (planning)
+const pucePresence = (x) => x.present ? `<span class="puce validee">Présent</span>`
+  : x.parti_a ? `<span class="puce">Parti à ${esc(x.parti_a)}</span>` : `<span class="puce annulee">Pas pointé</span>`;
+const textePresence = (x) => x.present ? "présent maintenant" : x.parti_a ? `parti à ${x.parti_a}` : "pas de pointage aujourd'hui";
 // ---------- Équipe ----------
 async function vueEquipe(v) {
   const [eq, em] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_mois" })]);
   G.equipe = eq.equipe;
   const disc = Object.fromEntries((em.employes || []).map((x) => [x.id, x]));
   v.innerHTML = `<div class="carte"><div class="ligne"><input id="e-cherche" placeholder="Rechercher un employé" class="flex"><select id="e-srv" class="flex">${optionsServices("")}</select></div>
-    <ul class="liste" id="e-liste" style="margin-top:8px"></ul></div>`;
+    <ul class="liste" id="e-liste" style="margin-top:8px"></ul></div><div id="e-anciens"></div>`;
   const dessiner = () => {
     const q = $("#e-cherche").value.toLowerCase(), s = $("#e-srv").value;
     $("#e-liste").innerHTML = eq.equipe.filter((x) => x.actif && (!q || x.nom.toLowerCase().includes(q)) && (!s || x.service === s)).map((x) => {
       const d = disc[x.id];
       return `<li class="cliquable" data-fiche="${x.id}">${d ? smiley(d.smiley, { taille: 34, couleur: d.couleur, titre: d.message }) : ""}
         <div class="flex"><div class="t">${esc(x.nom)}</div><div class="petit">${esc(x.service)} · ${d ? esc(d.message) : ""}</div></div>
-        <div style="text-align:right"><span class="puce ${x.present ? "validee" : ""}">${x.present ? "Présent" : "Absent"}</span>
+        <div style="text-align:right">${pucePresence(x)}
         <div class="petit" style="margin-top:4px">${x.telephone ? "Téléphone activé" : "Code " + esc(x.pin)}</div></div></li>`;
     }).join("") || `<li class="vide">Aucun employé.</li>`;
+    const anciens = eq.equipe.filter((x) => !x.actif && x.date_sortie && (!q || x.nom.toLowerCase().includes(q)) && (!s || x.service === s));
+    $("#e-anciens").innerHTML = anciens.length ? `<details class="carte"><summary class="t" style="cursor:pointer">Anciens employés (${anciens.length})</summary>
+      <p class="petit">Ils n'apparaissent plus dans l'équipe ni le planning. Leur historique reste consultable.</p>
+      <ul class="liste">${anciens.map((x) => `<li class="cliquable" data-fiche="${x.id}"><div class="flex"><div class="t">${esc(x.nom)}</div>
+        <div class="petit">${esc(x.service)} · a quitté l'équipe le ${esc(dateCourte(x.date_sortie))}</div></div><span class="puce annulee">Ancien</span></li>`).join("")}</ul></details>` : "";
     $$("[data-fiche]", v).forEach((li) => li.onclick = () => allerA("fiche", +li.dataset.fiche));
   };
   $("#e-cherche").oninput = dessiner; $("#e-srv").onchange = dessiner; dessiner();
@@ -1306,10 +1315,11 @@ async function vueFiche(v, id) {
   const absAuj = rows.filter((r) => r.jour === G.js && r.statut === "absent_en_cours");
   const histo = [...rows].filter((r) => r.prevu_debut || AVEC_ARRIVEE(r)).sort((a, b) => b.jour.localeCompare(a.jour) || b.creneau_ordre - a.creneau_ordre);
   v.innerHTML = `<button class="b-lien retour" id="f-retour">‹ Équipe</button>
-    <div class="carte"><div class="ligne">${smiley(nm.smiley, { taille: 56, titre: "Discipline du mois" })}<div class="flex"><h2>${esc(e.nom)}</h2><p class="sous">${esc(e.service)} · ${e.telephone ? "téléphone activé" : "téléphone non activé (code " + esc(e.pin) + ")"} · ${e.present ? "présent" : "absent"} maintenant</p></div></div>
+    <div class="carte"><div class="ligne">${smiley(nm.smiley, { taille: 56, titre: "Discipline du mois" })}<div class="flex"><h2>${esc(e.nom)}</h2><p class="sous">${esc(e.service)} · ${e.telephone ? "téléphone activé" : "téléphone non activé (code " + esc(e.pin) + ")"} ${e.actif ? ` · ${textePresence(e)}` : ""}</p></div></div>
+      ${!e.actif && e.date_sortie ? `<div class="msg info">A quitté l'équipe le ${esc(dateFr(e.date_sortie))}${e.sortie_motif ? ` · ${esc(e.sortie_motif)}` : ""}. Son historique est conservé.</div>` : ""}
       <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="f-rapport">Rapport du mois (PDF)</button><button class="b-sec flex" id="f-csv">Historique (Excel)</button>
       <button class="b-sec flex" id="f-horaires">Horaires</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
-      <div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button></div><div id="f-msg"></div></div>
+      ${e.actif ? `<div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button><button class="b-lien" id="f-depart" style="color:var(--rouge);margin-left:auto">Ne travaille plus ici</button></div>` : ""}<div id="f-msg"></div></div>
     ${absAuj.length ? `<div class="msg mal">Aucun pointage aujourd'hui : attendu(e) à ${hcourt(absAuj[0].prevu_debut)}, ${duree(sansPointage(absAuj[0]))} sans pointage. Si c'est une absence prévue ou justifiée, saisis-la avec « Saisir une absence ».</div>` : ""}
     <div class="kpis">
       ${absAuj.length ? `<div class="kpi"><b style="color:var(--rouge)">Absent(e)</b><span>aujourd'hui · aucun pointage</span></div>` : `<div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>`}
@@ -1336,9 +1346,50 @@ async function vueFiche(v, id) {
   $("#f-absence").onclick = () => saisirAbsence(id, () => allerA("fiche", id));
   $("#f-csv").onclick = () => exporterCSV(histo, `capanna-${e.nom.replace(/\W+/g, "-")}.csv`);
   $("#f-rapport").onclick = () => rapportMensuelPDF(e, parPeriode(debutMois(G.js)), nm);
-  $("#f-reset").onclick = () => demanderMotif("Réinitialiser le téléphone", `${esc(e.nom)} devra réactiver son téléphone avec un code.`, async (m) => { await ga({ action: "admin_reinitialiser", employe_id: id, motif: m }); e.telephone = false; allerA("fiche", id); }, { classe: "b-danger", bouton: "Réinitialiser" });
-  $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin; msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}`, "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
+  if (!e.actif) { $$("#f-horaires, #f-absence", v).forEach((x) => x.remove()); }
+  if ($("#f-depart")) $("#f-depart").onclick = () => departEmploye(e);
+  if ($("#f-reset")) $("#f-reset").onclick = () => demanderMotif("Réinitialiser le téléphone", `${esc(e.nom)} devra réactiver son téléphone avec un code.`, async (m) => { await ga({ action: "admin_reinitialiser", employe_id: id, motif: m }); e.telephone = false; allerA("fiche", id); }, { classe: "b-danger", bouton: "Réinitialiser" });
+  if ($("#f-code")) $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin; msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}`, "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
   $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
+}
+function departEmploye(e) {
+  const autres = G.equipe.filter((x) => x.actif && x.id !== e.id);
+  const f = feuille(`<div class="entete"><h2>Départ de ${esc(e.nom)}</h2><button class="b-sec" data-fermer>Annuler</button></div>
+    <p class="sous">${esc(e.nom)} n'apparaîtra plus dans l'équipe, les listes ni le planning, et son téléphone ne pourra plus pointer. Rien n'est effacé : ses pointages, retards, demandes et documents restent consultables dans « Anciens employés ».</p>
+    <label>Ne travaille plus à partir du</label><input type="date" id="d-date" value="${G.js}">
+    <label>Son planning de la semaine</label>
+    <select id="d-reprise"><option value="nouveau">Le donner à un nouvel employé</option>
+      ${autres.map((x) => `<option value="${x.id}">Le donner à ${esc(x.nom)} (${esc(x.service)})</option>`).join("")}
+      <option value="">Personne pour l'instant</option></select>
+    <div id="d-nouveau"><label>Prénom du nouvel employé</label><input id="d-nom" placeholder="Ex. Karim" autocomplete="off">
+      <label>Poste</label><input id="d-poste" value="${esc(e.service)}"></div>
+    <p class="petit" id="d-aide"></p>
+    <label>Motif (obligatoire)</label><textarea id="d-motif" placeholder="Ex. : fin de contrat, démission…"></textarea>
+    <div id="d-msg"></div><div class="pile" style="margin-top:12px"><button class="b-danger b-plein" id="d-ok">Confirmer le départ</button></div>`);
+  const maj = () => {
+    const r = $("#d-reprise", f.el).value;
+    $("#d-nouveau", f.el).classList.toggle("cache", r !== "nouveau");
+    $("#d-aide", f.el).textContent = r === "nouveau" ? `Le nouvel employé reçoit exactement les horaires de ${e.nom}. Un code d'activation lui sera donné pour son téléphone.`
+      : r ? `Les horaires de ${e.nom} remplaceront ceux de ${employeDe(r)?.nom} à partir de cette date (ses anciens horaires restent dans l'historique).`
+      : `Les horaires de ${e.nom} sont conservés dans l'historique ; tu pourras les attribuer plus tard dans Planning.`;
+  };
+  $("#d-reprise", f.el).onchange = maj; maj();
+  $("#d-ok", f.el).onclick = async () => {
+    const r = $("#d-reprise", f.el).value, motif = $("#d-motif", f.el).value.trim(), nom = $("#d-nom", f.el).value.trim();
+    if (motif.length < 3) return msg($("#d-msg", f.el), "Le motif est obligatoire (3 caractères minimum).");
+    if (r === "nouveau" && nom.length < 2) return msg($("#d-msg", f.el), "Indique le prénom du nouvel employé.");
+    $("#d-ok", f.el).disabled = true;
+    try {
+      const x = await ga({ action: "admin_employe_depart", employe_id: e.id, date_sortie: $("#d-date", f.el).value, motif,
+        successeur_id: r && r !== "nouveau" ? +r : null, nouveau_nom: r === "nouveau" ? nom : null, nouveau_service: r === "nouveau" ? $("#d-poste", f.el).value : null });
+      G.equipe = (await ga({ action: "admin_equipe" })).equipe;
+      f.el.innerHTML = `<div class="entete"><h2>Départ enregistré</h2><button class="b-sec" data-fermer>Fermer</button></div>
+        <p>${esc(e.nom)} ne fait plus partie de l'équipe. Son historique est conservé.</p>
+        ${x.successeur_nom ? `<p>${esc(x.successeur_nom)} reprend son planning à partir du ${esc(dateFr(x.reprise))}.</p>` : ""}
+        ${x.pin ? `<div class="msg bon">Code d'activation de ${esc(x.successeur_nom)} : <b style="font-size:20px;letter-spacing:.1em">${esc(x.pin)}</b><br>À saisir sur son téléphone, connecté au Wi-Fi du restaurant.</div>` : ""}`;
+      allerA("equipe");
+    } catch (err) { $("#d-ok", f.el).disabled = false; msg($("#d-msg", f.el), err.message); }
+  };
 }
 function saisirAbsence(employeId, apres) {
   const f = feuille(`<div class="entete"><h2>Saisir une absence</h2><button class="b-sec" data-fermer>Fermer</button></div>
@@ -1913,7 +1964,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-203411";
+const VERSION_APP = "20261122-203813";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
