@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Capanna">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="apple-touch-icon" href="keynet-icon.png">
 <title>Capanna – Pointage</title>
 <style>
 :root{--vert:#0B4F3C;--vert-2:#0E6B51;--or:#A8823C;--fond:#F2EEE1;--carte:#fff;--ligne:#E6E0CF;--texte:#1d1d1d;--gris:#6b6b6b;--rouge:#B3261E;
@@ -935,6 +935,9 @@ function manifesteGerant(oui) {
   if (l) l.href = oui ? "manifest-gerant.webmanifest" : "manifest.webmanifest";
   const t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
   if (t) t.content = oui ? "Capanna Gérant" : "Capanna";
+  // icône de l'écran d'accueil : cadenas KeyNet pour les employés, olivier pour l'espace gérant
+  const i = document.querySelector('link[rel="apple-touch-icon"]');
+  if (i) i.href = oui ? "icon.png" : "keynet-icon.png";
 }
 function oublierGerant() { store.sset("capanna_code_v2", null); store.del("capanna_code_garde"); store.del("capanna_mode"); G.code = null; }
 async function demarrerGerant() {
@@ -1810,7 +1813,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-173212";
+const VERSION_APP = "20261122-175129";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
