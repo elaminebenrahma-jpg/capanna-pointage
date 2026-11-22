@@ -1,6 +1,6 @@
 {
-  "name": "Capanna – Pointage",
-  "short_name": "Capanna",
+  "name": "KeyNet – Pointage Capanna",
+  "short_name": "KeyNet",
   "description": "Pointage, planning et demandes du personnel Capanna — Powered by KeyNet",
   "start_url": "v2.html",
   "scope": "./",
