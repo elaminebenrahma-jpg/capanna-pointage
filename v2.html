@@ -39,7 +39,8 @@ textarea{min-height:84px;resize:vertical}
 .msg{margin-top:12px;padding:11px 13px;border-radius:12px;font-size:14px}
 .msg.bon{background:#E5F3EA;color:#145C33}.msg.mal{background:#FBE7E6;color:var(--rouge)}.msg.info{background:#F4EFE0;color:#5c4b22}
 .wifi{display:flex;align-items:center;gap:10px}.pastille{width:11px;height:11px;border-radius:50%;background:#c9c9c9;flex:none}
-.wifi.ok .pastille{background:var(--s-vert)}.wifi.ko .pastille{background:var(--rouge)}
+.wifi.ok .pastille{background:var(--s-vert)}.wifi.ko .pastille{background:var(--rouge)}.wifi.attente .pastille{background:var(--s-orange)}
+.journal-jour li.attente{color:var(--s-orange)}.bandeau-attente{border-left:4px solid var(--s-orange)}
 .onglets{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;margin:8px 0 2px;-webkit-overflow-scrolling:touch}
 .onglets::-webkit-scrollbar{display:none}
 .onglet{flex:none;background:#E9E3D2;color:#3b3b3b;border-radius:999px;padding:9px 14px;font-weight:600;font-size:14px;position:relative}
@@ -539,8 +540,11 @@ async function demarrerEmploye() {
     <p class="petit" style="text-align:center;margin:18px 0">Astuce : ajoute cette page à ton écran d'accueil (Partager → « Sur l'écran d'accueil »).</p>`;
   try { E.etat = await api({ action: "init", token: E.token }); } catch (e) { return msg($("#corps"), e.message); }
   const ok = E.etat.wifi;
-  $("#etat-wifi").className = "carte wifi " + (ok ? "ok" : "ko");
-  $("#texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna" : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
+  const actif = !!E.etat.moi;
+  $("#etat-wifi").className = "carte wifi " + (ok ? "ok" : actif ? "attente" : "ko");
+  $("#texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna"
+    : actif ? "Réseau du restaurant non reconnu : tu peux pointer quand même, ta position sera vérifiée."
+    : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
   if (!E.etat.moi) return ecranActivation();
   ecranEmploye();
 }
@@ -683,6 +687,7 @@ async function vueNotificationsE() {
     if (!n.lu) { try { majBadgeE((await api({ action: "notification_lue", token: E.token, id: n.id })).non_lues); } catch {} }
     if (n.lien === "planning") return allerE("planning", n.details?.date ? String(n.details.date).slice(0, 10) : null);
     if (n.lien === "demandes" || n.absence_id) return allerE("demandes");
+    if (n.lien === "pointage") return allerE("pointage");
     n.lu = true; b.classList.remove("non-lue"); $(".n-point", b)?.remove();
   });
 }
@@ -701,14 +706,16 @@ function vuePointage(m) {
       <ul class="journal-jour" id="p-journal"></ul>
     </div>
     <div class="carte" id="p-mois"></div>`;
-  afficherJournal(m.aujourdhui);
+  afficherJournal(m.aujourdhui, m.en_attente);
   afficherIndicateurs(em, false);
   $("#p-arr").onclick = () => pointer("arrivee");
   $("#p-dep").onclick = () => pointer("depart");
 }
-function afficherJournal(liste) {
-  $("#p-journal").innerHTML = (liste || []).map((p) => `<li>${p.type === "arrivee" ? "Arrivée" : "Départ"} à ${heure(p.horodatage)}</li>`).join("");
-  const dernier = (liste || [])[liste.length - 1];
+function afficherJournal(liste, attente) {
+  if (attente !== undefined) E.attente = attente || [];
+  const tout = [...(liste || []).map((p) => ({ ...p, ok: true })), ...(E.attente || [])].sort((a, b) => new Date(a.horodatage) - new Date(b.horodatage));
+  $("#p-journal").innerHTML = tout.map((p) => `<li class="${p.ok ? "" : "attente"}">${p.type === "arrivee" ? "Arrivée" : "Départ"} à ${heure(p.horodatage)}${p.ok ? "" : " · en attente de vérification"}</li>`).join("");
+  const dernier = tout[tout.length - 1];
   $("#p-arr").disabled = dernier?.type === "arrivee";
   $("#p-dep").disabled = dernier?.type !== "arrivee";
 }
@@ -720,19 +727,46 @@ function afficherIndicateurs(em, anime) {
 async function pointer(type) {
   $("#p-arr").disabled = $("#p-dep").disabled = true; msg($("#p-msg"), "");
   try {
-    const r = await api({ action: "pointer", token: E.token, type });
+    let gps = null;
+    if (!E.etat.wifi) { msg($("#p-msg"), "Vérification de ta position…", "info");
+      gps = await position((p) => msg($("#p-msg"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
+      msg($("#p-msg"), ""); }
+    const r = await api({ action: "pointer", token: E.token, type, gps });
+    if (r.en_attente) {
+      $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${type === "arrivee" ? "Arrivée enregistrée" : "Départ enregistré"} à ${esc(r.heure)}</div>
+        <div class="petit">${esc(r.info)}</div></div></div>`;
+      afficherJournal(r.aujourdhui, r.en_attente_liste);
+      return;
+    }
     const j = r.emojis?.jour;
     $("#p-resultat").innerHTML = `<div class="resultat">${type === "arrivee" && j ? smileyDe(j, 64, true) : ""}
       <div><div class="t">${type === "arrivee" ? "Arrivée" : "Départ"} enregistrée à ${esc(r.heure)}</div>
       <div class="petit">${esc(type === "arrivee" && j ? j.message : r.info)}</div>${type === "arrivee" && j && r.info && !/heure|Retard/.test(r.info) ? `<div class="petit">${esc(r.info)}</div>` : ""}
       ${type === "depart" && /prochain service/.test(r.info) ? "" : ""}</div></div>`;
-    afficherJournal(r.aujourdhui); afficherIndicateurs(r.emojis, true);
+    afficherJournal(r.aujourdhui, r.en_attente_liste); afficherIndicateurs(r.emojis, true);
     if (!store.get("capanna_push_propose") && await etatPush() === "a_activer") {
       store.set("capanna_push_propose", "1");
       $("#p-resultat").insertAdjacentHTML("beforeend", `<div data-push-zone style="margin-top:12px"></div>`);
       brancherPush($("#p-resultat"), "employe", E.etat.moi.vapid, (abonnement) => api({ action: "push_abonner", token: E.token, abonnement }));
     }
   } catch (e) { msg($("#p-msg"), e.message); afficherJournal(E.etat.moi.aujourdhui); }
+}
+// position du téléphone (jamais bloquant : sans réponse en 10 s, on pointe sans)
+// Mesure la position et la relance automatiquement tant que la précision dépasse 10 m (20 s au plus).
+// Renvoie la meilleure mesure obtenue, ou null si la localisation est refusée ou indisponible.
+function position(suivi = () => {}, cible = 10, maxMs = 20000) {
+  return new Promise((ok) => {
+    if (!navigator.geolocation) return ok(null);
+    let meilleure = null, fini = false, id = null;
+    const fin = () => { if (fini) return; fini = true; if (id !== null) navigator.geolocation.clearWatch(id); ok(meilleure); };
+    setTimeout(fin, maxMs);
+    id = navigator.geolocation.watchPosition((p) => {
+      const m = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy };
+      if (!meilleure || m.precision < meilleure.precision) meilleure = m;
+      if (meilleure.precision <= cible) return fin();
+      suivi(Math.round(meilleure.precision));
+    }, () => fin(), { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs });
+  });
 }
 
 // ---------- Mes demandes ----------
@@ -1039,6 +1073,7 @@ function barres(series, opts = {}) {
 
 // ---------- Tableau de bord ----------
 async function vueTableau(v) {
+  const attente = ga({ action: "admin_presence_attente" }).catch(() => null);
   const f = G.filtres;
   const suivi = (await ga({ action: "admin_parametres" })).parametres.debut_suivi || f.debut;
   const debut6 = [debutMois(plusJours(debutMois(G.js), -150)), suivi].sort()[1];
@@ -1096,6 +1131,30 @@ async function vueTableau(v) {
   $$("[data-fiche]", v).forEach((li) => li.onclick = () => allerA("fiche", +li.dataset.fiche));
   $("#t-csv").onclick = () => exporterCSV(rows, `capanna-pointages-${f.debut}-${f.fin}.csv`);
   $("#t-pdf").onclick = () => rapportGlobalPDF(rows, f);
+  bandeauAttente(v, await attente);
+}
+function bandeauAttente(v, d) {
+  if (!d?.groupes?.length) return;
+  const RAISON = (r) => !r ? "" : r === "pas de position" ? "localisation indisponible" : r;
+  v.insertAdjacentHTML("afterbegin", `<div class="carte bandeau-attente"><h3>À valider (${d.liste.length})</h3>
+    <p class="sous">Pointages enregistrés à leur heure mais sans preuve de présence (Wi-Fi inconnu, GPS imprécis ou indisponible).</p>
+    <ul class="liste">${d.liste.map((x) => `<li><div class="flex"><div class="t">${esc(x.nom || "?")} · ${x.type === "arrivee" ? "Arrivée" : "Départ"} ${heure(x.horodatage)}</div>
+      <div class="petit">${esc(dateCourte(x.horodatage.slice(0, 10)))} · ${esc(RAISON(x.raison))}</div></div>
+      <button class="b-lien" data-valider="${x.id}">Valider</button><button class="b-lien" style="color:var(--rouge)" data-refus1="${x.id}">Refuser</button></li>`).join("")}</ul></div>`);
+  $$("[data-valider]", v).forEach((b) => b.onclick = () => demanderMotif("Valider ce pointage", "Validation exceptionnelle : le pointage sera compté à son heure d'origine.", async (m) => { await ga({ action: "admin_valider_pointage", id: +b.dataset.valider, motif: m }); allerA("tableau"); }));
+  $$("[data-refus1]", v).forEach((b) => b.onclick = () => demanderMotif("Refuser ce pointage", "Il restera visible dans l'historique, marqué refusé.", async (m) => { await ga({ action: "admin_refuser_attente", id: +b.dataset.refus1, motif: m }); allerA("tableau"); }));
+  const groupes = d.groupes.filter((g) => g.employes.length >= 2);
+  if (!groupes.length) return;
+  v.insertAdjacentHTML("afterbegin", groupes.map((g) => `<div class="carte bandeau-attente"><h3>Nouveau réseau Wi-Fi ?</h3>
+    <p class="sous">${g.employes.length} employé${g.employes.length > 1 ? "s" : ""} (${esc(g.employes.join(", "))}) ont pointé depuis un réseau inconnu (${esc(g.reseau)}), entre ${heure(g.premier)} et ${heure(g.dernier)}.
+    Si c'est le Wi-Fi du restaurant (la box a changé d'adresse), autorise-le : leurs pointages seront validés à leur heure.</p>
+    <div class="ligne" style="margin-top:10px"><button class="b-principal flex" data-autoriser="${esc(g.reseau)}">Autoriser ce réseau</button><button class="b-sec flex" data-refuser="${esc(g.reseau)}">Refuser</button></div></div>`).join(""));
+  $$("[data-autoriser]", v).forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await ga({ action: "admin_autoriser_reseau", reseau: b.dataset.autoriser }); alert(`${r.acceptes} pointage(s) validé(s) à leur heure.`); allerA("tableau"); }
+    catch (e) { alert(e.message); b.disabled = false; }
+  });
+  $$("[data-refuser]", v).forEach((b) => b.onclick = () => demanderMotif("Refuser ces pointages", "Ils resteront visibles dans l'historique, marqués refusés.", async (m) => { await ga({ action: "admin_refuser_attente", reseau: b.dataset.refuser, motif: m }); allerA("tableau"); }));
 }
 
 // ---------- Équipe ----------
@@ -1286,7 +1345,8 @@ async function vuePointages(v, arg) {
     <div class="carte"><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
     ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
       <td>${esc(e.nom || "?")}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td>${esc(p.heure)}</td>
-      <td>${p.accepte ? (p.source === "manuel" ? "Manuel" : "Wi-Fi") : `<span class="puce refusee">Refusé</span>`}</td>
+      <td>${p.accepte ? ({ manuel: "Manuel", gps: "Position GPS" }[p.source] || (p.verif === "valide_gerant" ? "Validé par le gérant" : p.verif === "valide_reseau" ? "Réseau reconnu" : "Wi-Fi"))
+        : p.verif === "a_verifier" ? `<span class="puce attente">À vérifier</span>` : p.verif === "doublon" ? `<span class="petit">Tentative répétée</span>` : `<span class="puce refusee">Refusé</span>`}</td>
       <td class="petit" style="white-space:normal;max-width:260px">${esc(p.annule ? "Annulé" : p.motif || "")}${p.remplace_id ? " (correction)" : ""}</td>
       <td>${p.accepte && !p.annule ? `<button class="b-lien" data-cor="${p.id}">Corriger</button><button class="b-lien" style="color:var(--rouge)" data-ann="${p.id}">Annuler</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="7" class="vide">Aucun pointage ce jour-là.</td></tr>`}
     </tbody></table></div><p class="petit">Rien n'est jamais effacé : une correction annule l'ancien pointage et en crée un nouveau, avec le motif inscrit au journal.</p></div>`;
@@ -1646,8 +1706,16 @@ async function vueReglages(v) {
         <p class="petit">{retard} = minutes de retard · {retards} = « 3 retards » · {cumul} = minutes cumulées</p></details>
       <div id="r-msg2"></div><div class="ligne" style="margin-top:10px"><button class="b-principal flex" id="r-ok2">Enregistrer</button><button class="b-sec flex" id="r-defaut">Valeurs par défaut</button></div></div>
     <div class="carte"><h3>Wi-Fi du restaurant</h3><p class="sous">Adresse vue maintenant : ${esc(cx.ip_vue)} · ${cx.wifi ? "réseau autorisé" : "réseau non autorisé"}</p>
-      <ul class="liste">${cx.reseaux.map((r) => `<li><div class="flex"><div class="t">${esc(r.libelle || "Wi-Fi")}</div><div class="petit">${esc(r.reseau)}</div></div><button class="b-lien" style="color:var(--rouge)" data-ret="${esc(r.reseau)}">Retirer</button></li>`).join("") || `<li class="vide">Aucun réseau enregistré.</li>`}</ul>
-      <div class="pile" style="margin-top:8px"><button class="b-sec" id="r-wifi">Enregistrer le réseau actuel comme Wi-Fi Capanna</button></div><p class="petit">À faire depuis le restaurant, connecté au Wi-Fi Capanna. Si la box change d'adresse, refais-le.</p></div>`;
+      <ul class="liste">${cx.reseaux.map((r) => `<li><div class="flex"><div class="t">${esc(r.libelle || "Wi-Fi")}</div><div class="petit">${esc(r.reseau)}${r.origine === "auto" ? " · reconnu automatiquement" : ""}</div></div><button class="b-lien" style="color:var(--rouge)" data-ret="${esc(r.reseau)}">Retirer</button></li>`).join("") || `<li class="vide">Aucun réseau enregistré.</li>`}</ul>
+      <div class="pile" style="margin-top:8px"><button class="b-sec" id="r-wifi">Enregistrer le réseau actuel comme Wi-Fi Capanna</button></div><p class="petit">Si la box change d'adresse, l'appli la reconnaît toute seule dès que plusieurs employés pointent depuis le restaurant, ou grâce à la position ci-dessous. Tu peux aussi l'autoriser depuis le tableau de bord.</p></div>
+    <div class="carte"><h3>Position du restaurant</h3>
+      <p class="sous">${P.site_lat ? `Enregistrée · rayon ${esc(P.site_rayon_m || 15)} m` : "Pas encore enregistrée"}. Preuve de présence quand le Wi-Fi n'est pas reconnu : position à 10 m près, dans le rayon. Sinon le pointage est gardé à son heure et tu le valides ici.</p>
+      <div class="ligne"><div class="flex"><label>Latitude</label><input id="r-lat" inputmode="decimal" value="${esc(P.site_lat || "")}" placeholder="34.0xxxxx"></div>
+        <div class="flex"><label>Longitude</label><input id="r-lng" inputmode="decimal" value="${esc(P.site_lng || "")}" placeholder="-6.8xxxxx"></div>
+        <div class="flex"><label>Rayon (mètres)</label><input type="number" id="r-rayon" min="5" max="1000" value="${esc(P.site_rayon_m || 15)}"></div></div>
+      <div id="r-msg3"></div>
+      <div class="ligne" style="margin-top:10px"><button class="b-principal flex" id="r-coord-ok">Enregistrer</button><button class="b-sec flex" id="r-site">Mesurer ma position ici</button></div>
+      <p class="petit">« Mesurer » remplit les coordonnées depuis le téléphone, à l'intérieur du restaurant (la mesure est relancée jusqu'à 10 m de précision). Vérifie puis enregistre.</p></div>`;
   $("#r-ok1").onclick = () => {
     const changes = $$("[data-p]", v).filter((i) => String(i.value) !== String(P[i.dataset.p] ?? ""));
     if (!changes.length) return msg($("#r-msg1"), "Aucune modification.", "info");
@@ -1661,6 +1729,23 @@ async function vueReglages(v) {
     demanderMotif("Modifier les smileys", "", async (m) => { const r = await ga({ action: "admin_emojis_config_modifier", config, motif: m }); G.cfg = r.config; Object.assign(SMILEY_COULEURS, r.config.couleurs); allerA("reglages"); });
   };
   $("#r-defaut").onclick = () => demanderMotif("Revenir aux valeurs par défaut", "", async (m) => { const r = await ga({ action: "admin_emojis_config_modifier", defaut: true, motif: m }); G.cfg = r.config; Object.assign(SMILEY_COULEURS, r.config.couleurs); allerA("reglages"); });
+  $("#r-site").onclick = async () => {
+    msg($("#r-msg3"), "Mesure de la position…", "info");
+    const g = await position((p) => msg($("#r-msg3"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
+    if (!g) return msg($("#r-msg3"), "Position introuvable : autorise la localisation précise pour ce site et réessaie.");
+    $("#r-lat").value = g.lat.toFixed(7); $("#r-lng").value = g.lng.toFixed(7);
+    msg($("#r-msg3"), `Mesure obtenue à ${Math.round(g.precision)} m près${g.precision > 10 ? " (moins précis que les 10 m souhaités : réessaie près d'une fenêtre ou de l'entrée)" : ""}. Vérifie puis enregistre.`, g.precision > 10 ? "mal" : "info");
+  };
+  $("#r-coord-ok").onclick = () => {
+    const lat = parseFloat(String($("#r-lat").value).replace(",", ".")), lng = parseFloat(String($("#r-lng").value).replace(",", "."));
+    if (!isFinite(lat) || !isFinite(lng)) return msg($("#r-msg3"), "Coordonnées invalides.");
+    const ray = $("#r-rayon").value, coordChange = String(lat) !== String(+P.site_lat) || String(lng) !== String(+P.site_lng);
+    demanderMotif("Modifier la géolocalisation", "Coordonnées et rayon de pointage du restaurant.", async (m) => {
+      if (coordChange) await ga({ action: "admin_site_enregistrer", gps: { lat, lng, precision: 0 }, motif: m });
+      if (String(ray) !== String(P.site_rayon_m)) await ga({ action: "admin_parametre_modifier", cle: "site_rayon_m", valeur: ray, motif: m });
+      allerA("reglages");
+    });
+  };
   $("#r-wifi").onclick = async () => { try { await ga({ action: "admin_ajouter_wifi" }); allerA("reglages"); } catch (e) { alert(e.message); } };
   $$("[data-ret]", v).forEach((b) => b.onclick = async () => { if (!confirm("Retirer ce réseau ? Plus personne ne pourra pointer depuis celui-ci.")) return; await ga({ action: "admin_retirer_wifi", reseau: b.dataset.ret }); allerA("reglages"); });
 }
@@ -1714,7 +1799,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-102127";
+const VERSION_APP = "20261122-171309";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte

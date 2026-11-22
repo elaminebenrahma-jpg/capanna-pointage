@@ -148,6 +148,7 @@ const PARAMS_MODIFIABLES: Record<string, (v: string) => boolean> = {
   alerte_cumul_1_min: (v) => /^\d{1,4}$/.test(v),
   alerte_cumul_2_min: (v) => /^\d{1,4}$/.test(v),
   debut_suivi: (v) => dateValide(v),
+  site_rayon_m: (v) => /^\d{1,4}$/.test(v) && +v >= 5 && +v <= 1000,
 };
 async function parametres() {
   const { data } = await sb.from("hr_parametres").select("cle, valeur");
@@ -196,6 +197,42 @@ async function etatDuJour(employeId: number, js: string) {
     .eq("employe_id", employeId).eq("jour_service", js).eq("accepte", true).eq("annule", false).order("horodatage");
   return data || [];
 }
+
+
+// ---------- présence hors Wi-Fi connu ----------
+function distanceM(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLng = (lng2 - lng1) * rad;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+// deno-lint-ignore no-explicit-any
+function lireGps(g: any) {
+  if (!g || typeof g !== "object") return null;
+  const lat = Number(g.lat), lng = Number(g.lng), precision = Number(g.precision);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng, precision: Number.isFinite(precision) ? precision : 9999 };
+}
+// la position prouve la présence si elle est précise et dans le rayon du restaurant
+function gpsSurPlace(g: { lat: number; lng: number; precision: number } | null, P: Record<string, string>) {
+  if (!g || !P.site_lat || !P.site_lng) return { ok: false, raison: g ? "position du restaurant non enregistrée" : "pas de position" };
+  const rayon = Number(P.site_rayon_m || 15);
+  const d = distanceM(g.lat, g.lng, Number(P.site_lat), Number(P.site_lng));
+  // précision visée 10 m ; au-delà de 20 m la mesure ne peut pas prouver une présence dans un rayon de 15 m
+  if (g.precision > 20) return { ok: false, raison: `position trop imprécise (${Math.round(g.precision)} m)`, distance: Math.round(d) };
+  return { ok: d <= rayon, raison: d <= rayon ? "gps_ok" : `hors du restaurant (${Math.round(d)} m)`, distance: Math.round(d) };
+}
+async function enAttenteDuJour(employeId: number, js: string) {
+  const { data } = await sb.from("hr_pointages").select("type, horodatage")
+    .eq("employe_id", employeId).eq("jour_service", js).eq("verif", "a_verifier").order("horodatage");
+  return data || [];
+}
+async function apprendreReseau(reseau: string) {
+  const { data, error } = await sb.rpc("hr_apprendre_reseau", { p_reseau: reseau });
+  if (error) { console.error("apprendre", error); return null; }
+  return data as { appris?: boolean; acceptes?: number };
+}
+const hhmmLocal = (d: Date) => { const l = local(d); return `${String(l.h).padStart(2, "0")}h${String(l.m).padStart(2, "0")}`; };
 
 // ---------- gérant ----------
 async function adminOk(code: string) {
@@ -485,6 +522,7 @@ function lienUrl(n: { destinataire: string; lien: string | null; absence_id: num
   if (n.destinataire === "gerant") return n.absence_id ? `v2.html#gerant/demande/${n.absence_id}` : "v2.html#gerant";
   if (n.lien === "planning") return `v2.html#e/planning${d.date ? "/" + String(d.date).slice(0, 10) : ""}`;
   if (n.lien === "demandes") return "v2.html#e/demandes";
+  if (n.lien === "pointage") return "v2.html#e/pointage";
   return "v2.html#e/notifications";
 }
 // Envoie les notifications en attente. Chaque notification est « réservée » avant l'envoi :
@@ -579,7 +617,7 @@ Deno.serve(async (req) => {
           let emojis = null;
           try { emojis = await emojisEmploye(a.employe.id, js); } catch (e) { console.error("emojis", e); }
           const { count } = await sb.from("hr_notifications").select("id", { count: "exact", head: true }).eq("destinataire", `employe:${a.employe.id}`).eq("lu", false);
-          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), emojis, non_lues: count || 0, vapid: (await vapid())?.publicKey || null };
+          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), en_attente: await enAttenteDuJour(a.employe.id, js), emojis, non_lues: count || 0, vapid: (await vapid())?.publicKey || null };
         }
         let employes: unknown[] = [];
         if (!a && wifi) {
@@ -606,16 +644,51 @@ Deno.serve(async (req) => {
         const a = await appareil(b.token);
         if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
         const type = b.type === "depart" ? "depart" : "arrivee";
+        const reseau = reseauDe(ip);
+        let jour = await etatDuJour(a.employe.id, js);
+        let source = "wifi";
+        let extra: Record<string, unknown> = {};
         if (!wifi) {
-          await sb.from("hr_pointages").insert({ employe_id: a.employe.id, type, jour_service: js, ip, appareil_id: a.appareilId, accepte: false, motif: "Hors Wi-Fi Capanna" });
-          return json({ erreur: "Pointage refusé : tu n'es pas sur le Wi-Fi Capanna. Connecte-toi au Wi-Fi du restaurant puis réessaie." }, 403);
+          // Réseau inconnu : on ne refuse plus. Preuve GPS si possible, sinon pointage « à vérifier ».
+          const attente = await enAttenteDuJour(a.employe.id, js);
+          const suite = [...jour, ...attente].sort((x, y) => x.horodatage < y.horodatage ? -1 : 1);
+          const der = suite[suite.length - 1];
+          if (der && attente.length && der === attente[attente.length - 1] && der.type === type) {
+            return json({ ok: true, en_attente: true, type, heure: hhmmLocal(new Date(der.horodatage)), info: "Déjà enregistré : en attente de vérification. Inutile de réessayer.", aujourdhui: jour, en_attente_liste: attente });
+          }
+          if (type === "arrivee" && der?.type === "arrivee") return json({ erreur: "Ton arrivée est déjà pointée." }, 409);
+          if (type === "depart" && der?.type !== "arrivee") return json({ erreur: "Pointe d'abord ton arrivée." }, 409);
+          const g = lireGps(b.gps);
+          const v = gpsSurPlace(g, await parametres());
+          const base = { employe_id: a.employe.id, type, horodatage: now.toISOString(), jour_service: js, ip, reseau, appareil_id: a.appareilId, lat: g?.lat ?? null, lng: g?.lng ?? null, precision_m: g?.precision ?? null };
+          if (v.ok) {
+            const { error } = await sb.from("hr_pointages").insert({ ...base, accepte: true, source: "gps", verif: "valide_gps", verif_le: now.toISOString(), verif_detail: "gps_ok" });
+            if (error) throw error;
+            source = "gps";
+            await apprendreReseau(reseau);
+          } else {
+            const { error } = await sb.from("hr_pointages").insert({ ...base, accepte: false, verif: "a_verifier", motif: "Réseau non reconnu — à vérifier", verif_detail: v.raison });
+            if (error) throw error;
+            const appris = await apprendreReseau(reseau);
+            await pousser();
+            jour = await etatDuJour(a.employe.id, js);
+            const pris = jour.some((x) => Math.abs(new Date(x.horodatage).getTime() - now.getTime()) < 1000 && x.type === type);
+            if (!pris) {
+              return json({ ok: true, en_attente: true, type, heure: hhmmLocal(now),
+                info: "Pointage enregistré à cette heure, en attente de vérification (le réseau du restaurant n'est pas reconnu). Il sera validé automatiquement à son heure.",
+                aujourdhui: jour, en_attente_liste: await enAttenteDuJour(a.employe.id, js), reseau_appris: !!appris?.appris });
+            }
+            extra = { valide_par: "reseau" };
+          }
+        } else {
+          const dernier = jour[jour.length - 1];
+          if (type === "arrivee" && dernier?.type === "arrivee") return json({ erreur: "Ton arrivée est déjà pointée." }, 409);
+          if (type === "depart" && dernier?.type !== "arrivee") return json({ erreur: "Pointe d'abord ton arrivée." }, 409);
+          const { error } = await sb.from("hr_pointages").insert({ employe_id: a.employe.id, type, horodatage: now.toISOString(), jour_service: js, ip, reseau, appareil_id: a.appareilId, accepte: true });
+          if (error) throw error;
         }
-        const jour = await etatDuJour(a.employe.id, js);
-        const dernier = jour[jour.length - 1];
-        if (type === "arrivee" && dernier?.type === "arrivee") return json({ erreur: "Ton arrivée est déjà pointée." }, 409);
-        if (type === "depart" && dernier?.type !== "arrivee") return json({ erreur: "Pointe d'abord ton arrivée." }, 409);
-        const { error } = await sb.from("hr_pointages").insert({ employe_id: a.employe.id, type, horodatage: now.toISOString(), jour_service: js, ip, appareil_id: a.appareilId, accepte: true });
-        if (error) throw error;
+        if (source !== "wifi" || extra.valide_par) await pousser();
+        jour = (await etatDuJour(a.employe.id, js)).filter((x) => new Date(x.horodatage).getTime() < now.getTime() - 500);
         const cs = await creneauxDu(a.employe.id, js);
         const tol = Number((await parametres()).tolerance_retard_min ?? 5);
         const m = minutesService(now);
@@ -636,7 +709,7 @@ Deno.serve(async (req) => {
         // émojis : calculés après l'enregistrement ; une erreur ici ne bloque jamais le pointage
         let emojis = null;
         try { emojis = await emojisEmploye(a.employe.id, js); } catch (e) { console.error("emojis", e); }
-        return json({ ok: true, type, heure: `${String(l.h).padStart(2, "0")}h${String(l.m).padStart(2, "0")}`, info, emojis, aujourdhui: await etatDuJour(a.employe.id, js) });
+        return json({ ok: true, type, heure: `${String(l.h).padStart(2, "0")}h${String(l.m).padStart(2, "0")}`, info, emojis, source, aujourdhui: await etatDuJour(a.employe.id, js), en_attente_liste: await enAttenteDuJour(a.employe.id, js) });
       }
 
       // ----- employé : mes demandes -----
@@ -779,20 +852,89 @@ Deno.serve(async (req) => {
       if (!(await adminOk(b.code))) return json({ erreur: "Code gérant incorrect." }, 403);
       switch (b.action) {
         case "admin_connexion": {
-          const { data: res } = await sb.from("hr_reseaux").select("reseau, libelle, created_at").order("id");
+          const { data: res } = await sb.from("hr_reseaux").select("reseau, libelle, created_at, origine").order("id");
           return json({ ok: true, wifi, ip_vue: reseauDe(ip), reseaux: res || [] });
         }
         case "admin_ajouter_wifi": {
           const r = reseauDe(ip);
           if (!r) return json({ erreur: "Adresse introuvable." }, 400);
-          await sb.from("hr_reseaux").upsert({ reseau: r, libelle: b.libelle || "Wi-Fi Capanna" }, { onConflict: "reseau" });
-          await journal("reseau", r, "ajout", null, { reseau: r }, "Ajout du réseau depuis l'espace gérant");
-          return json({ ok: true, reseau: r });
+          // ajoute le réseau et valide, à leur heure, les pointages en attente venus de lui
+          const { data: v, error } = await sb.rpc("hr_valider_reseau", { p_reseau: r, p_libelle: b.libelle || "Wi-Fi Capanna", p_origine: "gerant", p_motif: "Ajout du réseau depuis l'espace gérant", p_auteur: AUTEUR_GERANT, p_verif: "valide_gerant" });
+          if (error) throw error;
+          await pousser();
+          return json({ ok: true, reseau: r, ...(v as Record<string, unknown>) });
         }
         case "admin_retirer_wifi": {
           await sb.from("hr_reseaux").delete().eq("reseau", b.reseau);
           await journal("reseau", b.reseau, "suppression", { reseau: b.reseau }, null, "Retrait du réseau depuis l'espace gérant");
           return json({ ok: true });
+        }
+        case "admin_presence_attente": {
+          // pointages venus d'un réseau inconnu, regroupés par réseau (48 dernières heures)
+          const depuis = new Date(now.getTime() - 48 * 3600e3).toISOString();
+          const { data } = await sb.from("hr_pointages").select("id, employe_id, type, horodatage, reseau, verif_detail, hr_employes(nom)")
+            .eq("verif", "a_verifier").gte("horodatage", depuis).order("horodatage");
+          // deno-lint-ignore no-explicit-any
+          const groupes: Record<string, any> = {};
+          for (const x of data || []) {
+            const k = x.reseau || "?";
+            const g = groupes[k] ||= { reseau: k, premier: x.horodatage, dernier: x.horodatage, employes: [] as string[], pointages: 0 };
+            g.dernier = x.horodatage; g.pointages++;
+            // deno-lint-ignore no-explicit-any
+            const nom = (x as any).hr_employes?.nom;
+            if (nom && !g.employes.includes(nom)) g.employes.push(nom);
+          }
+          // deno-lint-ignore no-explicit-any
+          const liste = (data || []).map((x: any) => ({ id: x.id, employe_id: x.employe_id, nom: x.hr_employes?.nom, type: x.type, horodatage: x.horodatage, reseau: x.reseau, raison: x.verif_detail }));
+          const P = await parametres();
+          return json({ ok: true, groupes: Object.values(groupes), liste, site: P.site_lat ? { lat: +P.site_lat, lng: +P.site_lng, rayon: +(P.site_rayon_m || 15) } : null });
+        }
+        case "admin_autoriser_reseau": {
+          const r = String(b.reseau || "");
+          if (!r) throw new Refus("Réseau manquant.");
+          const { data: v, error } = await sb.rpc("hr_valider_reseau", { p_reseau: r, p_libelle: "Wi-Fi Capanna (autorisé le " + dateFr(js) + ")", p_origine: "gerant", p_motif: champ(b.motif, 200) || "Réseau autorisé par le gérant", p_auteur: AUTEUR_GERANT, p_verif: "valide_gerant" });
+          if (error) throw error;
+          await pousser();
+          return json({ ok: true, ...(v as Record<string, unknown>) });
+        }
+        case "admin_refuser_attente": {
+          // ne supprime rien : les tentatives restent visibles, marquées refusées, avec le motif
+          const motif = motifOk(b.motif);
+          const r = String(b.reseau || "");
+          const q = sb.from("hr_pointages").select("id").eq("verif", "a_verifier");
+          const { data: rows } = b.id ? await q.eq("id", Number(b.id)) : await q.eq("reseau", r);
+          for (const x of rows || []) {
+            await sb.from("hr_pointages").update({ verif: "refuse_gerant", verif_le: now.toISOString(), verif_detail: motif }).eq("id", x.id);
+            await journal("pointage", x.id, "refus", { verif: "a_verifier" }, { verif: "refuse_gerant" }, motif);
+          }
+          return json({ ok: true, refuses: (rows || []).length });
+        }
+        case "admin_valider_pointage": {
+          // validation exceptionnelle d'un pointage par le responsable (problème de GPS, téléphone sans localisation…)
+          const motif = motifOk(b.motif);
+          const { data: p } = await sb.from("hr_pointages").select("id, employe_id, type, horodatage, jour_service, verif").eq("id", Number(b.id)).maybeSingle();
+          if (!p || p.verif !== "a_verifier") throw new Refus("Ce pointage n'est plus en attente.", 409);
+          const { data: autres } = await sb.from("hr_pointages").select("type, horodatage").eq("employe_id", p.employe_id).eq("jour_service", p.jour_service)
+            .eq("accepte", true).eq("annule", false).lt("horodatage", p.horodatage).order("horodatage");
+          const der = (autres || [])[(autres || []).length - 1];
+          if ((p.type === "arrivee" && der?.type === "arrivee") || (p.type === "depart" && der?.type !== "arrivee"))
+            throw new Refus(p.type === "arrivee" ? "Une arrivée est déjà validée avant ce pointage." : "Aucune arrivée validée avant ce départ : valide d'abord l'arrivée.", 409);
+          await sb.from("hr_pointages").update({ accepte: true, motif: null, verif: "valide_gerant", verif_le: now.toISOString(), verif_detail: motif }).eq("id", p.id);
+          const jid = await journal("pointage", p.id, "validation", { accepte: false, verif: "a_verifier" }, { accepte: true, verif: "valide_gerant", type: p.type, heure: heureLocale(p.horodatage) }, motif);
+          await notifier(`employe:${p.employe_id}`, "pointage_valide", null, `${p.type === "arrivee" ? "Ton arrivée" : "Ton départ"} de ${heureLocale(p.horodatage)} a été validé(e) par ton responsable.`,
+            { titre: "Pointage validé", lien: "pointage", cle: `pointage_valide:${p.id}` });
+          await pousser();
+          return json({ ok: true, journal: jid });
+        }
+        case "admin_site_enregistrer": {
+          const g = lireGps(b.gps);
+          if (!g) throw new Refus("Position introuvable. Autorise la localisation et réessaie.");
+          if (g.precision > 15) throw new Refus(`Position trop imprécise (${Math.round(g.precision)} m, 10 m souhaités). Place-toi près d'une fenêtre ou de l'entrée, active le Wi-Fi et la localisation précise, puis réessaie.`);
+          const avant = await parametres();
+          const { error } = await sb.from("hr_parametres").upsert([{ cle: "site_lat", valeur: String(g.lat) }, { cle: "site_lng", valeur: String(g.lng) }], { onConflict: "cle" });
+          if (error) throw error;
+          await journal("parametre", "site_position", "modification", avant.site_lat ? { lat: avant.site_lat, lng: avant.site_lng } : null, { lat: g.lat, lng: g.lng, precision: g.precision || null, saisie: g.precision ? "mesure" : "manuelle" }, champ(b.motif, 200) || "Position du restaurant enregistrée depuis l'espace gérant");
+          return json({ ok: true, site: { lat: g.lat, lng: g.lng, rayon: +(avant.site_rayon_m || 15) } });
         }
         case "admin_equipe": {
           const { data: emps } = await sb.from("hr_employes").select("id, nom, service, pin, actif").order("id");
@@ -866,7 +1008,7 @@ Deno.serve(async (req) => {
         case "admin_pointages": {
           const debut = b.debut || js, fin = b.fin || debut;
           if (!dateValide(debut) || !dateValide(fin)) throw new Refus("Période invalide.");
-          let q = sb.from("hr_pointages").select("id, employe_id, type, horodatage, jour_service, accepte, motif, source, annule, remplace_id, ip")
+          let q = sb.from("hr_pointages").select("id, employe_id, type, horodatage, jour_service, accepte, motif, source, annule, remplace_id, ip, verif")
             .gte("jour_service", debut).lte("jour_service", fin).order("horodatage");
           if (b.employe_id) q = q.eq("employe_id", Number(b.employe_id));
           const { data, error } = await q;
