@@ -92,6 +92,43 @@ tr.barre td{color:#aaa;text-decoration:line-through}
 @keyframes smiley-fondu{to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.smiley-anime,.smiley-anime *{animation:none!important;stroke-dashoffset:0!important;opacity:1!important}}
 /* impression (rapport PDF) */
+/* ---------- barre de navigation flottante (espace gérant) ---------- */
+:root{--nav-h:72px;--nav-bas:calc(env(safe-area-inset-bottom) + 12px);--nav-actif:#33383D;--nav-inactif:#92979B}
+body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
+.nav-bas{position:fixed;z-index:40;left:50%;bottom:var(--nav-bas);transform:translateX(-50%);
+  width:min(calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)),620px);height:var(--nav-h);
+  display:grid;grid-template-columns:repeat(6,1fr);align-items:stretch;padding:6px;border-radius:26px;
+  background:rgba(242,243,243,.72);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow:0 10px 30px -8px rgba(35,40,45,.20),0 2px 8px rgba(35,40,45,.06),inset 0 1px 0 rgba(255,255,255,.7);
+  transition:transform .32s cubic-bezier(.2,.8,.2,1),opacity .2s}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.nav-bas{background:rgba(242,243,243,.97)}}
+.nav-bas.masquee{transform:translate(-50%,calc(100% + var(--nav-bas) + 8px));opacity:0;pointer-events:none}
+.nav-item{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;
+  background:none;border-radius:20px;padding:2px 2px 9px;color:var(--nav-inactif);font-weight:560;font-size:10.5px;letter-spacing:.005em;line-height:1.1;
+  transition:color .22s ease,transform .18s ease}
+.nav-item svg{width:23px;height:23px;flex:none;stroke-width:1.9;transition:transform .28s cubic-bezier(.34,1.56,.64,1),stroke-width .2s}
+.nav-item .nav-lib{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;padding-top:1px}
+.nav-item>[data-badge]{position:absolute;inset:0;pointer-events:none}
+.nav-item .nav-lib-court{display:none}
+.nav-item::after{content:"";position:absolute;bottom:3px;left:50%;width:4px;height:4px;border-radius:2px;background:var(--nav-actif);
+  transform:translateX(-50%) scale(0);opacity:0;transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .2s,width .28s}
+.nav-item.actif{color:var(--nav-actif);font-weight:650}
+.nav-item.actif svg{transform:scale(1.12) translateY(-1px);stroke-width:2.1}
+.nav-item.actif::after{transform:translateX(-50%) scale(1);opacity:1;width:14px}
+.nav-item:active{transform:scale(.93)}
+.nav-item:focus-visible{outline:2px solid rgba(51,56,61,.45);outline-offset:-2px}
+@media(hover:hover){.nav-item:not(.actif):hover{color:#5F6469}.nav-item:not(.actif):hover svg{transform:translateY(-1px)}}
+.nav-pastille{position:absolute;top:3px;left:calc(50% + 7px);min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:#D2453F;color:#fff;
+  font-size:10.5px;font-weight:700;line-height:17px;text-align:center;box-shadow:0 0 0 2px rgba(242,243,243,.95)}
+@media(max-width:400px){.nav-item .nav-lib-long{display:none}.nav-item .nav-lib-court{display:inline}.nav-item{font-size:10px}}
+@media(min-width:700px){:root{--nav-h:76px}.nav-item{font-size:11.5px}.nav-item svg{width:24px;height:24px}}
+@media(prefers-reduced-motion:reduce){.nav-bas,.nav-item,.nav-item svg,.nav-item::after{transition:none!important}}
+.entete-g{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;min-height:40px}
+.entete-g h2{font-size:22px}
+.segments{display:inline-flex;gap:2px;padding:3px;margin:10px 0 2px;border-radius:12px;background:rgba(51,56,61,.07)}
+.segments button{background:none;border-radius:9px;padding:7px 14px;font-size:14px;font-weight:600;color:#6E7378;transition:background .2s,color .2s}
+.segments button.actif{background:#fff;color:var(--nav-actif);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -470,6 +507,19 @@ function detailMaDemande(d) {
 const G = { code: store.sget("capanna_code_v2"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
 const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
+// Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
+// avec des sous-onglets dans la rubrique quand elle contient plusieurs vues.
+const RUBRIQUES_G = [
+  { k: "tableau", lib: "Tableau de bord", court: "Tableau", vues: ["tableau"] },
+  { k: "equipe", lib: "Équipe", court: "Équipe", vues: ["equipe", "fiche"] },
+  { k: "conges", lib: "Congés", court: "Congés", vues: ["demandes", "calendrier"], badge: "demandes" },
+  { k: "planning", lib: "Planning", court: "Planning", vues: ["horaires"] },
+  { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "journal"] },
+  { k: "reglages", lib: "Réglages", court: "Réglages", vues: ["reglages"] },
+];
+const rubriqueDe = (o) => RUBRIQUES_G.find((r) => r.vues.includes(o)) || RUBRIQUES_G[0];
+const libVue = (o) => (ONGLETS_G.find(([k]) => k === o) || [o, o])[1];
+const ICONES_NAV = {"tableau": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "equipe": "<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>", "conges": "<path d=\"M8 2v3\"/><path d=\"M16 2v3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M8 13h.01\"/><path d=\"M12 13h.01\"/><path d=\"M16 13h.01\"/><path d=\"M8 17h.01\"/><path d=\"M12 17h.01\"/><path d=\"M16 17h.01\"/>", "planning": "<path d=\"M16 2v3\"/><path d=\"M17 15.5v1.7l1 .625\"/><path d=\"M21 8.936V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.935\"/><path d=\"M3 9h9.873\"/><path d=\"M8 2v3\"/><circle cx=\"17\" cy=\"17\" r=\"5\"/>", "rapports": "<path d=\"M12 16v5\"/><path d=\"M16 14.639V21\"/><path d=\"M20 10.656V21\"/><path d=\"m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15\"/><path d=\"M4 18.463V21\"/><path d=\"M8 14.656V21\"/>", "reglages": "<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>"};
 const ga = (body) => api({ ...body, code: G.code });
 
 async function demarrerGerant() {
@@ -494,9 +544,9 @@ async function demarrerGerant() {
 }
 
 async function coquilleGerant() {
-  $("#app").innerHTML = `<div class="ligne" style="justify-content:space-between;margin-top:6px"><div class="onglets" id="g-onglets" style="flex:1"></div>
-    <button class="b-lien" id="g-sortir">Quitter</button></div><div id="vue-g"></div>`;
-  $("#g-sortir").onclick = () => { store.sset("capanna_code_v2", null); G.code = null; demarrerGerant(); };
+  $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><button class="b-lien" id="g-sortir">Quitter</button></div>
+    <div id="g-segments"></div><div id="vue-g"></div>`;
+  $("#g-sortir").onclick = () => { store.sset("capanna_code_v2", null); G.code = null; $("#g-nav")?.remove(); demarrerGerant(); };
   try {
     const [eq, cfg] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_config" })]);
     G.equipe = eq.equipe; G.js = eq.jour_service; G.cfg = cfg.config;
@@ -507,18 +557,51 @@ async function coquilleGerant() {
   rafraichirBadges();
 }
 function dessinerOnglets() {
-  $("#g-onglets").innerHTML = ONGLETS_G.map(([k, v]) => `<button class="onglet ${G.onglet === k ? "actif" : ""}" data-o="${k}">${v}<span data-badge="${k}"></span></button>`).join("");
-  $$("#g-onglets .onglet").forEach((b) => b.onclick = () => allerA(b.dataset.o));
+  // une seule barre de navigation : on la recrée si elle existe déjà
+  $("#g-nav")?.remove();
+  const nav = document.createElement("nav");
+  nav.id = "g-nav"; nav.className = "nav-bas"; nav.setAttribute("aria-label", "Navigation principale");
+  nav.innerHTML = RUBRIQUES_G.map((r) => `<button class="nav-item" data-r="${r.k}" aria-label="${r.lib}">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_NAV[r.k]}</svg>
+      <span class="nav-lib"><span class="nav-lib-long">${r.lib}</span><span class="nav-lib-court">${r.court}</span></span>
+      ${r.badge ? `<span data-badge="${r.badge}"></span>` : ""}</button>`).join("");
+  document.body.appendChild(nav);
+  $$(".nav-item", nav).forEach((b) => b.onclick = () => {
+    const r = RUBRIQUES_G.find((x) => x.k === b.dataset.r);
+    if (rubriqueDe(G.onglet).k === r.k && r.vues.includes(G.onglet) && G.onglet !== "fiche") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    allerA(r.vues[0]);
+  });
+  // sur téléphone, la barre se range pendant la saisie au clavier
+  if (!dessinerOnglets.ecoute) {
+    dessinerOnglets.ecoute = true;
+    const petit = () => window.matchMedia("(max-width:699px)").matches;
+    document.addEventListener("focusin", (e) => { if (petit() && e.target.matches("input:not([type=checkbox]):not([type=radio]),textarea,select")) $("#g-nav")?.classList.add("masquee"); });
+    document.addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement?.matches?.("input,textarea,select")) $("#g-nav")?.classList.remove("masquee"); }, 60));
+  }
+}
+function marquerNavigation(o) {
+  const r = rubriqueDe(o);
+  $$("#g-nav .nav-item").forEach((b) => { const a = b.dataset.r === r.k; b.classList.toggle("actif", a); a ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"); });
+  const t = $("#g-titre"); if (t) t.textContent = r.lib;
+  const s = $("#g-segments"); if (!s) return;
+  const vues = r.vues.filter((x) => x !== "fiche");
+  s.innerHTML = vues.length > 1 ? `<div class="segments" role="tablist">${vues.map((x) => `<button role="tab" data-o="${x}" class="${x === o ? "actif" : ""}" aria-selected="${x === o}">${libVue(x)}${x === "demandes" ? `<span data-badge="demandes-seg"></span>` : ""}</button>`).join("")}</div>` : "";
+  $$("[data-o]", s).forEach((b) => b.onclick = () => allerA(b.dataset.o));
 }
 async function rafraichirBadges() {
   try {
     const d = await ga({ action: "admin_demandes", filtre: "attente" });
     const n = (d.compteurs?.attente || 0) + (d.compteurs?.complement || 0);
-    const el = $('[data-badge="demandes"]'); if (el) el.innerHTML = n ? `<span class="badge">${n}</span>` : "";
+    G.nbAttente = n;
+    const el = $('[data-badge="demandes"]'); if (el) el.innerHTML = n ? `<span class="nav-pastille">${n > 99 ? "99+" : n}</span>` : "";
+    const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = n ? `<span class="badge">${n}</span>` : "";
+    const b = $('#g-nav [data-r="conges"]'); if (b) b.setAttribute("aria-label", n ? `Congés, ${n} demande${n > 1 ? "s" : ""} en attente` : "Congés");
   } catch {}
 }
 function allerA(o, arg) {
-  G.onglet = o; $$("#g-onglets .onglet").forEach((b) => b.classList.toggle("actif", b.dataset.o === o));
+  const avant = G.onglet; G.onglet = o; marquerNavigation(o);
+  if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
+  if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
   ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche }[o])(v, arg)
     .catch((e) => msg(v, e.message));
