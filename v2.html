@@ -374,6 +374,21 @@ tr.barre td{color:#5E666F}
 .mp-c.sel{background:var(--vert);color:var(--sur-accent)}.mp-c.sel small{color:#2A3410}
 .lien-discret{color:var(--gris)}
 .graph .axe{stroke:rgba(255,255,255,.12)}.graph .val{fill:#C9CFD5}.graph .eti{fill:#8A939D}
+.cs-jour{border-top:1px solid var(--ligne);padding:12px 0}.cs-jour:first-child{border-top:0}
+.cs-jour.passe{opacity:.55}
+.cs-tete{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cs-tete .b-lien{font-size:13px;padding:2px 0 2px 12px}
+.pl-nom-sem{display:inline-flex;align-items:center;gap:6px;padding:0;font:inherit;font-weight:650;color:var(--texte)}
+.pl-nom-sem svg{width:13px;height:13px;color:var(--vert)}
+.pl-sem-lien{display:block;font-size:12px;padding:4px 0 0;text-align:left}
+/* compte à rebours de fin de service */
+.compte{margin-top:16px;padding:16px;border:1px solid var(--ligne);border-radius:14px;background:var(--carte-2)}
+.compte .lib{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gris)}
+.compte .chrono{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums;color:var(--vert);margin:6px 0 2px;line-height:1.1}
+.compte .chrono small{font-size:12px;color:var(--gris);letter-spacing:.12em;margin:0 10px 0 4px}
+.compte .barre{height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}
+.compte .barre i{display:block;height:100%;background:var(--vert);border-radius:4px}
+.compte.fini .chrono{color:var(--s-orange)}
 /* ================= fin du thème sombre ================= */
 #impression{display:none}
 @media print{
@@ -803,6 +818,7 @@ function vuePointage(m) {
         <button class="b-principal b-grand" id="p-arr">Arrivée</button>
         <button class="b-or b-grand" id="p-dep">Départ</button>
       </div>
+      <div id="p-compte"></div>
       <div id="p-msg"></div>
       <div id="p-resultat"></div>
       <ul class="journal-jour" id="p-journal"></ul>
@@ -820,6 +836,50 @@ function afficherJournal(liste, attente) {
   const dernier = tout[tout.length - 1];
   $("#p-arr").disabled = dernier?.type === "arrivee";
   $("#p-dep").disabled = dernier?.type !== "arrivee";
+  lancerCompte(dernier?.type === "arrivee" ? dernier : null);
+}
+// ---------- compte à rebours : temps restant avant la fin du service en cours ----------
+const secServiceDe = (d) => { // secondes depuis minuit de la journée de service (avant 05h00 = nuit suivante)
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+  const s = +p.hour * 3600 + +p.minute * 60 + +p.second;
+  return +p.hour < 5 ? s + 86400 : s;
+};
+const minService = (h) => { const m = +h.slice(0, 2) * 60 + +h.slice(3, 5); return m < 300 ? m + 1440 : m; };
+async function creneauxDuJourE() {
+  const js = E.etat.jour_service;
+  if (E.crJour?.js === js) return E.crJour.l;
+  try {
+    const r = await api({ action: "mon_planning", token: E.token, debut: js, fin: js });
+    E.crJour = { js, l: (r.planning || []).filter((x) => String(x.jour).slice(0, 10) === js) };
+  } catch { return []; }
+  return E.crJour.l;
+}
+async function lancerCompte(arrivee) {
+  clearInterval(E.minuteur);
+  const z = $("#p-compte"); if (!z) return;
+  if (!arrivee) { z.innerHTML = ""; return; }
+  const crs = await creneauxDuJourE();
+  if (!crs.length || !$("#p-compte")) { z.innerHTML = ""; return; }
+  const a = secServiceDe(new Date(arrivee.horodatage)) / 60;
+  const plages = crs.map((c) => { const d = minService(c.debut); let f = minService(c.fin); if (f <= d) f += 1440; return { c, d, f }; });
+  const cr = plages.sort((x, y) => Math.abs(a - x.d) - Math.abs(a - y.d))[0];
+  const deux = (n) => String(n).padStart(2, "0");
+  const tic = () => {
+    const el = $("#p-compte"); if (!el) return clearInterval(E.minuteur);
+    const now = secServiceDe(new Date()), reste = cr.f * 60 - now;
+    const total = (cr.f - cr.d) * 60, fait = Math.min(100, Math.max(0, 100 * (now - cr.d * 60) / total));
+    if (reste <= 0) {
+      const dep = Math.floor(-reste / 60);
+      el.innerHTML = `<div class="compte fini"><div class="lib">Service terminé</div><div class="chrono">${cr.c.fin}</div>
+        <div class="petit">Ta fin de service était prévue à ${cr.c.fin}${dep ? ` (il y a ${duree(dep)})` : ""}. Pense à pointer ton départ.</div></div>`;
+      return clearInterval(E.minuteur);
+    }
+    const h = Math.floor(reste / 3600), m = Math.floor(reste % 3600 / 60), sec = reste % 60;
+    el.innerHTML = `<div class="compte"><div class="lib">Fin du service dans</div>
+      <div class="chrono" aria-live="off">${deux(h)}<small>h</small>${deux(m)}<small>min</small>${deux(sec)}<small>s</small></div>
+      <div class="petit">Service ${cr.c.debut} – ${cr.c.fin}</div><div class="barre"><i style="width:${fait.toFixed(1)}%"></i></div></div>`;
+  };
+  tic(); E.minuteur = setInterval(tic, 1000);
 }
 function afficherIndicateurs(em, anime) {
   const mois = em?.mois;
@@ -1505,9 +1565,20 @@ async function vuePointages(v, arg) {
   if (arg?.employe) fp.employe = String(arg.employe);
   const [pts, jr] = await Promise.all([ga({ action: "admin_pointages", debut: fp.jour, fin: fp.jour, employe_id: fp.employe || undefined }), ga({ action: "admin_journees", debut: fp.jour, fin: fp.jour })]);
   const emo = {}; jr.journees.forEach((r) => { if (r.emoji_jour) emo[r.employe_id] = r.emoji_jour; });
+  // une ligne par employé et par service : arrivée et départ côte à côte
+  const resume = jr.journees.filter((r) => r.statut !== "a_venir" || r.arrivee_min !== null)
+    .filter((r) => !fp.employe || r.employe_id === +fp.employe)
+    .sort((a, b) => a.nom.localeCompare(b.nom) || a.creneau_ordre - b.creneau_ordre);
   v.innerHTML = `<div class="carte"><div class="ligne"><div class="flex"><label>Journée de service</label><input type="date" id="p-jour" value="${fp.jour}"></div><div class="flex"><label>Employé</label><select id="p-emp">${optionsEmployes(fp.employe)}</select></div></div>
     <div class="pile" style="margin-top:10px"><button class="b-sec" id="p-ajout">Ajouter un pointage oublié</button></div></div>
-    <div class="carte"><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
+    <div class="carte"><h3>Journée du ${esc(dateFr(fp.jour))}</h3><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Prévu</th><th>Arrivée</th><th>Départ</th><th class="num">Retard</th><th class="num">Travail</th><th>Statut</th></tr></thead><tbody>
+    ${resume.map((r) => `<tr class="cliquable" data-fiche="${r.employe_id}"><td>${r.emoji_jour ? smileyDe(r.emoji_jour, 22) : ""}</td><td>${esc(r.nom)}</td>
+      <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
+      <td>${r.depart_min !== null && r.depart_min !== undefined ? hhmm(r.depart_min) : r.arrivee_min !== null && r.arrivee_min !== undefined ? `<span class="petit">${r.statut === "present" ? "en service" : "non pointé"}</span>` : "—"}</td>
+      <td class="num">${r.retard_min ? r.retard_min + " min" : "—"}</td><td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td>
+      <td>${esc(LIB_JOUR[r.statut] || r.statut)}</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Personne n'était prévu ni n'a pointé ce jour-là.</td></tr>`}
+    </tbody></table></div></div>
+    <div class="carte"><h3>Détail des pointages</h3><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
     ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
       <td>${esc(e.nom || "?")}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td>${esc(p.heure)}</td>
       <td>${p.accepte ? ({ manuel: "Manuel", gps: "Position GPS" }[p.source] || (p.verif === "valide_gerant" ? "Validé par le gérant" : p.verif === "valide_reseau" ? "Réseau reconnu" : "Wi-Fi"))
@@ -1515,6 +1586,7 @@ async function vuePointages(v, arg) {
       <td class="petit" style="white-space:normal;max-width:260px">${esc(p.annule ? "Annulé" : p.motif || "")}${p.remplace_id ? " (correction)" : ""}</td>
       <td>${p.accepte && !p.annule ? `<button class="b-lien" data-cor="${p.id}">Corriger</button><button class="b-lien" style="color:var(--rouge)" data-ann="${p.id}">Annuler</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="7" class="vide">Aucun pointage ce jour-là.</td></tr>`}
     </tbody></table></div><p class="petit">Rien n'est jamais effacé : une correction annule l'ancien pointage et en crée un nouveau, avec le motif inscrit au journal.</p></div>`;
+  $$("[data-fiche]", v).forEach((tr) => tr.onclick = () => allerA("fiche", +tr.dataset.fiche));
   $("#p-jour").onchange = (e) => { fp.jour = e.target.value; allerA("pointages"); };
   $("#p-emp").onchange = (e) => { fp.employe = e.target.value; allerA("pointages"); };
   $$("[data-cor]", v).forEach((b) => b.onclick = () => demanderMotif("Corriger l'heure", "", async (m, r) => { await ga({ action: "admin_pointage_corriger", id: +b.dataset.cor, heure: $("#m-heure", r).value, motif: m }); allerA("pointages"); }, { avant: `<label>Nouvelle heure</label><input type="time" id="m-heure">` }));
@@ -1650,7 +1722,7 @@ function dessinerPlanning(v = $("#vue-g")) {
       const tete = ed
         ? `<select class="pl-sel-poste" data-poste="${e.id}" aria-label="Poste de ${esc(e.nom)}">${postesConnus().map((p) => `<option ${p === e.service ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>`
         : `<div class="pl-poste">${esc(e.service)}${e.actif ? "" : " · inactif"}</div>`;
-      corps += `<tr><th scope="row" class="pl-col-nom"><div class="pl-nom">${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</div>${tete}${e.nouveau ? `<button class="b-lien pl-retirer" data-retirer="${e.id}">Retirer</button>` : ""}</th>${cases}<td class="pl-col-tot">${fmtDuree(total)}</td></tr>`;
+      corps += `<tr><th scope="row" class="pl-col-nom"><div class="pl-nom">${ed ? `<button class="b-lien pl-nom-sem" data-semaine="${e.id}" title="Modifier toute la semaine">${esc(e.nom)} ${svgPl("crayon")}</button>` : esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</div>${tete}${e.nouveau ? `<button class="b-lien pl-retirer" data-retirer="${e.id}">Retirer</button>` : ""}</th>${cases}<td class="pl-col-tot">${fmtDuree(total)}</td></tr>`;
     }
   }
   if (!emps.length) corps = `<tr><td colspan="9"><div class="vide">Aucun employé pour ce poste.</div></td></tr>`;
@@ -1664,7 +1736,7 @@ function dessinerPlanning(v = $("#vue-g")) {
     liste += `<div class="pl-grp"><span class="pl-pastille" style="background:${couleurPoste(poste)}"></span>${esc(poste)}</div>`;
     liste += l.map((e) => { const c = contenuCase(e, jr);
       return `<div class="pl-ligne ${c.modif ? "modifie" : ""} ${c.editable ? "editable" : ""} ${c.passe ? "passe" : ""}" ${c.editable ? `data-e="${e.id}" data-j="${jr}" tabindex="0" role="button" aria-label="Modifier : ${esc(c.label)}"` : ""}>
-        <div class="qui"><b>${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</b><span>${esc(e.service)}</span></div><div class="quoi">${c.h}</div></div>`; }).join("");
+        <div class="qui"><b>${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</b><span>${esc(e.service)}</span>${ed ? `<button class="b-lien pl-sem-lien" data-semaine="${e.id}">Toute la semaine</button>` : ""}</div><div class="quoi">${c.h}</div></div>`; }).join("");
   }
 
   v.innerHTML = `<div class="pl ${ed ? "edition" : ""} pl-m-${PL.vueM}">
@@ -1680,7 +1752,7 @@ function dessinerPlanning(v = $("#vue-g")) {
              : `<button class="b-sec pl-ic" id="pl-imprimer" title="Imprimer le planning de la semaine">${svgPl("impr")}<span>Imprimer</span></button><button class="b-principal pl-ic" id="pl-modifier">${svgPl("crayon")}<span>Modifier le planning</span></button>`}
       </div>
     </div>
-    ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer les horaires, le repos ou les services. Rien n'est enregistré avant « Enregistrer les modifications ». Les jours passés sont verrouillés.</div>` : ""}
+    ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer un jour, ou le nom d'un employé (« Toute la semaine ») pour changer toute sa semaine. Rien n'est enregistré avant « Enregistrer les modifications ». Les jours passés sont verrouillés.</div>` : ""}
     <div class="pl-legende"><span><i style="background:#1E2228;box-shadow:inset 3px 0 0 #7A7F86"></i>Service</span><span><i style="border:1px dashed rgba(255,255,255,.25)"></i>Repos</span><span><i class="t-conge"></i>Congé</span><span><i class="t-maladie"></i>Maladie</span><span><i class="t-absence_autorisee"></i>Absence autorisée</span><span><i style="background:#FFF4D6"></i>Retard / départ autorisé</span><span><i class="pl-exc-l"></i>Modifié pour cette date</span></div>
     <div class="segments pl-mob" role="tablist"><button data-vm="jour" class="${PL.vueM === "jour" ? "actif" : ""}">Jour</button><button data-vm="semaine" class="${PL.vueM === "semaine" ? "actif" : ""}">Semaine</button></div>
     <div class="pl-jchips">${d.jours.map((j) => `<button data-jour="${j}" class="${j === jr ? "actif" : ""} ${j === js ? "auj" : ""}"><span>${JOURS_C[dow(j)]}</span><b>${+j.slice(8)}</b></button>`).join("")}</div>
@@ -1693,6 +1765,7 @@ function dessinerPlanning(v = $("#vue-g")) {
   $("#pl-poste", v).onchange = (e) => { PL.poste = e.target.value; dessinerPlanning(v); };
   $$("[data-vm]", v).forEach((b) => b.onclick = () => { PL.vueM = b.dataset.vm; dessinerPlanning(v); });
   $$("[data-jour]", v).forEach((b) => b.onclick = () => { PL.jour = b.dataset.jour; dessinerPlanning(v); });
+  $$("[data-semaine]", v).forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); editerSemaine(b.dataset.semaine); });
   $$("[data-e][data-j]", v).forEach((c) => {
     c.onclick = () => editerCase(c.dataset.e, c.dataset.j);
     c.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); editerCase(c.dataset.e, c.dataset.j); } };
@@ -1725,6 +1798,70 @@ function dessinerPlanning(v = $("#vue-g")) {
   });
 }
 
+// contrôle d'une journée de services ; renvoie les services triés ou un message d'erreur
+function verifierServices(l) {
+  if (l.some((c) => !c.debut || !c.fin)) return { err: "Indique l'heure de début et de fin de chaque service." };
+  if (l.some((c) => c.debut === c.fin)) return { err: "Un service ne peut pas commencer et finir à la même heure." };
+  const tri = [...l].sort((a, b) => minH(a.debut) - minH(b.debut));
+  for (let i = 0; i < tri.length; i++) {
+    if (tri[i].pause_min >= dureeCr({ ...tri[i], pause_min: 0 })) return { err: "La pause est plus longue que le service." };
+    if (i && minH(tri[i].debut) < minH(tri[i - 1].debut) + dureeCr({ ...tri[i - 1], pause_min: 0 })) return { err: "Deux services se chevauchent." };
+  }
+  return { tri };
+}
+function editerSemaine(eId) {
+  const e = employesPlanning().find((x) => String(x.id) === String(eId)) || PL.d.employes.find((x) => String(x.id) === String(eId));
+  if (!e) return;
+  const js = PL.d.jour_service, jours = PL.d.jours, pauses = [0, 15, 20, 30, 45, 60, 90, 120];
+  const sem = Object.fromEntries(jours.map((j) => [j, creneauxCase(e.id, j).map((c) => ({ ...c }))]));
+  const f = feuille(`<div class="entete"><h2>Semaine de ${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">${esc(titreSemaine(PL.d.lundi, PL.d.dimanche))} · ${esc(e.service)}. Modifie tous les jours d'un coup ; rien n'est enregistré avant « Enregistrer les modifications ».</p>
+    <div id="cs-jours"></div>
+    <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00). Les jours passés sont verrouillés.</p>
+    <div id="cs-msg"></div>
+    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="cs-ok">Valider la semaine</button></div>`);
+  const el = f.el, zone = $("#cs-jours", el);
+  const lireJour = (j) => $$(`.cs-jour[data-j="${j}"] .ce-ligne`, zone).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
+  const tout = () => { for (const j of jours) if (j >= js) sem[j] = lireJour(j); };
+  const rendre = () => {
+    zone.innerHTML = jours.map((j) => {
+      const passe = j < js, crs = sem[j];
+      const titre = `${JOURS[dow(j)].replace(/^./, (c) => c.toUpperCase())} ${+j.slice(8)}`;
+      if (passe) return `<div class="cs-jour passe" data-j="${j}"><div class="cs-tete"><b>${titre}</b><span class="petit">passé</span></div>
+        <div class="petit">${crs.length ? crs.map((c) => `${c.debut}–${c.fin}`).join(" · ") : "Repos"}</div></div>`;
+      return `<div class="cs-jour" data-j="${j}"><div class="cs-tete"><b>${titre}</b>
+          <span><button class="b-lien" data-cs-ajout="${j}" ${crs.length >= 4 ? "disabled" : ""}>+ service</button><button class="b-lien" data-cs-repos="${j}">Repos</button><button class="b-lien" data-cs-copier="${j}">Copier sur les jours suivants</button></span></div>
+        ${crs.length ? crs.map((c, i) => `<div class="ce-ligne">
+          <div><label>Début</label><input type="time" data-k="debut" value="${c.debut}"></div>
+          <div><label>Fin</label><input type="time" data-k="fin" value="${c.fin}"></div>
+          <div><label>Pause</label><select data-k="pause">${pauses.concat(pauses.includes(c.pause_min) ? [] : [c.pause_min]).map((p) => `<option value="${p}" ${p === c.pause_min ? "selected" : ""}>${p ? p + " min" : "Aucune"}</option>`).join("")}</select></div>
+          <button class="ce-x" data-cs-suppr="${j}|${i}" aria-label="Retirer ce service">×</button></div>`).join("") : `<div class="pl-repos">Repos</div>`}</div>`;
+    }).join("");
+    $$("[data-cs-ajout]", zone).forEach((b) => b.onclick = () => { tout(); const l = sem[b.dataset.csAjout], der = l[l.length - 1];
+      l.push(der ? { debut: der.fin, fin: der.fin, pause_min: 0 } : { debut: "10:00", fin: "15:00", pause_min: 0 }); rendre(); });
+    $$("[data-cs-repos]", zone).forEach((b) => b.onclick = () => { tout(); sem[b.dataset.csRepos] = []; rendre(); });
+    $$("[data-cs-suppr]", zone).forEach((b) => b.onclick = () => { tout(); const [j, i] = b.dataset.csSuppr.split("|"); sem[j].splice(+i, 1); rendre(); });
+    $$("[data-cs-copier]", zone).forEach((b) => b.onclick = () => { tout(); const src = b.dataset.csCopier;
+      for (const j of jours) if (j > src && j >= js) sem[j] = sem[src].map((c) => ({ ...c }));
+      rendre(); msg($("#cs-msg", el), "Horaires copiés sur les jours suivants. Mets en repos les jours où il ne travaille pas.", "info"); });
+  };
+  rendre();
+  $("#cs-ok", el).onclick = () => {
+    tout();
+    const res = {};
+    for (const j of jours) {
+      if (j < js) continue;
+      const v = verifierServices(sem[j]);
+      if (v.err) return msg($("#cs-msg", el), `${JOURS[dow(j)].replace(/^./, (c) => c.toUpperCase())} ${+j.slice(8)} : ${v.err}`);
+      res[j] = v.tri;
+    }
+    for (const j in res) {
+      const k = cleCase(e.id, j);
+      if (typeof e.id === "number" && JSON.stringify(res[j]) === JSON.stringify(creneauxServeur(e.id, j))) delete PL.br.cases[k]; else PL.br.cases[k] = res[j];
+    }
+    f.fermer(); dessinerPlanning();
+  };
+}
 function editerCase(eId, j) {
   const e = employesPlanning().find((x) => String(x.id) === String(eId)) || PL.d.employes.find((x) => String(x.id) === String(eId));
   if (!e || j < PL.d.jour_service) return;
@@ -1738,7 +1875,8 @@ function editerCase(eId, j) {
     <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="ce-ajout">+ Ajouter un service</button><button class="b-sec flex" id="ce-repos">Mettre en repos</button></div>
     <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00).</p>
     <div id="ce-msg"></div>
-    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="ce-ok">Valider cette case</button></div>`);
+    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="ce-ok">Valider cette case</button>
+      <button class="b-sec b-plein" id="ce-semaine">Modifier toute la semaine de ${esc(e.nom)}</button></div>`);
   const el = f.el, liste = $("#ce-liste", el);
   const lire = () => $$(".ce-ligne", liste).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
   const rendre = () => {
@@ -1754,16 +1892,11 @@ function editerCase(eId, j) {
   rendre();
   $("#ce-ajout", el).onclick = () => { crs = lire(); const der = crs[crs.length - 1]; crs.push(der ? { debut: der.fin, fin: der.fin, pause_min: 0 } : { debut: "10:00", fin: "15:00", pause_min: 0 }); rendre(); $$('[data-k="debut"]', liste).pop()?.focus(); };
   $("#ce-repos", el).onclick = () => { crs = []; rendre(); };
+  $("#ce-semaine", el).onclick = () => { f.fermer(); editerSemaine(e.id); };
   $("#ce-ok", el).onclick = () => {
-    const l = lire();
-    if (l.some((c) => !c.debut || !c.fin)) return msg($("#ce-msg", el), "Indique l'heure de début et de fin de chaque service.");
-    if (l.some((c) => c.debut === c.fin)) return msg($("#ce-msg", el), "Un service ne peut pas commencer et finir à la même heure.");
-    const tri = [...l].sort((a, b) => minH(a.debut) - minH(b.debut));
-    for (let i = 0; i < tri.length; i++) {
-      const dur = dureeCr({ ...tri[i], pause_min: 0 });
-      if (tri[i].pause_min >= dur) return msg($("#ce-msg", el), "La pause est plus longue que le service.");
-      if (i && minH(tri[i].debut) < minH(tri[i - 1].debut) + dureeCr({ ...tri[i - 1], pause_min: 0 })) return msg($("#ce-msg", el), "Deux services se chevauchent.");
-    }
+    const vv = verifierServices(lire());
+    if (vv.err) return msg($("#ce-msg", el), vv.err);
+    const tri = vv.tri;
     const avant = JSON.stringify(creneauxServeur(e.id, j));
     if (typeof e.id === "number" && JSON.stringify(tri) === avant) delete PL.br.cases[k]; else PL.br.cases[k] = tri;
     f.fermer(); dessinerPlanning();
@@ -1964,7 +2097,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-203813";
+const VERSION_APP = "20261122-232206";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
