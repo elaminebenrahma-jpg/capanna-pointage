@@ -833,10 +833,10 @@ async function pointer(type) {
     if (!E.etat.wifi) { msg($("#p-msg"), "Vérification de ta position…", "info");
       gps = await position((p) => msg($("#p-msg"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
       msg($("#p-msg"), ""); }
-    const r = await api({ action: "pointer", token: E.token, type, gps });
+    const r = await api({ action: "pointer", token: E.token, type, gps, gps_err: gps ? null : position.erreur });
     if (r.en_attente) {
       $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${type === "arrivee" ? "Arrivée enregistrée" : "Départ enregistré"} à ${esc(r.heure)}</div>
-        <div class="petit">${esc(r.info)}</div></div></div>`;
+        <div class="petit">${esc(r.info)}</div>${!gps && position.erreur === "refusee" ? `<div class="petit" style="margin-top:6px;color:var(--s-orange)">La localisation est bloquée sur ton téléphone. Autorise-la pour ce site (Réglages › Safari › Localisation) : la prochaine fois ton pointage sera validé tout de suite.</div>` : ""}</div></div>`;
       afficherJournal(r.aujourdhui, r.en_attente_liste);
       return;
     }
@@ -858,16 +858,17 @@ async function pointer(type) {
 // Renvoie la meilleure mesure obtenue, ou null si la localisation est refusée ou indisponible.
 function position(suivi = () => {}, cible = 10, maxMs = 20000) {
   return new Promise((ok) => {
-    if (!navigator.geolocation) return ok(null);
+    position.erreur = null;
+    if (!navigator.geolocation) { position.erreur = "indisponible"; return ok(null); }
     let meilleure = null, fini = false, id = null;
     const fin = () => { if (fini) return; fini = true; if (id !== null) navigator.geolocation.clearWatch(id); ok(meilleure); };
-    setTimeout(fin, maxMs);
+    setTimeout(() => { if (!meilleure && !position.erreur) position.erreur = "delai"; fin(); }, maxMs);
     id = navigator.geolocation.watchPosition((p) => {
       const m = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy };
       if (!meilleure || m.precision < meilleure.precision) meilleure = m;
       if (meilleure.precision <= cible) return fin();
       suivi(Math.round(meilleure.precision));
-    }, () => fin(), { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs });
+    }, (e) => { if (!meilleure) position.erreur = e?.code === 1 ? "refusee" : e?.code === 3 ? "delai" : "indisponible"; fin(); }, { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs });
   });
 }
 
@@ -1246,7 +1247,7 @@ async function vueTableau(v) {
 }
 function bandeauAttente(v, d) {
   if (!d?.groupes?.length) return;
-  const RAISON = (r) => !r ? "" : r === "pas de position" ? "localisation indisponible" : r;
+  const RAISON = (r) => !r ? "" : r.replace(/^pas de position/, "localisation indisponible");
   v.insertAdjacentHTML("afterbegin", `<div class="carte bandeau-attente"><h3>À valider (${d.liste.length})</h3>
     <p class="sous">Pointages enregistrés à leur heure mais sans preuve de présence (Wi-Fi inconnu, GPS imprécis ou indisponible).</p>
     <ul class="liste">${d.liste.map((x) => `<li><div class="flex"><div class="t">${esc(x.nom || "?")} · ${x.type === "arrivee" ? "Arrivée" : "Départ"} ${heure(x.horodatage)}</div>
@@ -1912,7 +1913,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-200926";
+const VERSION_APP = "20261122-203411";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
