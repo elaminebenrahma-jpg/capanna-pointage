@@ -5,6 +5,7 @@
 // v2 : horaires lus dans hr_creneaux (doubles services), corrections sans effacement
 // avec motif et journal, absences, créneaux, paramètres, rapport basé sur hr_journees.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -154,11 +155,12 @@ async function parametres() {
 }
 
 // ---------- journal (append-only) ----------
-async function journal(objet: string, objetId: string | number | null, action: string, ancienne: unknown, nouvelle: unknown, motif: string, auteur = AUTEUR_GERANT) {
-  const { error } = await sb.from("hr_journal").insert({
+async function journal(objet: string, objetId: string | number | null, action: string, ancienne: unknown, nouvelle: unknown, motif: string, auteur = AUTEUR_GERANT): Promise<number> {
+  const { data, error } = await sb.from("hr_journal").insert({
     auteur, objet, objet_id: objetId === null ? null : String(objetId), action, ancienne, nouvelle, motif,
-  });
+  }).select("id").single();
   if (error) throw error;
+  return data.id as number;
 }
 
 // ---------- horaires (créneaux) ----------
@@ -451,10 +453,94 @@ async function lireJustificatif(chemin: string) {
   if (error || !data) throw new Refus("Document introuvable.", 404);
   return enBase64(new Uint8Array(await data.arrayBuffer()));
 }
-async function notifier(destinataire: string, type: string, absenceId: number | null, message: string) {
-  const { error } = await sb.from("hr_notifications").insert({ destinataire, type, absence_id: absenceId, message });
+type ExtraNotif = { titre?: string; lien?: string; details?: unknown; cle?: string };
+async function notifier(destinataire: string, type: string, absenceId: number | null, message: string, x: ExtraNotif = {}) {
+  const ligne = { destinataire, type, absence_id: absenceId, message, titre: x.titre ?? null, lien: x.lien ?? null, details: x.details ?? null, cle: x.cle ?? null };
+  // la clé unique empêche les doublons (même événement enregistré deux fois)
+  const { error } = x.cle
+    ? await sb.from("hr_notifications").upsert(ligne, { onConflict: "cle", ignoreDuplicates: true })
+    : await sb.from("hr_notifications").insert(ligne);
   if (error) console.error("notification", error);
 }
+const dateFr = (d: string) => {
+  const x = new Date(d + "T12:00:00Z");
+  const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  return `${JOURS[dow(d)]} ${x.getUTCDate()} ${MOIS[x.getUTCMonth()]}`;
+};
+const periodeFr = (a: string, b: string) => a === b ? `le ${dateFr(a)}` : `du ${dateFr(a)} au ${dateFr(b)}`;
+
+// ---------- notifications push (Web Push : iPhone en appli installée, Android, ordinateur) ----------
+let VAPID: { publicKey: string; privateKey: string } | null = null;
+async function vapid() {
+  if (VAPID) return VAPID;
+  const { data } = await sb.from("hr_parametres").select("cle, valeur").in("cle", ["admin_vapid_public", "admin_vapid_prive"]);
+  const p = Object.fromEntries((data || []).map((x) => [x.cle, x.valeur]));
+  if (!p.admin_vapid_public || !p.admin_vapid_prive) return null;
+  VAPID = { publicKey: p.admin_vapid_public, privateKey: p.admin_vapid_prive };
+  return VAPID;
+}
+function lienUrl(n: { destinataire: string; lien: string | null; absence_id: number | null; details: unknown }) {
+  // deno-lint-ignore no-explicit-any
+  const d = (n.details || {}) as any;
+  if (n.destinataire === "gerant") return n.absence_id ? `v2.html#gerant/demande/${n.absence_id}` : "v2.html#gerant";
+  if (n.lien === "planning") return `v2.html#e/planning${d.date ? "/" + String(d.date).slice(0, 10) : ""}`;
+  if (n.lien === "demandes") return "v2.html#e/demandes";
+  return "v2.html#e/notifications";
+}
+// Envoie les notifications en attente. Chaque notification est « réservée » avant l'envoi :
+// deux appels simultanés ne peuvent pas l'envoyer deux fois. 3 essais maximum.
+async function envoyerPush() {
+  const cles = await vapid();
+  if (!cles) return;
+  const depuis = new Date(Date.now() - 2 * 864e5).toISOString();
+  const { data } = await sb.from("hr_notifications").select("id, destinataire, titre, message, lien, absence_id, details, push_tentatives")
+    .in("push_statut", ["a_envoyer", "echec_temp"]).lt("push_tentatives", 3).gte("created_at", depuis).order("id").limit(40);
+  for (const n of data || []) {
+    const { data: pris } = await sb.from("hr_notifications")
+      .update({ push_statut: "envoi", push_tentatives: n.push_tentatives + 1, push_essai_le: new Date().toISOString() })
+      .eq("id", n.id).in("push_statut", ["a_envoyer", "echec_temp"]).select("id");
+    if (!pris?.length) continue;
+    const { data: abos } = await sb.from("hr_push_abonnements").select("id, endpoint, p256dh, auth, echecs")
+      .eq("destinataire", n.destinataire).eq("actif", true);
+    if (!abos?.length) { await sb.from("hr_notifications").update({ push_statut: "sans_abonnement" }).eq("id", n.id); continue; }
+    const charge = JSON.stringify({ id: n.id, titre: n.titre || "Capanna", message: n.message, url: lienUrl(n) });
+    let ok = 0, temporaire = false;
+    const erreurs: string[] = [];
+    for (const a of abos) {
+      try {
+        const req = webpush.generateRequestDetails({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } }, charge, {
+          vapidDetails: { subject: "mailto:contact@keynet.app", publicKey: cles.publicKey, privateKey: cles.privateKey },
+          TTL: 86400, urgency: "high", topic: `n${n.id}`,
+        });
+        const r = await fetch(req.endpoint, { method: "POST", headers: req.headers as Record<string, string>, body: new Uint8Array(req.body as Uint8Array) });
+        if (r.ok) { ok++; await sb.from("hr_push_abonnements").update({ dernier_envoi: new Date().toISOString(), echecs: 0 }).eq("id", a.id); }
+        else if (r.status === 404 || r.status === 410) { await sb.from("hr_push_abonnements").update({ actif: false, maj_le: new Date().toISOString() }).eq("id", a.id); erreurs.push(`abonnement expiré (${r.status})`); }
+        else { temporaire = temporaire || r.status === 429 || r.status >= 500; erreurs.push(`HTTP ${r.status}`); await sb.from("hr_push_abonnements").update({ echecs: a.echecs + 1 }).eq("id", a.id); }
+      } catch (e) { temporaire = true; erreurs.push(String((e as Error)?.message || e).slice(0, 120)); }
+    }
+    await sb.from("hr_notifications").update({
+      push_statut: ok ? "envoye" : temporaire ? "echec_temp" : "echec",
+      push_erreur: erreurs.length ? erreurs.join(" ; ").slice(0, 400) : null,
+    }).eq("id", n.id);
+  }
+}
+async function pousser() { try { await envoyerPush(); } catch (e) { console.error("push", e); } }
+function abonnementValide(x: unknown) {
+  // deno-lint-ignore no-explicit-any
+  const a = x as any;
+  const ok = a && typeof a.endpoint === "string" && /^https:\/\//.test(a.endpoint) && a.endpoint.length < 1000
+    && typeof a.keys?.p256dh === "string" && typeof a.keys?.auth === "string" && a.keys.p256dh.length < 200 && a.keys.auth.length < 100;
+  if (!ok) throw new Refus("Abonnement aux notifications invalide.");
+  return { endpoint: a.endpoint as string, p256dh: a.keys.p256dh as string, auth: a.keys.auth as string };
+}
+async function abonner(destinataire: string, appareilId: string | null, abo: unknown, ua: string | null) {
+  const a = abonnementValide(abo);
+  const { error } = await sb.from("hr_push_abonnements").upsert({
+    destinataire, appareil_id: appareilId, ...a, user_agent: ua?.slice(0, 200) ?? null, actif: true, maj_le: new Date().toISOString(), echecs: 0,
+  }, { onConflict: "endpoint" });
+  if (error) throw error;
+}
+const CHAMPS_NOTIF = "id, type, titre, message, lien, details, absence_id, lu, lu_le, created_at";
 const heureOuNull = (h: unknown) => {
   if (h === undefined || h === null || h === "") return null;
   if (!heureValide(String(h))) throw new Refus("Heure invalide (format 14:30).");
@@ -492,7 +578,8 @@ Deno.serve(async (req) => {
           const cs = await creneauxDu(a.employe.id, js);
           let emojis = null;
           try { emojis = await emojisEmploye(a.employe.id, js); } catch (e) { console.error("emojis", e); }
-          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), emojis };
+          const { count } = await sb.from("hr_notifications").select("id", { count: "exact", head: true }).eq("destinataire", `employe:${a.employe.id}`).eq("lu", false);
+          moi = { nom: a.employe.nom, service: a.employe.service, prevu: texteCreneaux(cs), aujourdhui: await etatDuJour(a.employe.id, js), emojis, non_lues: count || 0, vapid: (await vapid())?.publicKey || null };
         }
         let employes: unknown[] = [];
         if (!a && wifi) {
@@ -573,7 +660,9 @@ Deno.serve(async (req) => {
         if (error) throw error;
         let justificatif = null;
         if (b.fichier) justificatif = await enregistrerJustificatif(data.id, a.employe.id, b.fichier, b.nom_fichier, "employe");
-        await notifier("gerant", "nouvelle_demande", data.id, `${a.employe.nom} : ${LIBELLE_TYPE[type]} le ${debut}${fin !== debut ? ` au ${fin}` : ""}.`);
+        await notifier("gerant", "nouvelle_demande", data.id, `${a.employe.nom} : ${LIBELLE_TYPE[type]} ${periodeFr(debut, fin)}. Motif : ${motif}`,
+          { titre: "Nouvelle demande à traiter", lien: "demande", cle: `demande:${data.id}` });
+        await pousser();
         return json({ ok: true, id: data.id, justificatif });
       }
       case "demande_justificatif": {
@@ -585,7 +674,9 @@ Deno.serve(async (req) => {
         if (!["demandee", "complement"].includes(d.statut)) throw new Refus("Cette demande est déjà traitée : le justificatif ne peut plus être changé.", 409);
         const justificatif = await enregistrerJustificatif(d.id, a.employe.id, b.fichier, b.nom_fichier, "employe");
         if (d.statut === "complement") await sb.from("hr_absences").update({ statut: "demandee", maj_le: new Date().toISOString() }).eq("id", d.id);
-        await notifier("gerant", "justificatif_recu", d.id, `${a.employe.nom} a envoyé un justificatif (${LIBELLE_TYPE[d.type]} du ${d.date_debut}).`);
+        await notifier("gerant", "justificatif_recu", d.id, `${a.employe.nom} a envoyé un justificatif (${LIBELLE_TYPE[d.type]} du ${dateFr(d.date_debut)}).`,
+          { titre: "Justificatif reçu", lien: "demande" });
+        await pousser();
         return json({ ok: true, justificatif });
       }
       case "mes_demandes":
@@ -620,10 +711,55 @@ Deno.serve(async (req) => {
         const a = await appareil(b.token);
         if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
         const dest = `employe:${a.employe.id}`;
-        const { data } = await sb.from("hr_notifications").select("id, type, absence_id, message, lu, created_at")
-          .eq("destinataire", dest).order("created_at", { ascending: false }).limit(30);
-        if (b.marquer_lues) await sb.from("hr_notifications").update({ lu: true }).eq("destinataire", dest).eq("lu", false);
-        return json({ ok: true, notifications: data || [] });
+        const { data } = await sb.from("hr_notifications").select(CHAMPS_NOTIF)
+          .eq("destinataire", dest).order("created_at", { ascending: false }).limit(Math.min(Number(b.limite) || 100, 300));
+        if (b.marquer_lues) await sb.from("hr_notifications").update({ lu: true, lu_le: new Date().toISOString() }).eq("destinataire", dest).eq("lu", false);
+        const { count } = await sb.from("hr_notifications").select("id", { count: "exact", head: true }).eq("destinataire", dest).eq("lu", false);
+        return json({ ok: true, notifications: data || [], non_lues: count || 0 });
+      }
+      case "notification_lue": {
+        const a = await appareil(b.token);
+        if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
+        // uniquement ses propres notifications
+        await sb.from("hr_notifications").update({ lu: true, lu_le: new Date().toISOString() })
+          .eq("id", Number(b.id)).eq("destinataire", `employe:${a.employe.id}`).eq("lu", false);
+        const { count } = await sb.from("hr_notifications").select("id", { count: "exact", head: true }).eq("destinataire", `employe:${a.employe.id}`).eq("lu", false);
+        return json({ ok: true, non_lues: count || 0 });
+      }
+      case "mon_planning": {
+        // lecture seule : uniquement le planning de l'employé lié à ce téléphone
+        const a = await appareil(b.token);
+        if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
+        const debut = dateValide(b.debut) ? String(b.debut) : plusJours(js, 1 - dow(js));
+        const fin = dateValide(b.fin) ? String(b.fin) : plusJours(debut, 6);
+        if (fin < debut || plusJours(debut, 62) < fin) throw new Refus("Période invalide (2 mois maximum).");
+        const id = a.employe.id;
+        const [pe, abs, att] = await Promise.all([
+          sb.rpc("hr_planning_effectif", { p_debut: debut, p_fin: fin }),
+          sb.from("hr_absences").select("id, type, date_debut, date_fin, heure_debut, heure_fin")
+            .eq("employe_id", id).eq("statut", "validee").lte("date_debut", fin).gte("date_fin", debut),
+          sb.from("hr_absences").select("id, type, date_debut, date_fin")
+            .eq("employe_id", id).in("statut", ["demandee", "complement"]).lte("date_debut", fin).gte("date_fin", debut),
+        ]);
+        for (const r of [pe, abs, att]) if (r.error) throw r.error;
+        // deno-lint-ignore no-explicit-any
+        const planning = ((pe.data || []) as any[]).filter((x) => x.employe_id === id)
+          .map((x) => ({ jour: x.jour, ordre: x.ordre, debut: String(x.debut).slice(0, 5), fin: String(x.fin).slice(0, 5), pause_min: x.pause_min, source: x.source }));
+        return json({ ok: true, debut, fin, jour_service: js, nom: a.employe.nom, service: a.employe.service, planning, absences: abs.data || [], en_attente: att.data || [] });
+      }
+      case "push_abonner": {
+        const a = await appareil(b.token);
+        if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
+        await abonner(`employe:${a.employe.id}`, a.appareilId, b.abonnement, req.headers.get("user-agent"));
+        await notifier(`employe:${a.employe.id}`, "push_active", null, "Tu recevras ici les changements de ton planning et les réponses à tes demandes.", { titre: "Notifications activées", lien: "notifications" });
+        await pousser();
+        return json({ ok: true });
+      }
+      case "push_desabonner": {
+        const a = await appareil(b.token);
+        if (!a) return json({ erreur: "Téléphone non reconnu. Demande au gérant." }, 403);
+        await sb.from("hr_push_abonnements").update({ actif: false, maj_le: new Date().toISOString() }).eq("endpoint", String(b.endpoint || "")).eq("destinataire", `employe:${a.employe.id}`);
+        return json({ ok: true });
       }
 
       // ----- gérant -----
@@ -673,7 +809,9 @@ Deno.serve(async (req) => {
         }
         case "admin_reinitialiser": {
           const id = Number(b.employe_id);
+          const { data: apps } = await sb.from("hr_appareils").select("id").eq("employe_id", id).eq("actif", true);
           await sb.from("hr_appareils").update({ actif: false, revoque_le: new Date().toISOString() }).eq("employe_id", id).eq("actif", true);
+          if (apps?.length) await sb.from("hr_push_abonnements").update({ actif: false, maj_le: new Date().toISOString() }).in("appareil_id", apps.map((x) => x.id));
           await journal("appareil", id, "reinitialisation", null, null, String(b.motif || "").trim().length >= 3 ? String(b.motif).trim() : "Réinitialisation du téléphone par le gérant");
           return json({ ok: true });
         }
@@ -818,8 +956,18 @@ Deno.serve(async (req) => {
             const { error } = await sb.from("hr_creneaux").update({ actif: false }).in("id", surplus);
             if (error) throw error;
           }
-          await journal("creneaux", `${employeId}-${jour}`, "modification",
+          const jid = await journal("creneaux", `${employeId}-${jour}`, "modification",
             anciens.map((x) => ({ debut: x.debut, fin: x.fin, pause_min: x.pause_min })), propres, motif);
+          // l'employé est prévenu, à partir du prochain jour concerné
+          const prochain = plusJours(js, (jour - dow(js) + 7) % 7);
+          const hm = (t: string) => String(t).slice(0, 5);
+          const { error: eN } = await sb.rpc("hr_notifier_planning", {
+            p_emp: employeId, p_jour: prochain, p_portee: "suivantes", p_journal: jid,
+            p_avant: anciens.map((x) => ({ debut: hm(x.debut), fin: hm(x.fin), pause_min: x.pause_min })),
+            p_apres: propres.map((x: { debut: string; fin: string; pause_min: number }) => ({ debut: hm(x.debut.padStart(5, "0")), fin: hm(x.fin.padStart(5, "0")), pause_min: x.pause_min })),
+          });
+          if (eN) console.error("notification planning", eN);
+          await pousser();
           return json({ ok: true });
         }
 
@@ -862,6 +1010,7 @@ Deno.serve(async (req) => {
             if (/invalid input syntax for type time|date\/time field value out of range/i.test(m)) throw new Refus("Une heure saisie est invalide.");
             throw error;
           }
+          await pousser();
           return json({ ok: true, ...(data as Record<string, unknown>) });
         }
 
@@ -944,15 +1093,17 @@ Deno.serve(async (req) => {
           if (decision === "complement" && b.justificatif_requis) maj.justificatif_requis = true;
           const { error } = await sb.from("hr_absences").update(maj).eq("id", old.id);
           if (error) throw error;
-          await journal("absence", old.id, "decision", { statut: old.statut, commentaire_decision: old.commentaire_decision }, { statut: decision, commentaire_decision: commentaire }, commentaire || "Demande acceptée");
-          const lib = `${LIBELLE_TYPE[old.type]} du ${old.date_debut}`;
-          const msg: Record<string, [string, string]> = {
-            validee: ["acceptee", `Ta demande (${lib}) est acceptée.${commentaire ? " " + commentaire : ""}`],
-            refusee: ["refusee", `Ta demande (${lib}) est refusée : ${commentaire}`],
-            complement: [b.justificatif_requis ? "justificatif_manquant" : "complement", `Ta demande (${lib}) demande un complément : ${commentaire}`],
-            annulee: ["annulee", `Ta demande (${lib}) a été annulée : ${commentaire}`],
+          const jid = await journal("absence", old.id, "decision", { statut: old.statut, commentaire_decision: old.commentaire_decision }, { statut: decision, commentaire_decision: commentaire }, commentaire || "Demande acceptée");
+          const lib = `Votre demande (${LIBELLE_TYPE[old.type].toLowerCase()}) ${periodeFr(old.date_debut, old.date_fin)}`;
+          const msg: Record<string, [string, string, string]> = {
+            validee: ["acceptee", "Votre demande a été acceptée", `${lib} a été validée par votre responsable.${commentaire ? ` Commentaire : ${commentaire}` : ""}`],
+            refusee: ["refusee", "Votre demande a été refusée", `${lib} a été refusée. Motif : ${commentaire}`],
+            complement: [b.justificatif_requis ? "justificatif_manquant" : "complement", "Information demandée", `${lib} nécessite un complément : ${commentaire}`],
+            annulee: ["annulee", "Demande annulée", `${lib} a été annulée. Motif : ${commentaire}`],
           };
-          await notifier(`employe:${old.employe_id}`, msg[decision][0], old.id, msg[decision][1]);
+          await notifier(`employe:${old.employe_id}`, msg[decision][0], old.id, msg[decision][2],
+            { titre: msg[decision][1], lien: "demandes", cle: `journal:${jid}`, details: { decision, date_debut: old.date_debut, date_fin: old.date_fin, motif: commentaire } });
+          await pousser();
           return json({ ok: true });
         }
         case "admin_demande_creer":
@@ -972,7 +1123,9 @@ Deno.serve(async (req) => {
           if (error) throw error;
           if (b.fichier) await enregistrerJustificatif(data.id, Number(b.employe_id), b.fichier, b.nom_fichier, "gerant");
           await journal("absence", data.id, "ajout", null, { employe_id: Number(b.employe_id), type, date_debut: debut, date_fin: fin, statut: "validee" }, motif);
-          await notifier(`employe:${Number(b.employe_id)}`, "acceptee", data.id, `${LIBELLE_TYPE[type]} enregistrée par le gérant le ${debut}${fin !== debut ? ` au ${fin}` : ""}.`);
+          await notifier(`employe:${Number(b.employe_id)}`, "acceptee", data.id, `${LIBELLE_TYPE[type]} enregistrée par votre responsable ${periodeFr(debut, fin)}.`,
+            { titre: "Absence enregistrée", lien: "demandes", cle: `absence:${data.id}` });
+          await pousser();
           return json({ ok: true, id: data.id });
         }
         case "admin_calendrier": {
@@ -990,10 +1143,21 @@ Deno.serve(async (req) => {
           return json({ ok: true, debut, fin, evenements: evts });
         }
         case "admin_notifications": {
-          const { data } = await sb.from("hr_notifications").select("id, type, absence_id, message, lu, created_at")
-            .eq("destinataire", "gerant").order("created_at", { ascending: false }).limit(50);
-          if (b.marquer_lues) await sb.from("hr_notifications").update({ lu: true }).eq("destinataire", "gerant").eq("lu", false);
-          return json({ ok: true, notifications: data || [], non_lues: (data || []).filter((n) => !n.lu).length });
+          const { data } = await sb.from("hr_notifications").select(CHAMPS_NOTIF)
+            .eq("destinataire", "gerant").order("created_at", { ascending: false }).limit(100);
+          if (b.marquer_lues) await sb.from("hr_notifications").update({ lu: true, lu_le: new Date().toISOString() }).eq("destinataire", "gerant").eq("lu", false);
+          const { count } = await sb.from("hr_notifications").select("id", { count: "exact", head: true }).eq("destinataire", "gerant").eq("lu", false);
+          return json({ ok: true, notifications: data || [], non_lues: count || 0, vapid: (await vapid())?.publicKey || null });
+        }
+        case "admin_notification_lue": {
+          await sb.from("hr_notifications").update({ lu: true, lu_le: new Date().toISOString() }).eq("id", Number(b.id)).eq("destinataire", "gerant").eq("lu", false);
+          return json({ ok: true });
+        }
+        case "admin_push_abonner": {
+          await abonner("gerant", null, b.abonnement, req.headers.get("user-agent"));
+          await notifier("gerant", "push_active", null, "Tu recevras ici les nouvelles demandes du personnel.", { titre: "Notifications activées" });
+          await pousser();
+          return json({ ok: true });
         }
 
         // --- journal ---

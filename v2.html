@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#0B4F3C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Capanna">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
 <title>Capanna – Pointage</title>
 <style>
 :root{--vert:#0B4F3C;--vert-2:#0E6B51;--or:#A8823C;--fond:#F2EEE1;--carte:#fff;--ligne:#E6E0CF;--texte:#1d1d1d;--gris:#6b6b6b;--rouge:#B3261E;
@@ -223,6 +225,57 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
   .pl-cr{font-size:11.5px;padding:3px 5px}
   .ce-ligne{grid-template-columns:1fr 1fr 40px}.ce-ligne>div:nth-child(3){grid-column:1/3}.ce-ligne .ce-x{grid-row:1;grid-column:3}
 }
+/* ---------- signature ---------- */
+.signature{display:flex;justify-content:center;align-items:baseline;gap:6px;margin:40px auto 8px;padding:0 16px;color:#4A4F54;user-select:none;-webkit-user-select:none}
+.signature span{font-size:9.5px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;opacity:.72}
+.signature b{font-size:13px;font-weight:650;letter-spacing:.03em;color:#3A3F44;font-feature-settings:"ss01"}
+/* ---------- cloche et notifications ---------- */
+.barre-e{display:flex;align-items:center;gap:8px}.barre-e .onglets{flex:1;min-width:0}
+.cloche{position:relative;flex:none;width:42px;height:42px;padding:0;border-radius:14px;background:#fff;color:#33383D;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:transform .15s}
+.cloche svg{width:21px;height:21px}.cloche:active{transform:scale(.94)}.cloche.actif{background:#33383D;color:#fff}
+.cloche-badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#D2453F;color:#fff;font-size:11px;font-weight:700;line-height:19px;text-align:center;box-shadow:0 0 0 2px var(--fond)}
+.n-entete{justify-content:space-between;margin:14px 2px 6px}
+.n-groupe{font-size:12px;font-weight:700;color:#6b6b6b;text-transform:uppercase;letter-spacing:.06em;margin:16px 4px 6px}
+.n-carte{padding:4px 6px;margin-top:0}
+.notif{display:flex;width:100%;gap:12px;align-items:flex-start;text-align:left;background:none;border-radius:12px;padding:12px 10px;font-weight:400;position:relative;border-top:1px solid #F0EBDD}
+.n-carte .notif:first-child{border-top:0}
+.notif:hover{background:#FBF9F3}
+.n-ic{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center}.n-ic svg{width:19px;height:19px}
+.n-planning{background:#ECEEF1;color:#33383D}.n-ok{background:#E5F3EA;color:#1F7A45}.n-non{background:#FBE7E6;color:#B3261E}.n-doc{background:#F4EFE0;color:#7A5B1E}.n-info{background:#EEF0F2;color:#55595d}
+.n-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.n-titre{font-size:14.5px;color:#55595d;font-weight:600}.n-msg{font-size:13.5px;color:#6b6b6b;line-height:1.4}.n-heure{font-size:12px;color:#9a9a9a;margin-top:2px}
+.notif.non-lue .n-titre{color:var(--texte);font-weight:700}.notif.non-lue .n-msg{color:#3b3b3b}
+.n-point{flex:none;width:9px;height:9px;border-radius:50%;background:#D2453F;margin-top:6px}
+.push-carte{display:flex;gap:12px;align-items:flex-start;background:#fff;border-radius:16px;padding:14px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04)}
+.push-carte b{font-size:14.5px}
+.push-ic{flex:none;width:38px;height:38px;border-radius:12px;background:#33383D;color:#fff;display:grid;place-items:center}.push-ic svg{width:19px;height:19px}
+.push-ok{display:flex;gap:8px;align-items:center;font-size:13px;color:#1F7A45;margin:6px 4px}.push-ok svg{width:17px;height:17px}
+/* ---------- mon planning ---------- */
+.mp-resume{font-size:13px;color:var(--gris);margin:2px 4px 8px}
+.mp-jour{display:flex;gap:14px;align-items:center;background:#fff;border-radius:16px;padding:12px 14px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .3s}
+.mp-jour.passe{opacity:.6}.mp-jour.auj{box-shadow:inset 0 0 0 2px var(--vert)}.mp-jour.focus{box-shadow:inset 0 0 0 2px #33383D}
+.mp-jour.detail{margin-top:10px}
+.mp-date{flex:none;width:48px;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.mp-date span{font-size:11.5px;color:var(--gris);font-weight:600;text-transform:uppercase;letter-spacing:.04em}.mp-date b{font-size:22px}
+.mp-date i{font-style:normal;font-size:9.5px;font-weight:700;color:var(--vert);margin-top:3px;text-transform:uppercase;letter-spacing:.03em}
+.mp-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.mp-h{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums;color:#2b2f33}.mp-h small{display:block;font-size:12px;font-weight:500;color:var(--gris)}
+.mp-h.barre{text-decoration:line-through;color:#a3a3a3;font-weight:500}
+.mp-repos{font-size:15px;color:#9a9da0;font-weight:500}
+.mp-info .pl-abs,.mp-info .pl-tag{display:inline-block}
+.mp-chg{font-size:11.5px;font-weight:600;color:#33383D;background:#ECEEF1;border-radius:6px;padding:2px 7px}
+.mp-mois{padding:12px}
+.mp-sem,.mp-grille{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.mp-sem span{text-align:center;font-size:11px;font-weight:700;color:var(--gris);padding-bottom:4px}
+.mp-c{aspect-ratio:1/1.08;padding:4px 0;border-radius:10px;background:#F7F5EF;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;font-weight:500}
+.mp-c b{font-size:14px;font-weight:650}.mp-c small{font-size:10.5px;color:#55595d;font-weight:600}.mp-c small.r{color:#b0b3b6;font-weight:500}
+.mp-c.travail{background:#ECEEF1}.mp-c.hors{background:transparent;color:#c4c4c4}.mp-c.auj{box-shadow:inset 0 0 0 1.5px var(--vert)}
+.mp-c.sel{background:#33383D;color:#fff}.mp-c.sel small{color:#d9dbdd}
+.mp-pt{width:8px;height:8px;border-radius:50%;margin-top:3px}
+.mp-pt.t-conge{background:#4F7BC0}.mp-pt.t-maladie{background:#C24A4A}.mp-pt.t-absence_autorisee{background:#7D5FB8}.mp-pt.t-absence_injustifiee{background:#8A7A5A}
+.barre-e .onglets{gap:5px}.barre-e .onglet{padding:9px 12px;font-size:13.5px}
+@media(max-width:400px){.barre-e .onglet{padding:8px 10px;font-size:13px}}
+.mp-note{text-align:center;margin:14px 8px 0}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -236,6 +289,7 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 <body>
 <header class="marque"><img src="data:image/png;base64,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" alt="Capanna Restaurante"><p id="sous-titre">Pointage</p></header>
 <main id="app"></main>
+<footer class="signature"><span>Powered by</span><b>KeyNet</b></footer>
 <div id="impression"></div>
 <script>
 "use strict";
@@ -366,6 +420,109 @@ function periodeDemande(d) {
   return t;
 }
 
+// ---------- notifications : icônes, liste, push ----------
+const IC_N = {
+  cloche: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  planning: '<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/>',
+  ok: '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
+  non: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  doc: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+};
+const svgN = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC_N[k]}</svg>`;
+const TITRE_NOTIF = { acceptee: "Votre demande a été acceptée", refusee: "Votre demande a été refusée", complement: "Information demandée", justificatif_manquant: "Justificatif demandé",
+  annulee: "Demande annulée", nouvelle_demande: "Nouvelle demande à traiter", justificatif_recu: "Justificatif reçu", planning: "Modification de votre planning", planning_poste: "Changement d'affectation" };
+function iconeNotif(n) {
+  if (/^planning/.test(n.type)) return ["planning", "n-planning"];
+  if (n.type === "acceptee") return ["ok", "n-ok"];
+  if (n.type === "refusee") return ["non", "n-non"];
+  if (/demande|justificatif|complement/.test(n.type)) return ["doc", "n-doc"];
+  return ["info", "n-info"];
+}
+const jourLocal = (iso) => new Date(iso).toLocaleDateString("fr-CA", { timeZone: TZ });
+function groupeNotif(iso) {
+  const j = jourLocal(iso), auj = jourLocal(new Date().toISOString());
+  if (j === auj) return "Aujourd'hui";
+  if (j === plusJours(auj, -1)) return "Hier";
+  const t = dateFr(j); return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function listeNotifs(liste) {
+  if (!liste.length) return `<div class="carte"><div class="vide">Aucune notification pour l'instant.</div></div>`;
+  let h = "", g = null;
+  for (const n of liste) {
+    const gr = groupeNotif(n.created_at);
+    if (gr !== g) { if (g !== null) h += `</div>`; h += `<div class="n-groupe">${esc(gr)}</div><div class="carte n-carte">`; g = gr; }
+    const [ic, cl] = iconeNotif(n);
+    h += `<button class="notif ${n.lu ? "" : "non-lue"}" data-n="${n.id}">
+      <span class="n-ic ${cl}">${svgN(ic)}</span>
+      <span class="n-txt"><span class="n-titre">${esc(n.titre || TITRE_NOTIF[n.type] || "Notification")}</span><span class="n-msg">${esc(n.message)}</span>
+      <span class="n-heure">${new Date(n.created_at).toLocaleTimeString("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" })}${n.lu ? "" : " · non lue"}</span></span>
+      ${n.lu ? "" : `<span class="n-point" aria-hidden="true"></span>`}</button>`;
+  }
+  return h + `</div>`;
+}
+const badgeHtml = (n) => n ? `<span class="cloche-badge">${n > 99 ? "99+" : n}</span>` : "";
+
+const PUSH = {
+  supporte: () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
+  ios: () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
+  installe: () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true,
+};
+async function enregistrerSW() {
+  if (!("serviceWorker" in navigator)) return null;
+  try { return await navigator.serviceWorker.register("sw.js", { scope: "./" }); } catch { return null; }
+}
+function octetsDeB64u(s) {
+  const b = atob((s + "===".slice((s.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+}
+async function etatPush() {
+  if (PUSH.ios() && !PUSH.installe()) return "installer";
+  if (!PUSH.supporte()) return "indisponible";
+  if (Notification.permission === "denied") return "refuse";
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("./");
+    const sub = reg && await reg.pushManager.getSubscription();
+    return sub && Notification.permission === "granted" ? "actif" : "a_activer";
+  } catch { return "a_activer"; }
+}
+async function activerPush(cle, envoyer) {
+  if (!cle) throw new Error("Notifications indisponibles pour le moment.");
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("Notifications refusées. Tu peux les autoriser plus tard dans les réglages du téléphone.");
+  const reg = await enregistrerSW();
+  if (!reg) throw new Error("Ce navigateur ne permet pas les notifications.");
+  await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: octetsDeB64u(cle) });
+  await envoyer(sub.toJSON());
+}
+function cartePush(etat, pour) {
+  const t = {
+    actif: `<div class="push-ok">${svgN("ok")}<span>Notifications activées sur cet appareil.</span></div>`,
+    a_activer: `<div class="push-carte"><div class="push-ic">${svgN("cloche")}</div><div class="flex"><b>Recevoir les notifications sur ce téléphone</b>
+        <div class="petit">${pour === "gerant" ? "Sois prévenu dès qu'un employé envoie une demande." : "Changements de ton planning et réponses à tes demandes, même quand l'appli est fermée."}</div>
+        <button class="b-principal" data-push="1" style="margin-top:10px;padding:10px 16px">Activer</button><div data-push-msg></div></div></div>`,
+    installer: `<div class="push-carte"><div class="push-ic">${svgN("cloche")}</div><div class="flex"><b>Notifications sur iPhone</b>
+        <div class="petit">Touche le bouton Partager de Safari, puis « Sur l'écran d'accueil ». Ouvre ensuite Capanna depuis cette icône pour activer les notifications.</div></div></div>`,
+    refuse: `<div class="push-carte"><div class="push-ic">${svgN("info")}</div><div class="flex"><b>Notifications bloquées</b>
+        <div class="petit">Autorise-les dans les réglages du téléphone (Notifications). Elles restent toujours visibles ici.</div></div></div>`,
+    indisponible: `<p class="petit" style="margin:2px 0 0">Ce navigateur ne permet pas les notifications sur l'écran ; elles restent visibles ici.</p>`,
+  };
+  return t[etat] || "";
+}
+async function brancherPush(racine, pour, cle, envoyer) {
+  const zone = $("[data-push-zone]", racine); if (!zone) return;
+  zone.innerHTML = cartePush(await etatPush(), pour);
+  const b = $("[data-push]", zone); if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true;
+    try { await activerPush(cle, envoyer); zone.innerHTML = cartePush("actif", pour); }
+    catch (e) { msg($("[data-push-msg]", zone), e.message); b.disabled = false; }
+  };
+}
+enregistrerSW();
+
 // ======================================================================
 // ESPACE EMPLOYÉ
 // ======================================================================
@@ -401,18 +558,127 @@ function ecranActivation() {
   };
 }
 
+function allerE(onglet, date) {
+  E.onglet = onglet;
+  if (date) { E.plMode = "semaine"; E.plRef = lundiDe(date); E.plFocus = date; }
+  ecranEmploye();
+}
+function majBadgeE(n) {
+  E.nonLues = n || 0;
+  const b = $("#e-badge"); if (b) b.innerHTML = badgeHtml(E.nonLues);
+  const c = $("#e-cloche"); if (c) c.setAttribute("aria-label", E.nonLues ? `Notifications, ${E.nonLues} non lue${E.nonLues > 1 ? "s" : ""}` : "Notifications");
+}
+async function rafraichirBadgeE() {
+  if (!E.token || !E.etat?.moi) return;
+  try { majBadgeE((await api({ action: "mes_notifications", token: E.token, limite: 1 })).non_lues); } catch {}
+}
+if (!window.__pollE) {
+  window.__pollE = setInterval(() => { if (document.visibilityState === "visible") rafraichirBadgeE(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") rafraichirBadgeE(); });
+}
+
 function ecranEmploye() {
   const m = E.etat.moi;
-  $("#corps").innerHTML = `<div class="onglets" role="tablist">
-      <button class="onglet ${E.onglet === "pointage" ? "actif" : ""}" data-o="pointage">Pointage</button>
-      <button class="onglet ${E.onglet === "demandes" ? "actif" : ""}" data-o="demandes">Mes demandes<span id="badge-e"></span></button>
-    </div><div id="vue-e"></div>`;
-  $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => { E.onglet = b.dataset.o; ecranEmploye(); });
-  if (E.onglet === "pointage") vuePointage(m); else vueMesDemandes();
-  api({ action: "mes_notifications", token: E.token }).then((r) => {
-    const n = (r.notifications || []).filter((x) => !x.lu).length;
-    if ($("#badge-e")) $("#badge-e").innerHTML = n ? `<span class="badge">${n}</span>` : "";
-  }).catch(() => {});
+  const ong = [["pointage", "Pointage"], ["planning", "Mon planning"], ["demandes", "Mes demandes"]];
+  $("#corps").innerHTML = `<div class="barre-e"><div class="onglets" role="tablist">${ong.map(([k, l]) => `<button class="onglet ${E.onglet === k ? "actif" : ""}" data-o="${k}" role="tab" aria-selected="${E.onglet === k}">${l}</button>`).join("")}</div>
+      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="vue-e"></div>`;
+  $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => allerE(b.dataset.o));
+  $("#e-cloche").onclick = () => allerE("notifications");
+  majBadgeE(E.nonLues ?? m.non_lues);
+  ({ pointage: () => vuePointage(m), planning: vueMonPlanning, demandes: vueMesDemandes, notifications: vueNotificationsE }[E.onglet] || (() => vuePointage(m)))();
+}
+
+// ---------- Mon planning (lecture seule) ----------
+async function vueMonPlanning() {
+  const v = $("#vue-e"), js = E.etat.jour_service;
+  E.plMode ||= "semaine"; E.plRef ||= lundiDe(js);
+  let debut, fin;
+  if (E.plMode === "semaine") { debut = E.plRef; fin = plusJours(debut, 6); }
+  else { const m1 = debutMois(E.plRef); debut = lundiDe(m1); const fm = finMois(m1); fin = plusJours(fm, 7 - dow(fm)); }
+  v.innerHTML = `<div class="carte"><div class="vide">Chargement de ton planning…</div></div>`;
+  let r;
+  try { r = await api({ action: "mon_planning", token: E.token, debut, fin }); } catch (e) { return msg(v, e.message); }
+  const parJour = {}, absJ = {}, attJ = {};
+  for (const p of r.planning) (parJour[p.jour] ||= []).push(p);
+  const etaler = (l, cible) => { for (const a of l) for (let j = a.date_debut < debut ? debut : a.date_debut; j <= a.date_fin && j <= fin; j = plusJours(j, 1)) (cible[j] ||= []).push(a); };
+  etaler(r.absences, absJ); etaler(r.en_attente, attJ);
+  const absTotale = (j) => (absJ[j] || []).find((a) => ABS_JOUR.includes(a.type) && !a.heure_debut);
+  const contenu = (j, grand) => {
+    const crs = (parJour[j] || []).sort((a, b) => a.ordre - b.ordre), at = absTotale(j);
+    let h = at ? `<span class="pl-abs t-${at.type}">${LIB_TYPE[at.type]}</span>` : "";
+    if (crs.length) h += crs.map((c) => `<span class="mp-h ${at ? "barre" : ""}">${c.debut.replace(":", "h")} – ${c.fin.replace(":", "h")}${grand && c.pause_min ? `<small>pause ${c.pause_min} min</small>` : ""}</span>`).join("");
+    else if (!at) h += `<span class="mp-repos">Repos</span>`;
+    for (const a of (absJ[j] || []).filter((x) => x !== at)) h += `<span class="pl-tag">${LIB_TYPE[a.type]}${a.type === "retard_justifie" && a.heure_fin ? ` · arrivée ${hcourt(a.heure_fin)}` : ""}${a.type === "depart_anticipe" && a.heure_debut ? ` · départ ${hcourt(a.heure_debut)}` : ""}</span>`;
+    if (attJ[j]) h += `<span class="pl-tag attente">Demande en attente</span>`;
+    if (crs.some((c) => c.source === "jour")) h += `<span class="mp-chg">Changement pour ce jour</span>`;
+    return h;
+  };
+  const titre = E.plMode === "semaine" ? titreSemaine(debut, fin) : `${MOIS[+E.plRef.slice(5, 7) - 1].replace(/^./, (c) => c.toUpperCase())} ${E.plRef.slice(0, 4)}`;
+  let corps = "";
+  if (E.plMode === "semaine") {
+    let jours = 0, minutes = 0;
+    const liste = [0, 1, 2, 3, 4, 5, 6].map((i) => plusJours(debut, i)).map((j) => {
+      const crs = parJour[j] || [];
+      if (crs.length && !absTotale(j)) { jours++; minutes += crs.reduce((s, c) => s + dureeCr(c), 0); }
+      return `<div class="mp-jour ${j === js ? "auj" : ""} ${j < js ? "passe" : ""} ${j === E.plFocus ? "focus" : ""}" id="mp-${j}">
+        <div class="mp-date"><span>${JOURS_C[dow(j)]}</span><b>${+j.slice(8)}</b>${j === js ? `<i>Aujourd'hui</i>` : ""}</div><div class="mp-info">${contenu(j, true)}</div></div>`;
+    }).join("");
+    corps = `<div class="mp-resume">${jours} jour${jours > 1 ? "s" : ""} de travail · ${fmtDuree(minutes)} prévues</div>${liste}`;
+  } else {
+    const m = E.plRef.slice(0, 7);
+    E.plFocus = E.plFocus && E.plFocus.startsWith(m) ? E.plFocus : (js.startsWith(m) ? js : debutMois(E.plRef));
+    const cases = [];
+    for (let j = debut; j <= fin; j = plusJours(j, 1)) {
+      const crs = parJour[j] || [], at = absTotale(j), hors = !j.startsWith(m);
+      const mini = at ? `<i class="mp-pt t-${at.type}"></i>` : crs.length ? `<small>${crs[0].debut.replace(":", "h").replace(/h00$/, "h")}</small>` : `<small class="r">R</small>`;
+      cases.push(`<button class="mp-c ${hors ? "hors" : ""} ${j === js ? "auj" : ""} ${j === E.plFocus ? "sel" : ""} ${crs.length && !at ? "travail" : ""}" data-j="${j}" aria-label="${dateFr(j)}">
+        <b>${+j.slice(8)}</b>${hors ? "" : mini}</button>`);
+    }
+    corps = `<div class="carte mp-mois"><div class="mp-sem">${["L", "M", "M", "J", "V", "S", "D"].map((x) => `<span>${x}</span>`).join("")}</div><div class="mp-grille">${cases.join("")}</div>
+      <p class="petit" style="margin:10px 2px 0">« R » = repos. Touche un jour pour voir le détail.</p></div>
+      <div class="mp-jour detail"><div class="mp-date"><span>${JOURS_C[dow(E.plFocus)]}</span><b>${+E.plFocus.slice(8)}</b></div><div class="mp-info">${contenu(E.plFocus, true)}</div></div>`;
+  }
+  v.innerHTML = `<div class="mp">
+    <div class="ligne" style="justify-content:space-between;margin-top:10px">
+      <div class="segments" role="tablist" style="margin:0"><button data-m="semaine" class="${E.plMode === "semaine" ? "actif" : ""}">Semaine</button><button data-m="mois" class="${E.plMode === "mois" ? "actif" : ""}">Mois</button></div>
+      <span class="petit">${esc(r.service)}</span></div>
+    <div class="pl-sem" style="margin:12px 0 8px"><button class="pl-fl" data-nav="-1" aria-label="Précédent">${svgPl("g")}</button>
+      <div class="pl-titre" style="flex:1;text-align:center;align-items:center"><b>${titre}</b>${(E.plMode === "semaine" ? debut <= js && js <= fin : js.startsWith(E.plRef.slice(0, 7))) ? "" : `<button class="b-lien pl-auj" data-nav="0">Revenir à aujourd'hui</button>`}</div>
+      <button class="pl-fl" data-nav="1" aria-label="Suivant">${svgPl("d")}</button></div>
+    ${corps}
+    <p class="petit mp-note">Planning en lecture seule, mis à jour par ton responsable. Tu es prévenu à chaque changement.</p></div>`;
+  $$("[data-m]", v).forEach((b) => b.onclick = () => { E.plMode = b.dataset.m; E.plRef = E.plMode === "semaine" ? lundiDe(E.plFocus || js) : debutMois(E.plFocus || js); vueMonPlanning(); });
+  $$("[data-nav]", v).forEach((b) => b.onclick = () => {
+    const n = +b.dataset.nav;
+    if (!n) { E.plRef = E.plMode === "semaine" ? lundiDe(js) : debutMois(js); E.plFocus = js; }
+    else if (E.plMode === "semaine") E.plRef = plusJours(E.plRef, 7 * n);
+    else { const d = new Date(E.plRef + "T12:00:00Z"); d.setUTCMonth(d.getUTCMonth() + n, 1); E.plRef = d.toISOString().slice(0, 10); }
+    vueMonPlanning();
+  });
+  $$(".mp-c[data-j]", v).forEach((b) => b.onclick = () => { E.plFocus = b.dataset.j; if (!b.dataset.j.startsWith(E.plRef.slice(0, 7))) E.plRef = debutMois(b.dataset.j); vueMonPlanning(); });
+  if (E.plMode === "semaine" && E.plFocus) setTimeout(() => $(`#mp-${E.plFocus}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+}
+
+// ---------- centre de notifications (employé) ----------
+async function vueNotificationsE() {
+  const v = $("#vue-e");
+  v.innerHTML = `<div class="ligne n-entete"><h2>Notifications</h2><button class="b-lien" id="n-tout">Tout marquer comme lu</button></div>
+    <div data-push-zone></div><div id="n-liste"><div class="carte"><div class="vide">Chargement…</div></div></div>`;
+  brancherPush(v, "employe", E.etat.moi.vapid, (abonnement) => api({ action: "push_abonner", token: E.token, abonnement }));
+  let r;
+  try { r = await api({ action: "mes_notifications", token: E.token, limite: 150 }); } catch (e) { return msg($("#n-liste"), e.message); }
+  const liste = r.notifications || [];
+  majBadgeE(r.non_lues);
+  $("#n-liste").innerHTML = listeNotifs(liste);
+  $("#n-tout").disabled = !r.non_lues;
+  $("#n-tout").onclick = async () => { await api({ action: "mes_notifications", token: E.token, marquer_lues: true, limite: 1 }); vueNotificationsE(); };
+  $$("[data-n]", v).forEach((b) => b.onclick = async () => {
+    const n = liste.find((x) => x.id === +b.dataset.n);
+    if (!n.lu) { try { majBadgeE((await api({ action: "notification_lue", token: E.token, id: n.id })).non_lues); } catch {} }
+    if (n.lien === "planning") return allerE("planning", n.details?.date ? String(n.details.date).slice(0, 10) : null);
+    if (n.lien === "demandes" || n.absence_id) return allerE("demandes");
+    n.lu = true; b.classList.remove("non-lue"); $(".n-point", b)?.remove();
+  });
 }
 
 function vuePointage(m) {
@@ -455,20 +721,21 @@ async function pointer(type) {
       <div class="petit">${esc(type === "arrivee" && j ? j.message : r.info)}</div>${type === "arrivee" && j && r.info && !/heure|Retard/.test(r.info) ? `<div class="petit">${esc(r.info)}</div>` : ""}
       ${type === "depart" && /prochain service/.test(r.info) ? "" : ""}</div></div>`;
     afficherJournal(r.aujourdhui); afficherIndicateurs(r.emojis, true);
+    if (!store.get("capanna_push_propose") && await etatPush() === "a_activer") {
+      store.set("capanna_push_propose", "1");
+      $("#p-resultat").insertAdjacentHTML("beforeend", `<div data-push-zone style="margin-top:12px"></div>`);
+      brancherPush($("#p-resultat"), "employe", E.etat.moi.vapid, (abonnement) => api({ action: "push_abonner", token: E.token, abonnement }));
+    }
   } catch (e) { msg($("#p-msg"), e.message); afficherJournal(E.etat.moi.aujourdhui); }
 }
 
 // ---------- Mes demandes ----------
 async function vueMesDemandes() {
-  $("#vue-e").innerHTML = `<div id="e-notifs"></div>
-    <div class="pile"><button class="b-principal b-plein" id="e-nouvelle">Nouvelle demande</button></div>
+  $("#vue-e").innerHTML = `<div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="e-nouvelle">Nouvelle demande</button></div>
     <div class="carte"><h3>Historique</h3><ul class="liste" id="e-liste"><li class="vide">Chargement…</li></ul></div>`;
   $("#e-nouvelle").onclick = formulaireDemande;
   try {
-    const [d, n] = await Promise.all([api({ action: "mes_demandes", token: E.token }), api({ action: "mes_notifications", token: E.token, marquer_lues: true })]);
-    const nonlues = (n.notifications || []).filter((x) => !x.lu);
-    $("#e-notifs").innerHTML = nonlues.length ? `<div class="carte"><h3>Nouveautés</h3><ul class="liste">${nonlues.map((x) => `<li><div class="flex"><div>${esc(x.message)}</div><div class="petit">${dateHeure(x.created_at)}</div></div></li>`).join("")}</ul></div>` : "";
-    if ($("#badge-e")) $("#badge-e").innerHTML = "";
+    const d = await api({ action: "mes_demandes", token: E.token });
     const liste = d.demandes || [];
     $("#e-liste").innerHTML = liste.length ? liste.map((x) => `<li class="cliquable" data-id="${x.id}">
         <div class="flex"><div class="t">${esc(LIB_TYPE[x.type] || x.type)}</div><div class="petit">${esc(periodeDemande(x))}</div>
@@ -638,8 +905,9 @@ async function demarrerGerant() {
 }
 
 async function coquilleGerant() {
-  $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><button class="b-lien" id="g-sortir">Quitter</button></div>
+  $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><div class="ligne" style="gap:6px;flex-wrap:nowrap"><button class="cloche" id="g-cloche" aria-label="Notifications">${svgN("cloche")}<span id="g-badge"></span></button><button class="b-lien" id="g-sortir">Quitter</button></div></div>
     <div id="g-segments"></div><div id="vue-g"></div>`;
+  $("#g-cloche").onclick = voirNotifications;
   $("#g-sortir").onclick = () => { store.sset("capanna_code_v2", null); G.code = null; $("#g-nav")?.remove(); demarrerGerant(); };
   try {
     const [eq, cfg] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_config" })]);
@@ -647,7 +915,8 @@ async function coquilleGerant() {
     Object.assign(SMILEY_COULEURS, G.cfg.couleurs || {});
   } catch (e) { return msg($("#vue-g"), e.message); }
   if (!G.filtres.debut) { G.filtres.debut = debutMois(G.js); G.filtres.fin = G.js; }
-  dessinerOnglets(); allerA(G.onglet);
+  dessinerOnglets(); allerA(G.ouvrirDemande ? "demandes" : G.onglet);
+  if (G.ouvrirDemande) { const id = G.ouvrirDemande; G.ouvrirDemande = null; ficheDemande(id).catch(() => {}); }
   rafraichirBadges();
 }
 function dessinerOnglets() {
@@ -687,6 +956,7 @@ async function rafraichirBadges() {
     const d = await ga({ action: "admin_demandes", filtre: "attente" });
     const n = (d.compteurs?.attente || 0) + (d.compteurs?.complement || 0);
     G.nbAttente = n;
+    ga({ action: "admin_notifications" }).then((x) => { G.vapid = x.vapid; const g = $("#g-badge"); if (g) g.innerHTML = badgeHtml(x.non_lues); }).catch(() => {});
     const el = $('[data-badge="demandes"]'); if (el) el.innerHTML = n ? `<span class="nav-pastille">${n > 99 ? "99+" : n}</span>` : "";
     const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = n ? `<span class="badge">${n}</span>` : "";
     const b = $('#g-nav [data-r="conges"]'); if (b) b.setAttribute("aria-label", n ? `Congés, ${n} demande${n > 1 ? "s" : ""} en attente` : "Congés");
@@ -914,10 +1184,19 @@ async function vueDemandes(v, filtre) {
   $("#d-notifs").onclick = voirNotifications;
 }
 async function voirNotifications() {
-  const n = await ga({ action: "admin_notifications", marquer_lues: true });
-  feuille(`<div class="entete"><h2>Notifications</h2><button class="b-sec" data-fermer>Fermer</button></div>
-    <div class="carte"><ul class="liste">${(n.notifications || []).map((x) => `<li><div class="flex"><div ${x.lu ? "" : 'style="font-weight:650"'}>${esc(x.message)}</div><div class="petit">${dateHeure(x.created_at)}</div></div></li>`).join("") || `<li class="vide">Aucune notification.</li>`}</ul></div>`);
-  rafraichirBadges();
+  const n = await ga({ action: "admin_notifications" });
+  const liste = n.notifications || [];
+  const f = feuille(`<div class="entete"><h2>Notifications</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <div class="ligne" style="justify-content:flex-end;margin:-4px 0 6px"><button class="b-lien" id="gn-tout" ${n.non_lues ? "" : "disabled"}>Tout marquer comme lu</button></div>
+    <div data-push-zone></div>${listeNotifs(liste)}`);
+  brancherPush(f.el, "gerant", n.vapid, (abonnement) => ga({ action: "admin_push_abonner", abonnement }));
+  $("#gn-tout", f.el).onclick = async () => { await ga({ action: "admin_notifications", marquer_lues: true }); f.fermer(); rafraichirBadges(); voirNotifications(); };
+  $$("[data-n]", f.el).forEach((b) => b.onclick = async () => {
+    const x = liste.find((y) => y.id === +b.dataset.n);
+    if (!x.lu) await ga({ action: "admin_notification_lue", id: x.id }).catch(() => {});
+    rafraichirBadges();
+    if (x.absence_id) { f.fermer(); ficheDemande(x.absence_id); } else { b.classList.remove("non-lue"); $(".n-point", b)?.remove(); }
+  });
 }
 async function ficheDemande(id) {
   const r = await ga({ action: "admin_demande", id });
@@ -1411,7 +1690,13 @@ function rapportGlobalPDF(rows, f) {
 // ======================================================================
 // Démarrage
 // ======================================================================
-function route() { (location.hash === "#gerant" ? demarrerGerant : demarrerEmploye)(); }
+function route() {
+  const h = location.hash;
+  if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; return demarrerGerant(); }
+  const m = h.match(/^#e\/(pointage|planning|demandes|notifications)(?:\/(\d{4}-\d{2}-\d{2}))?/);
+  if (m) { E.onglet = m[1]; if (m[2]) { E.plMode = "semaine"; E.plRef = lundiDe(m[2]); E.plFocus = m[2]; } }
+  demarrerEmploye();
+}
 window.addEventListener("hashchange", route);
 route();
 </script>
