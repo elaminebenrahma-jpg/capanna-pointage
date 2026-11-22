@@ -276,6 +276,8 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 .barre-e .onglets{gap:5px}.barre-e .onglet{padding:9px 12px;font-size:13.5px}
 @media(max-width:400px){.barre-e .onglet{padding:8px 10px;font-size:13px}}
 .mp-note{text-align:center;margin:14px 8px 0}
+.g-garder{display:flex;align-items:center;gap:8px;margin:12px 2px 0;font-size:14px;color:var(--texte)}.g-garder input{width:auto;margin:0;accent-color:var(--vert)}
+.lien-discret{color:var(--gris);text-decoration:underline;text-underline-offset:3px}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -306,6 +308,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   sget(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
   sset(k, v) { try { v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
 };
 async function api(body) {
   const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -530,6 +533,8 @@ const E = { token: store.get("capanna_token"), etat: null, onglet: "pointage", f
 
 async function demarrerEmploye() {
   document.body.classList.remove("admin");
+  manifesteGerant(false);
+  $("#g-nav")?.remove();
   $("#app").innerHTML = `<div class="carte wifi" id="etat-wifi"><span class="pastille"></span><span id="texte-wifi">Vérification du réseau…</span></div><div id="corps"></div>
     <p class="petit" style="text-align:center;margin:18px 0">Astuce : ajoute cette page à ton écran d'accueil (Partager → « Sur l'écran d'accueil »).</p>`;
   try { E.etat = await api({ action: "init", token: E.token }); } catch (e) { return msg($("#corps"), e.message); }
@@ -547,7 +552,8 @@ function ecranActivation() {
     ${E.etat.wifi ? `<label>Ton nom</label><select id="a-nom"><option value="">Choisis ton nom…</option>${emps.map((x) => `<option value="${x.id}">${esc(x.nom)} — ${esc(x.service)}</option>`).join("")}</select>
     <label>Code à 4 chiffres</label><input id="a-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
     <div class="pile" style="margin-top:14px"><button class="b-principal b-grand" id="a-ok">Activer</button></div>` : `<div class="msg info">Connecte-toi d'abord au Wi-Fi du restaurant, puis recharge la page.</div>`}
-    <div id="a-msg"></div></div>`;
+    <div id="a-msg"></div></div>
+    <p class="petit" style="text-align:center;margin-top:10px"><a href="#gerant" class="lien-discret">Espace gérant</a></p>`;
   const b = $("#a-ok"); if (!b) return;
   b.onclick = async () => {
     b.disabled = true;
@@ -865,7 +871,7 @@ function detailMaDemande(d) {
 // ======================================================================
 // ESPACE GÉRANT
 // ======================================================================
-const G = { code: store.sget("capanna_code_v2"), onglet: "tableau", equipe: [], js: null, cfg: null,
+const G = { code: store.sget("capanna_code_v2") || store.get("capanna_code_garde"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
 const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
 // Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
@@ -883,23 +889,37 @@ const libVue = (o) => (ONGLETS_G.find(([k]) => k === o) || [o, o])[1];
 const ICONES_NAV = {"tableau": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "equipe": "<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>", "conges": "<path d=\"M8 2v3\"/><path d=\"M16 2v3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M8 13h.01\"/><path d=\"M12 13h.01\"/><path d=\"M16 13h.01\"/><path d=\"M8 17h.01\"/><path d=\"M12 17h.01\"/><path d=\"M16 17h.01\"/>", "planning": "<path d=\"M16 2v3\"/><path d=\"M17 15.5v1.7l1 .625\"/><path d=\"M21 8.936V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.935\"/><path d=\"M3 9h9.873\"/><path d=\"M8 2v3\"/><circle cx=\"17\" cy=\"17\" r=\"5\"/>", "rapports": "<path d=\"M12 16v5\"/><path d=\"M16 14.639V21\"/><path d=\"M20 10.656V21\"/><path d=\"m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15\"/><path d=\"M4 18.463V21\"/><path d=\"M8 14.656V21\"/>", "reglages": "<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>"};
 const ga = (body) => api({ ...body, code: G.code });
 
+function manifesteGerant(oui) {
+  // le raccourci créé depuis l'espace gérant s'ouvre directement sur l'espace gérant
+  const l = document.querySelector('link[rel="manifest"]');
+  if (l) l.href = oui ? "manifest-gerant.webmanifest" : "manifest.webmanifest";
+  const t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (t) t.content = oui ? "Capanna Gérant" : "Capanna";
+}
+function oublierGerant() { store.sset("capanna_code_v2", null); store.del("capanna_code_garde"); store.del("capanna_mode"); G.code = null; }
 async function demarrerGerant() {
   document.body.classList.add("admin");
+  manifesteGerant(true);
   $("#sous-titre").textContent = "Espace gérant";
-  if (G.code) { try { await ga({ action: "admin_connexion" }); return coquilleGerant(); } catch { G.code = null; store.sset("capanna_code_v2", null); } }
+  if (G.code) { try { await ga({ action: "admin_connexion" }); return coquilleGerant(); } catch { oublierGerant(); } }
   let st = { configure: true };
   try { st = await api({ action: "admin_statut" }); } catch {}
   $("#app").innerHTML = `<div class="carte" style="max-width:420px;margin:12px auto"><h2>Espace gérant</h2>
     <p class="sous">${st.configure ? "Entre ton code gérant." : "Choisis un code gérant (6 caractères minimum)."}</p>
     <input id="g-code" type="password" autocomplete="current-password" placeholder="Code gérant" style="margin-top:12px">
     ${st.configure ? "" : `<input id="g-code2" type="password" placeholder="Confirme le code" style="margin-top:8px">`}
-    <div class="pile" style="margin-top:12px"><button class="b-principal b-grand" id="g-ok">Entrer</button></div><div id="g-msg"></div></div>`;
+    <label class="g-garder"><input type="checkbox" id="g-garder" checked> Rester connecté sur ce téléphone</label>
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-grand" id="g-ok">Entrer</button></div><div id="g-msg"></div>
+    <p class="petit" style="margin-top:14px;text-align:center"><a href="#e/pointage" class="lien-discret">Espace employé</a></p></div>`;
   $("#g-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#g-ok").click(); });
   $("#g-ok").onclick = async () => {
     const code = $("#g-code").value;
     try {
       if (!st.configure) { if (code !== $("#g-code2").value) throw new Error("Les deux codes sont différents."); await api({ action: "admin_creer", code }); }
-      G.code = code; await ga({ action: "admin_connexion" }); store.sset("capanna_code_v2", code); coquilleGerant();
+      G.code = code; await ga({ action: "admin_connexion" }); store.sset("capanna_code_v2", code);
+      store.set("capanna_mode", "gerant");
+      if ($("#g-garder").checked) store.set("capanna_code_garde", code); else store.del("capanna_code_garde");
+      coquilleGerant();
     } catch (e) { G.code = null; msg($("#g-msg"), e.message); }
   };
 }
@@ -908,7 +928,7 @@ async function coquilleGerant() {
   $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><div class="ligne" style="gap:6px;flex-wrap:nowrap"><button class="cloche" id="g-cloche" aria-label="Notifications">${svgN("cloche")}<span id="g-badge"></span></button><button class="b-lien" id="g-sortir">Quitter</button></div></div>
     <div id="g-segments"></div><div id="vue-g"></div>`;
   $("#g-cloche").onclick = voirNotifications;
-  $("#g-sortir").onclick = () => { store.sset("capanna_code_v2", null); G.code = null; $("#g-nav")?.remove(); demarrerGerant(); };
+  $("#g-sortir").onclick = () => { oublierGerant(); $("#g-nav")?.remove(); demarrerGerant(); };
   try {
     const [eq, cfg] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_config" })]);
     G.equipe = eq.equipe; G.js = eq.jour_service; G.cfg = cfg.config;
@@ -1694,7 +1714,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-101641";
+const VERSION_APP = "20261122-102127";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
@@ -1731,6 +1751,7 @@ window.addEventListener("pageshow", (e) => { if (e.persisted) verifierMaj(); });
 function route() {
   const h = location.hash;
   if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; return demarrerGerant(); }
+  if ((!h || h === "#") && store.get("capanna_mode") === "gerant" && !E.token) { history.replaceState(null, "", location.pathname + location.search + "#gerant"); return route(); }
   const m = h.match(/^#e\/(pointage|planning|demandes|notifications)(?:\/(\d{4}-\d{2}-\d{2}))?/);
   if (m) { E.onglet = m[1]; if (m[2]) { E.plMode = "semaine"; E.plRef = lundiDe(m[2]); E.plFocus = m[2]; } }
   demarrerEmploye();
