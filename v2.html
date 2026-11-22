@@ -1690,6 +1690,44 @@ function rapportGlobalPDF(rows, f) {
 // ======================================================================
 // Démarrage
 // ======================================================================
+
+// ---------- mise à jour automatique ----------
+// À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
+// se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
+const VERSION_APP = "20261122-101355";
+let majEnAttente = null;
+function majPossible() {
+  if ($(".voile")) return false;                                   // une fenêtre est ouverte
+  if (typeof PL !== "undefined" && PL.edition && nbChangementsPl()) return false; // planning en cours de modification
+  const a = document.activeElement;
+  if (a && a.matches && a.matches("input, textarea, select")) return false;       // saisie en cours
+  return true;
+}
+function appliquerMaj() {
+  if (!majEnAttente) return;
+  if (!majPossible()) return setTimeout(appliquerMaj, 5000);
+  // anti-boucle : si la page rechargée est encore l'ancienne (publication pas encore propagée), on attend 5 min
+  try {
+    const t = JSON.parse(sessionStorage.getItem("capanna_maj") || "{}");
+    if (t.v === majEnAttente && Date.now() - t.quand < 300000) return;
+    sessionStorage.setItem("capanna_maj", JSON.stringify({ v: majEnAttente, quand: Date.now() }));
+  } catch {}
+  location.replace(`v2.html?v=${encodeURIComponent(majEnAttente)}${location.hash}`);
+}
+async function verifierMaj() {
+  if (VERSION_APP.startsWith("__")) return;
+  try {
+    const r = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) return;
+    const v = (await r.json()).version;
+    if (v && v !== VERSION_APP) { majEnAttente = v; appliquerMaj(); }
+  } catch {}
+}
+setTimeout(verifierMaj, 2000);
+setInterval(() => { if (document.visibilityState === "visible") verifierMaj(); }, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") verifierMaj(); });
+window.addEventListener("pageshow", (e) => { if (e.persisted) verifierMaj(); });
+
 function route() {
   const h = location.hash;
   if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; return demarrerGerant(); }
