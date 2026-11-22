@@ -622,10 +622,10 @@ function cartePush(etat, pour) {
   const t = {
     actif: `<div class="push-ok">${svgN("ok")}<span>Notifications activées sur cet appareil.</span></div>`,
     a_activer: `<div class="push-carte"><div class="push-ic">${svgN("cloche")}</div><div class="flex"><b>Recevoir les notifications sur ce téléphone</b>
-        <div class="petit">${pour === "gerant" ? "Sois prévenu dès qu'un employé envoie une demande." : "Changements de ton planning et réponses à tes demandes, même quand l'appli est fermée."}</div>
+        <div class="petit">${pour === "gerant" ? "Sois prévenu tout de suite de chaque pointage à valider et de chaque demande des employés." : "Changements de ton planning et réponses à tes demandes, même quand l'appli est fermée."}</div>
         <button class="b-principal" data-push="1" style="margin-top:10px;padding:10px 16px">Activer</button><div data-push-msg></div></div></div>`,
     installer: `<div class="push-carte"><div class="push-ic">${svgN("cloche")}</div><div class="flex"><b>Notifications sur iPhone</b>
-        <div class="petit">Touche le bouton Partager de Safari, puis « Sur l'écran d'accueil ». Ouvre ensuite Capanna depuis cette icône pour activer les notifications.</div></div></div>`,
+        <div class="petit">Touche le bouton Partager de Safari, puis « Sur l'écran d'accueil ». Ouvre ensuite l'appli depuis cette icône pour activer les notifications.</div></div></div>`,
     refuse: `<div class="push-carte"><div class="push-ic">${svgN("info")}</div><div class="flex"><b>Notifications bloquées</b>
         <div class="petit">Autorise-les dans les réglages du téléphone (Notifications). Elles restent toujours visibles ici.</div></div></div>`,
     indisponible: `<p class="petit" style="margin:2px 0 0">Ce navigateur ne permet pas les notifications sur l'écran ; elles restent visibles ici.</p>`,
@@ -1359,6 +1359,7 @@ async function vueTableau(v) {
   $("#t-csv").onclick = () => exporterCSV(rows, `capanna-pointages-${f.debut}-${f.fin}.csv`);
   $("#t-pdf").onclick = () => rapportGlobalPDF(rows, f);
   bandeauAttente(v, await attente);
+  proposerPushGerant(v);
 }
 // signaux qui doivent attirer l'œil du responsable avant de valider
 function alertesAttente(x, liste) {
@@ -1368,6 +1369,15 @@ function alertesAttente(x, liste) {
   const autre = liste.find((y) => y.id !== x.id && y.employe_id === x.employe_id && y.type !== x.type && Math.abs(new Date(y.horodatage) - new Date(x.horodatage)) < 10 * 60e3);
   if (autre) a.push(`Arrivée et départ à ${Math.max(1, Math.round(Math.abs(new Date(autre.horodatage) - new Date(x.horodatage)) / 60e3))} min d'intervalle`);
   return a.length ? `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${a.map((t) => `<span class="puce refusee">${esc(t)}</span>`).join("")}</div>` : "";
+}
+// tant que les notifications ne sont pas actives sur ce téléphone, on le propose en haut du tableau de bord
+async function proposerPushGerant(v) {
+  const etat = await etatPush();
+  if (etat === "actif" || etat === "indisponible" || !v.isConnected) return;
+  let cle = null; try { cle = (await ga({ action: "admin_notifications", limite: 1 })).vapid; } catch {}
+  if (!v.isConnected || $("[data-push-zone]", v)) return;
+  v.insertAdjacentHTML("afterbegin", `<div class="carte" data-push-zone></div>`);
+  brancherPush(v, "gerant", cle, (abonnement) => ga({ action: "admin_push_abonner", abonnement }));
 }
 function bandeauAttente(v, d) {
   if (!d?.groupes?.length) return;
@@ -2161,7 +2171,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-233403";
+const VERSION_APP = "20261122-234630";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
