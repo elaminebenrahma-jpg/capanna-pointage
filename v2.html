@@ -822,6 +822,7 @@ function vuePointage(m) {
       <div id="p-msg"></div>
       <div id="p-resultat"></div>
       <ul class="journal-jour" id="p-journal"></ul>
+      <div id="p-code"></div>
     </div>
     <div class="carte" id="p-mois"></div>`;
   afficherJournal(m.aujourdhui, m.en_attente);
@@ -837,6 +838,58 @@ function afficherJournal(liste, attente) {
   $("#p-arr").disabled = dernier?.type === "arrivee";
   $("#p-dep").disabled = dernier?.type !== "arrivee";
   lancerCompte(dernier?.type === "arrivee" ? dernier : null);
+  zoneCode(dernier);
+}
+// ---------- code de présence entre collègues (sans matériel) ----------
+function zoneCode(dernier) {
+  const z = $("#p-code"); if (!z) return;
+  if ((E.attente || []).length) {
+    z.innerHTML = `<div class="compte" style="margin-top:14px"><div class="lib">Pointage en attente</div>
+      <p class="petit" style="margin:6px 0 10px">Un collègue est au restaurant ? Demande-lui son <b>code de présence</b> (dans son appli : « Donner mon code ») et saisis-le ici : ton pointage sera validé tout de suite, à son heure.</p>
+      <div class="ligne"><input id="pc-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" class="flex" style="font-family:var(--mono);font-size:22px;letter-spacing:.2em;text-align:center">
+      <button class="b-principal" id="pc-ok">Valider</button></div><div id="pc-msg"></div></div>`;
+    $("#pc-ok").onclick = async () => {
+      const code = $("#pc-code").value.replace(/\D/g, "");
+      if (code.length !== 6) return msg($("#pc-msg"), "Le code fait 6 chiffres.");
+      $("#pc-ok").disabled = true;
+      try {
+        const r = await api({ action: "pointage_code", token: E.token, code });
+        $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${r.type === "arrivee" ? "Arrivée validée" : "Départ validé"} à ${esc(r.heure)}</div>
+          <div class="petit">Présence confirmée par ${esc(r.par)}.</div></div></div>`;
+        afficherJournal(r.aujourdhui, r.en_attente_liste);
+      } catch (e) { $("#pc-ok").disabled = false; msg($("#pc-msg"), e.message); }
+    };
+  } else if (dernier?.type === "arrivee" && dernier.ok) {
+    z.innerHTML = `<div class="pile" style="margin-top:14px"><button class="b-sec b-plein" id="pc-donner">Donner mon code de présence à un collègue</button></div>`;
+    $("#pc-donner").onclick = donnerCode;
+  } else z.innerHTML = "";
+}
+function donnerCode() {
+  let fini = false, minuteur = null;
+  const f = feuille(`<div class="entete"><h2>Mon code de présence</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">À donner uniquement à un collègue <b>qui est avec toi au restaurant</b> et dont le pointage est en attente. Ton nom est enregistré avec chaque code utilisé.</p>
+    <div id="dc-zone" class="compte" style="text-align:center"><div class="lib">Préparation…</div></div>`, () => { fini = true; clearInterval(minuteur); });
+  const zone = $("#dc-zone", f.el);
+  const charger = async () => {
+    clearInterval(minuteur);
+    try {
+      let gps = null;
+      if (!E.etat.wifi) { zone.innerHTML = `<div class="lib">Vérification de ta position…</div>`; gps = await position(); }
+      if (fini) return;
+      const r = await api({ action: "code_presence", token: E.token, gps });
+      if (fini) return;
+      const fin = Date.now() + 30e3;
+      const tic = () => {
+        const reste = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+        zone.innerHTML = `<div class="lib">Code valable une seule fois</div>
+          <div class="chrono" style="font-size:52px;letter-spacing:.12em">${r.code.slice(0, 3)} ${r.code.slice(3)}</div>
+          <div class="petit">Nouveau code dans ${reste} s</div><div class="barre"><i style="width:${(reste / 30 * 100).toFixed(0)}%"></i></div>`;
+        if (!reste) charger();
+      };
+      tic(); minuteur = setInterval(tic, 1000);
+    } catch (e) { zone.innerHTML = `<div class="msg mal">${esc(e.message)}</div>`; }
+  };
+  charger();
 }
 // ---------- compte à rebours : temps restant avant la fin du service en cours ----------
 const secServiceDe = (d) => { // secondes depuis minuit de la journée de service (avant 05h00 = nuit suivante)
@@ -920,13 +973,15 @@ function position(suivi = () => {}, cible = 10, maxMs = 20000) {
   return new Promise((ok) => {
     position.erreur = null;
     if (!navigator.geolocation) { position.erreur = "indisponible"; return ok(null); }
-    let meilleure = null, fini = false, id = null;
-    const fin = () => { if (fini) return; fini = true; if (id !== null) navigator.geolocation.clearWatch(id); ok(meilleure); };
+    // plusieurs mesures sur quelques secondes : un vrai GPS varie légèrement, une fausse position non
+    let meilleure = null, fini = false, id = null; const ech = [], t0 = Date.now();
+    const fin = () => { if (fini) return; fini = true; if (id !== null) navigator.geolocation.clearWatch(id); if (meilleure) meilleure.echantillons = ech.slice(-12); ok(meilleure); };
     setTimeout(() => { if (!meilleure && !position.erreur) position.erreur = "delai"; fin(); }, maxMs);
     id = navigator.geolocation.watchPosition((p) => {
       const m = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy };
+      ech.push({ lat: m.lat, lng: m.lng, acc: m.precision, t: p.timestamp });
       if (!meilleure || m.precision < meilleure.precision) meilleure = m;
-      if (meilleure.precision <= cible) return fin();
+      if (meilleure.precision <= cible && ech.length >= 3 && Date.now() - t0 >= 2500) return fin();
       suivi(Math.round(meilleure.precision));
     }, (e) => { if (!meilleure) position.erreur = e?.code === 1 ? "refusee" : e?.code === 3 ? "delai" : "indisponible"; fin(); }, { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs });
   });
@@ -1305,13 +1360,22 @@ async function vueTableau(v) {
   $("#t-pdf").onclick = () => rapportGlobalPDF(rows, f);
   bandeauAttente(v, await attente);
 }
+// signaux qui doivent attirer l'œil du responsable avant de valider
+function alertesAttente(x, liste) {
+  const a = [];
+  if (/suspecte/.test(x.raison || "")) a.push("Position suspecte");
+  if (/hors planning/.test(x.raison || "")) a.push("Hors planning");
+  const autre = liste.find((y) => y.id !== x.id && y.employe_id === x.employe_id && y.type !== x.type && Math.abs(new Date(y.horodatage) - new Date(x.horodatage)) < 10 * 60e3);
+  if (autre) a.push(`Arrivée et départ à ${Math.max(1, Math.round(Math.abs(new Date(autre.horodatage) - new Date(x.horodatage)) / 60e3))} min d'intervalle`);
+  return a.length ? `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${a.map((t) => `<span class="puce refusee">${esc(t)}</span>`).join("")}</div>` : "";
+}
 function bandeauAttente(v, d) {
   if (!d?.groupes?.length) return;
   const RAISON = (r) => !r ? "" : r.replace(/^pas de position/, "localisation indisponible");
   v.insertAdjacentHTML("afterbegin", `<div class="carte bandeau-attente"><h3>À valider (${d.liste.length})</h3>
     <p class="sous">Pointages enregistrés à leur heure mais sans preuve de présence (Wi-Fi inconnu, GPS imprécis ou indisponible).</p>
     <ul class="liste">${d.liste.map((x) => `<li><div class="flex"><div class="t">${esc(x.nom || "?")} · ${x.type === "arrivee" ? "Arrivée" : "Départ"} ${heure(x.horodatage)}</div>
-      <div class="petit">${esc(dateCourte(x.horodatage.slice(0, 10)))} · ${esc(RAISON(x.raison))}</div></div>
+      <div class="petit">${esc(dateCourte(x.horodatage.slice(0, 10)))} · ${esc(RAISON(x.raison))}</div>${alertesAttente(x, d.liste)}</div>
       <button class="b-lien" data-valider="${x.id}">Valider</button><button class="b-lien" style="color:var(--rouge)" data-refus1="${x.id}">Refuser</button></li>`).join("")}</ul></div>`);
   $$("[data-valider]", v).forEach((b) => b.onclick = () => demanderMotif("Valider ce pointage", "Validation exceptionnelle : le pointage sera compté à son heure d'origine.", async (m) => { await ga({ action: "admin_valider_pointage", id: +b.dataset.valider, motif: m }); allerA("tableau"); }));
   $$("[data-refus1]", v).forEach((b) => b.onclick = () => demanderMotif("Refuser ce pointage", "Il restera visible dans l'historique, marqué refusé.", async (m) => { await ga({ action: "admin_refuser_attente", id: +b.dataset.refus1, motif: m }); allerA("tableau"); }));
@@ -1581,9 +1645,9 @@ async function vuePointages(v, arg) {
     <div class="carte"><h3>Détail des pointages</h3><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
     ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
       <td>${esc(e.nom || "?")}</td><td>${p.type === "arrivee" ? "Arrivée" : "Départ"}</td><td>${esc(p.heure)}</td>
-      <td>${p.accepte ? ({ manuel: "Manuel", gps: "Position GPS" }[p.source] || (p.verif === "valide_gerant" ? "Validé par le gérant" : p.verif === "valide_reseau" ? "Réseau reconnu" : "Wi-Fi"))
+      <td>${p.accepte ? ({ manuel: "Manuel", gps: "Position GPS", collegue: "Code d'un collègue" }[p.source] || (p.verif === "valide_gerant" ? "Validé par le gérant" : p.verif === "valide_reseau" ? "Réseau reconnu" : "Wi-Fi"))
         : p.verif === "a_verifier" ? `<span class="puce attente">À vérifier</span>` : p.verif === "doublon" ? `<span class="petit">Tentative répétée</span>` : `<span class="puce refusee">Refusé</span>`}</td>
-      <td class="petit" style="white-space:normal;max-width:260px">${esc(p.annule ? "Annulé" : p.motif || "")}${p.remplace_id ? " (correction)" : ""}</td>
+      <td class="petit" style="white-space:normal;max-width:260px">${esc(p.annule ? "Annulé" : p.motif || (p.source === "collegue" || p.verif === "valide_gerant" ? p.verif_detail || "" : ""))}${p.remplace_id ? " (correction)" : ""}</td>
       <td>${p.accepte && !p.annule ? `<button class="b-lien" data-cor="${p.id}">Corriger</button><button class="b-lien" style="color:var(--rouge)" data-ann="${p.id}">Annuler</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="7" class="vide">Aucun pointage ce jour-là.</td></tr>`}
     </tbody></table></div><p class="petit">Rien n'est jamais effacé : une correction annule l'ancien pointage et en crée un nouveau, avec le motif inscrit au journal.</p></div>`;
   $$("[data-fiche]", v).forEach((tr) => tr.onclick = () => allerA("fiche", +tr.dataset.fiche));
@@ -2097,7 +2161,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-232206";
+const VERSION_APP = "20261122-233403";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
