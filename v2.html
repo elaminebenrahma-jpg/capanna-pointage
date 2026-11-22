@@ -934,10 +934,10 @@ function manifesteGerant(oui) {
   const l = document.querySelector('link[rel="manifest"]');
   if (l) l.href = oui ? "manifest-gerant.webmanifest" : "manifest.webmanifest";
   const t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (t) t.content = oui ? "Capanna Gérant" : "KeyNet";
-  // icône de l'écran d'accueil : cadenas KeyNet pour les employés, olivier pour l'espace gérant
+  if (t) t.content = oui ? "KeyNet Gérant" : "KeyNet";
+  // icône de l'écran d'accueil : cadenas KeyNet pour tout le monde
   const i = document.querySelector('link[rel="apple-touch-icon"]');
-  if (i) i.href = oui ? "icon.png" : "keynet-icon.png";
+  if (i) i.href = "keynet-icon.png";
 }
 function oublierGerant() { store.sset("capanna_code_v2", null); store.del("capanna_code_garde"); store.del("capanna_mode"); G.code = null; }
 async function demarrerGerant() {
@@ -1813,7 +1813,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-180002";
+const VERSION_APP = "20261122-180122";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
