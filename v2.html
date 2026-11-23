@@ -848,7 +848,7 @@ function detailsGeo() {
 function ecranConsentementGeo(opts = {}) {
   if ($("#cg-titre")) return;
   const choix = opts.apercu ? null : GEOM.info?.consentement;
-  const f = feuille(`<div class="entete"><h2 id="cg-titre">Autorisation de géolocalisation pendant le service</h2>${choix || opts.apercu ? `<button class="b-sec" data-fermer>Fermer</button>` : ""}</div>
+  const f = feuille(`<div class="entete"><h2 id="cg-titre">Autorisation de géolocalisation pendant le service</h2><button class="b-sec" data-fermer>${choix || opts.apercu ? "Fermer" : "Plus tard"}</button></div>
     ${opts.apercu ? `<div class="msg info" style="margin-bottom:10px"><b>Aperçu (simulation)</b> — l'écran tel que l'employé le verra. Aucun choix n'est enregistré.</div>` : ""}
     <blockquote style="margin:0;padding:12px 14px;border-left:3px solid var(--vert);background:var(--carte);border-radius:10px;line-height:1.55">${esc(TEXTE_GEO).replace(/\n/g, "<br><br>")}</blockquote>
     ${!opts.apercu && GEOM.info && !GEOM.info.actif ? `<p class="petit" style="margin-top:10px">Le suivi n'est pas encore en service : aucune position n'est prise pour l'instant. Ton choix s'appliquera quand il sera activé, et tu pourras le modifier à tout moment.</p>` : ""}
@@ -878,7 +878,7 @@ async function majGeoEmploye() {
   try { info = GEOM.info = await geoE({ action: "geo_etat" }); } catch { return; }
   // employé (nouveau ou ancien) qui n'a pas encore répondu : l'écran d'autorisation s'ouvre à l'ouverture de l'appli, jusqu'à ce qu'il choisisse
   if (!info.consentement && !GEOM.demandeFaite) { GEOM.demandeFaite = true; ecranConsentementGeo(); }
-  try { sorties = (await geoE({ action: "geo_mes_sorties" })).sorties; } catch {}
+  try { sorties = (await geoE({ action: "geo_mes_sorties" })).sorties || []; } catch {}
   const aExpliquer = sorties.filter((x) => ["aucune", "explication_demandee"].includes(x.justification_statut) && x.fin);
   if (!$("#geo-employe")) return;
   const lib = info.consentement === "autorise" ? "autorisée pendant le service" : info.consentement === "refuse" ? "refusée" : "choix à faire";
@@ -2823,7 +2823,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-104354";
+const VERSION_APP = "20261123-104556";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
