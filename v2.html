@@ -1061,8 +1061,11 @@ async function lancerCompte(arrivee) {
       return clearInterval(E.minuteur);
     }
     const h = Math.floor(reste / 3600), m = Math.floor(reste % 3600 / 60), sec = reste % 60;
+    const txt = `${deux(h)}<small>h</small>${deux(m)}<small>min</small>${deux(sec)}<small>s</small>`;
+    const chrono = el.querySelector(".compte:not(.fini) .chrono");
+    if (chrono) { chrono.innerHTML = txt; el.querySelector(".barre i").style.width = fait.toFixed(1) + "%"; return; }
     el.innerHTML = `<div class="compte"><div class="lib">Fin du service dans</div>
-      <div class="chrono" aria-live="off">${deux(h)}<small>h</small>${deux(m)}<small>min</small>${deux(sec)}<small>s</small></div>
+      <div class="chrono" aria-live="off">${txt}</div>
       <div class="petit">Service ${cr.c.debut} – ${cr.c.fin}</div><div class="barre"><i style="width:${fait.toFixed(1)}%"></i></div></div>`;
   };
   tic(); E.minuteur = setInterval(tic, 1000);
@@ -2282,6 +2285,7 @@ const dureeS = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floo
   return h ? `${h} h ${String(m).padStart(2, "0")}` : m ? `${m} min ${String(x).padStart(2, "0")}` : `${x} s`; };
 const initiales = (n) => String(n || "?").trim().split(/\s+/).map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 const pastilleGeo = (etat) => { const [t, c] = GEO_ETAT[etat] || GEO_ETAT.inconnu; return `<span class="g-pas ${c}"><i></i>${t}</span>`; };
+const BANDEAU_GEO = `<div class="msg info" style="margin-bottom:12px"><b>Module en préparation.</b> Le suivi démarrera avec l'application mobile KeyNet, après l'autorisation de la CNDP et l'information des employés. Rien n'est collecté tant que le module est désactivé (Paramètres GPS).</div>`;
 async function bandeauGeoInactif(v) {
   try {
     const p = (await gg({ action: "geo_admin_parametres" })).parametres;
@@ -2292,11 +2296,13 @@ async function bandeauGeoInactif(v) {
 
 async function vueGeoDirect(v) {
   clearInterval(G.geoMinuteur);
+  if (G.geoActif === undefined) { try { G.geoActif = (await gg({ action: "geo_admin_parametres" })).parametres.geo_actif === "1"; } catch {} }
+  let precedent = "";
   const dessiner = async () => {
     const d = await gg({ action: "geo_admin_direct" });
     if (!v.isConnected) return clearInterval(G.geoMinuteur);
     const k = d.kpi, recu = Date.now();
-    v.innerHTML = `<div class="kpis g-kpis">
+    const html = `${G.geoActif === false ? BANDEAU_GEO : ""}<div class="kpis g-kpis">
         <div class="kpi"><b>${k.pointes}</b><span>employés pointés</span></div>
         <div class="kpi"><b class="t-vert">${k.dans}</b><span>dans la zone</span></div>
         <div class="kpi"><b class="t-rouge">${k.hors}</b><span>hors zone</span></div>
@@ -2317,7 +2323,18 @@ async function vueGeoDirect(v) {
           <button class="b-lien" data-geo-fiche="${l.employe_id}" style="font-size:13px;padding:4px 0 0">Historique</button></div></li>`).join("")
         || `<li class="vide">Aucun employé pointé aujourd'hui.</li>`}</ul></div>
       ${d.alertes.length ? `<div class="carte"><h3>Alertes actives</h3>${listeAlertes(d.alertes)}</div>` : ""}`;
-    await bandeauGeoInactif(v);
+    // rien n'a changé (hors heure d'actualisation) : on ne touche pas à l'écran
+    const sansHeure = html.replace(/Actualisé à [0-9:]+/, "").replace(/<span data-hors="\d+">[^<]*<\/span>/g, "");
+    if (sansHeure === precedent) {
+      const m = $("#gd-maj", v); if (m) m.textContent = `Actualisé à ${heure(new Date().toISOString())}`;
+      const hs = d.lignes.filter((l) => l.etat === "hors" && l.sortie_debut).map((l) => l.hors_s);
+      $$("[data-hors]", v).forEach((x, i) => { if (hs[i] !== undefined) x.dataset.hors = hs[i]; });
+    }
+    else {
+      const y = window.scrollY; precedent = sansHeure;
+      v.innerHTML = html;
+      window.scrollTo(0, y);                       // l'écran reste exactement où il était
+    }
     brancherAlertes(v, () => dessiner());
     $$("[data-geo-fiche]", v).forEach((b) => b.onclick = () => { G.geoFiltre = { employe: b.dataset.geoFiche, periode: "mois" }; allerA("geo_historique"); });
     // les durées hors zone avancent seconde par seconde entre deux actualisations
@@ -2596,7 +2613,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-091854";
+const VERSION_APP = "20261123-092534";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
@@ -2605,9 +2622,12 @@ function majPossible() {
   if (a && a.matches && a.matches("input, textarea, select")) return false;       // saisie en cours
   return true;
 }
-function appliquerMaj() {
+const CHARGE_A = Date.now();
+function appliquerMaj(force) {
   if (!majEnAttente) return;
-  if (!majPossible()) return setTimeout(appliquerMaj, 5000);
+  // Pas de rechargement visible : juste à l'ouverture (avant toute action), sinon quand l'appli passe en arrière-plan.
+  if (!force && document.visibilityState === "visible" && Date.now() - CHARGE_A > 6000) return;
+  if (!majPossible()) return setTimeout(() => appliquerMaj(force), 5000);
   // anti-boucle : si la page rechargée est encore l'ancienne (publication pas encore propagée), on attend 5 min
   try {
     const t = JSON.parse(sessionStorage.getItem("capanna_maj") || "{}");
@@ -2627,7 +2647,10 @@ async function verifierMaj() {
 }
 setTimeout(verifierMaj, 2000);
 setInterval(() => { if (document.visibilityState === "visible") verifierMaj(); }, 120000);
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") verifierMaj(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && majEnAttente) appliquerMaj(true);   // l'appli est en arrière-plan : on peut recharger sans gêner
+  else if (document.visibilityState === "visible") verifierMaj();
+});
 window.addEventListener("pageshow", (e) => { if (e.persisted) verifierMaj(); });
 
 function route() {
