@@ -1452,7 +1452,7 @@ async function vueFiche(v, id) {
     <div class="carte"><div class="ligne">${smiley(nm.smiley, { taille: 56, titre: "Discipline du mois" })}<div class="flex"><h2>${esc(e.nom)}</h2><p class="sous">${esc(e.service)} · ${e.telephone ? "téléphone activé" : "téléphone non activé (code " + esc(e.pin) + ")"} ${e.actif ? ` · ${textePresence(e)}` : ""}</p></div></div>
       ${!e.actif && e.date_sortie ? `<div class="msg info">A quitté l'équipe le ${esc(dateFr(e.date_sortie))}${e.sortie_motif ? ` · ${esc(e.sortie_motif)}` : ""}. Son historique est conservé.</div>` : ""}
       <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="f-rapport">Rapport du mois (PDF)</button><button class="b-sec flex" id="f-csv">Historique (Excel)</button>
-      <button class="b-sec flex" id="f-horaires">Horaires</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
+      <button class="b-sec flex" id="f-horaires">Planning fixe</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
       ${e.actif ? `<div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button><button class="b-lien" id="f-depart" style="color:var(--rouge);margin-left:auto">Ne travaille plus ici</button></div>` : ""}<div id="f-msg"></div></div>
     ${absAuj.length ? `<div class="msg mal">Aucun pointage aujourd'hui : attendu(e) à ${hcourt(absAuj[0].prevu_debut)}, ${duree(sansPointage(absAuj[0]))} sans pointage. Si c'est une absence prévue ou justifiée, saisis-la avec « Saisir une absence ».</div>` : ""}
     <div class="kpis">
@@ -1475,7 +1475,7 @@ async function vueFiche(v, id) {
     </tbody></table></div></div>
     <div class="carte"><h3>Demandes</h3><ul class="liste">${(dm.demandes || []).slice(0, 10).map((d) => `<li class="cliquable" data-dem="${d.id}"><div class="flex"><div class="t">${esc(LIB_TYPE[d.type])}</div><div class="petit">${esc(periodeDemande(d))}</div></div><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span></li>`).join("") || `<li class="vide">Aucune demande.</li>`}</ul></div>`;
   $("#f-retour").onclick = () => allerA("equipe");
-  $("#f-horaires").onclick = () => allerA("horaires", id);
+  $("#f-horaires").onclick = () => editerPlanningFixe(id);
   $("#f-pointages").onclick = () => allerA("pointages", { employe: id });
   $("#f-absence").onclick = () => saisirAbsence(id, () => allerA("fiche", id));
   $("#f-csv").onclick = () => exporterCSV(histo, `capanna-${e.nom.replace(/\W+/g, "-")}.csv`);
@@ -1823,7 +1823,7 @@ function dessinerPlanning(v = $("#vue-g")) {
       <div class="pl-actions">
         <select id="pl-poste" aria-label="Filtrer par poste"><option value="">Tous les postes</option>${postesConnus().map((p) => `<option ${p === PL.poste ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
         ${ed ? `<button class="b-sec" id="pl-annuler">Annuler</button><button class="b-principal" id="pl-enreg" ${n ? "" : "disabled"}>Enregistrer les modifications${n ? ` (${n})` : ""}</button>`
-             : `<button class="b-sec pl-ic" id="pl-imprimer" title="Imprimer le planning de la semaine">${svgPl("impr")}<span>Imprimer</span></button><button class="b-principal pl-ic" id="pl-modifier">${svgPl("crayon")}<span>Modifier le planning</span></button>`}
+             : `<button class="b-sec pl-ic" id="pl-imprimer" title="Imprimer le planning de la semaine">${svgPl("impr")}<span>Imprimer</span></button><button class="b-sec pl-ic" id="pl-fixe">${svgPl("crayon")}<span>Planning fixe</span></button><button class="b-principal pl-ic" id="pl-modifier">${svgPl("crayon")}<span>Modifier le planning</span></button>`}
       </div>
     </div>
     ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer un jour, ou le nom d'un employé (« Toute la semaine ») pour changer toute sa semaine. Rien n'est enregistré avant « Enregistrer les modifications ». Corriger un jour passé ne change que ce jour-là et recalcule ses retards et absences.</div>` : ""}
@@ -1847,6 +1847,7 @@ function dessinerPlanning(v = $("#vue-g")) {
   if (!ed) {
     $("#pl-modifier", v).onclick = () => { PL.edition = true; PL.br = { cases: {}, postes: {}, nouveaux: [], n: 0 }; dessinerPlanning(v); };
     $("#pl-imprimer", v).onclick = imprimerPlanning;
+    $("#pl-fixe", v).onclick = () => choisirEmployeFixe();
     return;
   }
   $("#pl-annuler", v).onclick = () => {
@@ -1889,12 +1890,14 @@ function editerSemaine(eId) {
   const js = PL.d.jour_service, jours = PL.d.jours, pauses = [0, 15, 20, 30, 45, 60, 90, 120];
   const sem = Object.fromEntries(jours.map((j) => [j, creneauxCase(e.id, j).map((c) => ({ ...c }))]));
   const f = feuille(`<div class="entete"><h2>Semaine de ${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
-    <p class="sous">${esc(titreSemaine(PL.d.lundi, PL.d.dimanche))} · ${esc(e.service)}. Modifie tous les jours d'un coup ; rien n'est enregistré avant « Enregistrer les modifications ».</p>
+    <div class="segments" style="margin:4px 0 10px"><button class="actif">Cette semaine seulement</button><button id="cs-fixe">Planning fixe (chaque semaine)</button></div>
+    <p class="sous">${esc(titreSemaine(PL.d.lundi, PL.d.dimanche))} · ${esc(e.service)}. Changement ponctuel pour cette semaine ; rien n'est enregistré avant « Enregistrer les modifications ».</p>
     <div id="cs-jours"></div>
     <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00). Corriger un jour passé ne change que ce jour-là.</p>
     <div id="cs-msg"></div>
     <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="cs-ok">Valider la semaine</button></div>`);
   const el = f.el, zone = $("#cs-jours", el);
+  $("#cs-fixe", el).onclick = () => { f.fermer(); editerPlanningFixe(e.id, () => allerA("planning", { lundi: PL.lundi })); };
   const lireJour = (j) => $$(`.cs-jour[data-j="${j}"] .ce-ligne`, zone).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
   const tout = () => { for (const j of jours) sem[j] = lireJour(j); };
   const rendre = () => {
@@ -1931,6 +1934,73 @@ function editerSemaine(eId) {
       if (typeof e.id === "number" && JSON.stringify(res[j]) === JSON.stringify(creneauxServeur(e.id, j))) delete PL.br.cases[k]; else PL.br.cases[k] = res[j];
     }
     f.fermer(); dessinerPlanning();
+  };
+}
+function choisirEmployeFixe() {
+  const l = PL.d.employes.filter((x) => x.actif).sort((a, b) => a.service.localeCompare(b.service) || a.nom.localeCompare(b.nom));
+  const f = feuille(`<div class="entete"><h2>Planning fixe</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">Les horaires qui se répètent chaque semaine. Choisis l'employé :</p>
+    <ul class="liste">${l.map((x) => `<li class="cliquable" data-pf="${x.id}"><div class="flex"><div class="t">${esc(x.nom)}</div><div class="petit">${esc(x.service)}</div></div><span class="petit">›</span></li>`).join("")}</ul>`);
+  $$("[data-pf]", f.el).forEach((li) => li.onclick = () => { f.fermer(); editerPlanningFixe(+li.dataset.pf, () => allerA("planning", { lundi: PL.lundi })); });
+}
+// Planning fixe = horaires qui se répètent chaque semaine. Les changements valent à partir du prochain jour
+// concerné ; les jours passés gardent leurs horaires (archivés), tout est journalisé avec le motif.
+async function editerPlanningFixe(eId, apres) {
+  const e = employeDe(eId) || PL.d?.employes.find((x) => String(x.id) === String(eId));
+  if (!e) return;
+  const js = G.js, pauses = [0, 15, 20, 30, 45, 60, 90, 120];
+  const f = feuille(`<div class="entete"><h2>Planning fixe de ${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="sous">${esc(e.service)} · Ces horaires se répètent <b>chaque semaine</b>. Un changement s'applique dès le prochain jour concerné, puis toutes les semaines ; les jours passés ne changent pas. Pour un changement ponctuel, utilise le planning de la semaine.</p>
+    <div id="pf-jours"><div class="vide">Chargement…</div></div>
+    <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00).</p>
+    <label>Motif (obligatoire)</label><textarea id="pf-motif" placeholder="Ex. : nouveaux horaires à partir de décembre"></textarea>
+    <div id="pf-msg"></div>
+    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="pf-ok" disabled>Enregistrer le planning fixe</button></div>`);
+  const el = f.el, zone = $("#pf-jours", el);
+  let cr;
+  try { cr = (await ga({ action: "admin_creneaux", employe_id: e.id })).creneaux; } catch (x) { return msg($("#pf-msg", el), x.message); }
+  const hm = (t) => String(t).slice(0, 5);
+  const origine = {}, sem = {};
+  for (let d = 1; d <= 7; d++) { origine[d] = cr.filter((c) => c.jour === d).sort((a, b) => a.ordre - b.ordre).map((c) => ({ debut: hm(c.debut), fin: hm(c.fin), pause_min: c.pause_min || 0 })); sem[d] = origine[d].map((c) => ({ ...c })); }
+  const prochain = (d) => plusJours(js, (d - dow(js) + 7) % 7);
+  const lireJour = (d) => $$(`.cs-jour[data-d="${d}"] .ce-ligne`, zone).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
+  const tout = () => { for (let d = 1; d <= 7; d++) sem[d] = lireJour(d); };
+  const rendre = () => {
+    zone.innerHTML = [1, 2, 3, 4, 5, 6, 7].map((d) => { const crs = sem[d];
+      return `<div class="cs-jour" data-d="${d}"><div class="cs-tete"><b>${JOURS[d].replace(/^./, (c) => c.toUpperCase())}</b>
+          <span><button class="b-lien" data-pf-ajout="${d}" ${crs.length >= 4 ? "disabled" : ""}>+ service</button><button class="b-lien" data-pf-repos="${d}">Repos</button>${d < 7 ? `<button class="b-lien" data-pf-copier="${d}">Copier sur les jours suivants</button>` : ""}</span></div>
+        ${crs.length ? crs.map((c, i) => `<div class="ce-ligne">
+          <div><label>Début</label><input type="time" data-k="debut" value="${c.debut}"></div>
+          <div><label>Fin</label><input type="time" data-k="fin" value="${c.fin}"></div>
+          <div><label>Pause</label><select data-k="pause">${pauses.concat(pauses.includes(c.pause_min) ? [] : [c.pause_min]).map((p) => `<option value="${p}" ${p === c.pause_min ? "selected" : ""}>${p ? p + " min" : "Aucune"}</option>`).join("")}</select></div>
+          <button class="ce-x" data-pf-suppr="${d}|${i}" aria-label="Retirer ce service">×</button></div>`).join("") : `<div class="pl-repos">Repos</div>`}</div>`; }).join("");
+    $$("[data-pf-ajout]", zone).forEach((b) => b.onclick = () => { tout(); const l = sem[b.dataset.pfAjout], der = l[l.length - 1];
+      l.push(der ? { debut: der.fin, fin: der.fin, pause_min: 0 } : { debut: "10:00", fin: "15:00", pause_min: 0 }); rendre(); });
+    $$("[data-pf-repos]", zone).forEach((b) => b.onclick = () => { tout(); sem[b.dataset.pfRepos] = []; rendre(); });
+    $$("[data-pf-suppr]", zone).forEach((b) => b.onclick = () => { tout(); const [d, i] = b.dataset.pfSuppr.split("|"); sem[d].splice(+i, 1); rendre(); });
+    $$("[data-pf-copier]", zone).forEach((b) => b.onclick = () => { tout(); const src = +b.dataset.pfCopier; for (let d = src + 1; d <= 7; d++) sem[d] = sem[src].map((c) => ({ ...c }));
+      rendre(); msg($("#pf-msg", el), "Horaires copiés sur les jours suivants. Mets en repos les jours où il ne travaille pas.", "info"); });
+  };
+  rendre(); $("#pf-ok", el).disabled = false;
+  $("#pf-ok", el).onclick = async () => {
+    tout();
+    const cellules = [];
+    for (let d = 1; d <= 7; d++) {
+      const v = verifierServices(sem[d]);
+      if (v.err) return msg($("#pf-msg", el), `${JOURS[d].replace(/^./, (c) => c.toUpperCase())} : ${v.err}`);
+      if (JSON.stringify(v.tri) !== JSON.stringify(origine[d])) cellules.push({ employe: e.id, jour: prochain(d), creneaux: v.tri });
+    }
+    if (!cellules.length) return msg($("#pf-msg", el), "Aucun changement.", "info");
+    const motif = $("#pf-motif", el).value.trim();
+    if (motif.length < 3) return msg($("#pf-msg", el), "Le motif est obligatoire (3 caractères minimum).");
+    $("#pf-ok", el).disabled = true;
+    try {
+      await ga({ action: "admin_planning_enregistrer", portee: "suivantes", motif, cellules });
+      el.innerHTML = `<div class="entete"><h2>Planning fixe enregistré</h2><button class="b-sec" data-fermer>Fermer</button></div>
+        <p>${cellules.length} jour(s) modifié(s) pour ${esc(e.nom)} : ${cellules.map((c) => `${JOURS[dow(c.jour)]} (à partir du ${+c.jour.slice(8)}/${c.jour.slice(5, 7)})`).join(", ")}.</p>
+        <p class="petit">${esc(e.nom)} est prévenu(e) sur son téléphone. Les jours passés gardent leurs anciens horaires.</p>`;
+      apres && apres();
+    } catch (x) { $("#pf-ok", el).disabled = false; msg($("#pf-msg", el), x.message); }
   };
 }
 function editerCase(eId, j) {
@@ -2168,7 +2238,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-000902";
+const VERSION_APP = "20261123-001241";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
