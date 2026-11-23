@@ -731,12 +731,12 @@ function ecranEmploye() {
   const m = E.etat.moi;
   const ong = [["pointage", "Pointage"], ["planning", "Mon planning"], ["demandes", "Mes demandes"]];
   $("#corps").innerHTML = `<div class="barre-e"><div class="onglets" role="tablist">${ong.map(([k, l]) => `<button class="onglet ${E.onglet === k ? "actif" : ""}" data-o="${k}" role="tab" aria-selected="${E.onglet === k}">${l}</button>`).join("")}</div>
-      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="suivi-geo"></div><div id="vue-e"></div>`;
+      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="suivi-geo"></div><div id="geo-employe"></div><div id="vue-e"></div>`;
   $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => allerE(b.dataset.o));
   $("#e-cloche").onclick = () => allerE("notifications");
   majBadgeE(E.nonLues ?? m.non_lues);
   ({ pointage: () => vuePointage(m), planning: vueMonPlanning, demandes: vueMesDemandes, notifications: vueNotificationsE }[E.onglet] || (() => vuePointage(m)))();
-  majBandeauSuivi(); geomSynchroniser();
+  majBandeauSuivi(); geomSynchroniser(); majGeoEmploye();
 }
 
 
@@ -753,7 +753,13 @@ const geomFile = () => { try { return JSON.parse(localStorage.getItem("keynet_ge
 const geomSauver = (l) => { try { localStorage.setItem("keynet_geo_file", JSON.stringify(l.slice(-600))); } catch {} };
 const geomId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^A-Za-z0-9_-]/g, "");
 function geomAjouter(ev) { const l = geomFile(); l.push({ client_id: geomId(), heure: new Date().toISOString(), ...ev }); geomSauver(l); }
-const consentementGeo = () => { try { return localStorage.getItem("keynet_geo_info") === "lu"; } catch { return false; } };
+// choix de l'employé (enregistré sur le serveur) ; GEOM.info = réponse de « geo_etat »
+async function geoE(body) {
+  const r = await fetch(API_GEO_E, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, token: E.token }) });
+  const j = await r.json().catch(() => ({ erreur: "Réponse illisible du serveur." }));
+  if (!r.ok || j.erreur) throw new Error(j.erreur || "Erreur " + r.status);
+  return j;
+}
 // envoi de la file (positions mises de côté hors connexion comprises), sans doublon grâce aux identifiants
 async function geomEnvoyer() {
   if (!E.token || GEOM.envoiEnCours) return null;
@@ -773,10 +779,14 @@ async function geomEnvoyer() {
 }
 async function geomSynchroniser() {
   if (!NATIF || !E.token) return;
-  const j = await geomEnvoyer();
-  if (!j || !j.actif || !j.suivi) return;
-  if (!consentementGeo()) return informerSuivi();
-  geomDemarrer();
+  let info;
+  try { info = GEOM.info = await geoE({ action: "geo_etat" }); } catch { return geomEnvoyer(); }   // hors connexion : la file attend
+  // Verrou : rien ne démarre si la CNDP n'a pas confirmé, si le module est coupé ou si l'employé n'a pas autorisé
+  if (!info.actif || info.consentement === "refuse") { geomSauver([]); return geomArreter(); }
+  if (!info.consentement) { if (info.session) ecranConsentementGeo(); return; }
+  if (!info.session) return geomArreter();          // pas de service en cours : aucune position
+  await geomEnvoyer();
+  geomDemarrer();                                   // l'autorisation iOS/Android n'est demandée qu'ici, au premier service
 }
 async function geomDemarrer() {
   if (GEOM.watcher) return;
@@ -821,22 +831,81 @@ function majBandeauSuivi() {
       <span><b>Suivi de présence actif</b> pendant ton service, jusqu'à ton pointage de départ.${e.etat === "hors" ? " Tu es actuellement hors du restaurant." : ""}</span></div>`
     : e?.actif && !e?.suivi ? `<p class="petit" style="margin:6px 2px">Suivi de présence : inactif (aucun service en cours).</p>` : "";
 }
-function informerSuivi() {
-  const f = feuille(`<div class="entete"><h2>Suivi de présence</h2></div>
-    <p>Pendant ton service, l'application vérifie que tu es bien au restaurant.</p>
-    <ul class="petit" style="padding-left:18px;line-height:1.6">
+const TEXTE_GEO = `KeyNet utilise votre position uniquement pendant votre temps de travail chez CAPANNA afin de vérifier votre présence dans l'établissement.
+La géolocalisation commence après votre pointage d'arrivée et s'arrête automatiquement après votre pointage de départ.
+Aucune position n'est collectée en dehors de cette période.`;
+function detailsGeo() {
+  return `<details class="petit" style="margin-top:8px"><summary style="cursor:pointer"><b>Informations sur le traitement</b></summary>
+    <ul style="padding-left:18px;line-height:1.6;margin:6px 0">
       <li><b>Quand :</b> seulement entre ton pointage d'arrivée et ton pointage de départ. Jamais en dehors.</li>
-      <li><b>Quoi :</b> la position du téléphone (environ toutes les 20 secondes) et le fait d'être connecté au Wi-Fi du restaurant.</li>
-      <li><b>Pourquoi :</b> savoir si tu quittes l'établissement (rayon de 30 m). Ton responsable est prévenu après quelques minutes de sortie. Une sortie peut toujours être justifiée (livraison, course…) ; il n'y a jamais de sanction automatique.</li>
+      <li><b>Quoi :</b> si tu es dans le périmètre de CAPANNA (rayon de ${GEOM.info?.rayon_m || 30} m). Aucun trajet n'est enregistré, aucune carte de tes déplacements n'existe.</li>
+      <li><b>Pourquoi :</b> détecter une sortie de plus de 3 minutes pendant le service. Une sortie n'est jamais une faute automatique : tu peux toujours l'expliquer (pause, mission, course…).</li>
       <li><b>Qui voit :</b> uniquement ton responsable. Jamais les autres employés.</li>
-      <li><b>Combien de temps :</b> les positions détaillées sont effacées après la durée fixée par l'entreprise ; seules les sorties restent dans l'historique.</li>
-      <li><b>Tes droits :</b> tu peux demander à consulter ou corriger tes données auprès de ton employeur (loi 09-08).</li></ul>
-    <p class="petit">Si le GPS ne capte pas ou si ton téléphone est éteint, ce n'est jamais compté comme une sortie.</p>
-    <div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="si-ok">J'ai compris, continuer</button></div>`);
-  $("#si-ok", f.el).onclick = () => {
-    try { localStorage.setItem("keynet_geo_info", "lu"); } catch {}
-    geomAjouter({ type: "appli", detail: "information lue" });
-    f.fermer(); geomDemarrer().then(geomEnvoyer);
+      <li><b>Combien de temps :</b> les positions détaillées sont effacées après la durée fixée par l'entreprise ; seuls les horaires de sortie et de retour restent.</li>
+      <li><b>Tes droits :</b> consulter, corriger ou t'opposer, auprès de ton employeur (loi 09-08). Tu peux changer ton choix à tout moment ici.</li></ul></details>`;
+}
+// Écran d'autorisation (première utilisation, ou consultation du choix). apercu = simulation côté gérant : rien n'est enregistré.
+function ecranConsentementGeo(opts = {}) {
+  if ($("#cg-titre")) return;
+  const choix = opts.apercu ? null : GEOM.info?.consentement;
+  const f = feuille(`<div class="entete"><h2 id="cg-titre">Autorisation de géolocalisation pendant le service</h2>${choix || opts.apercu ? `<button class="b-sec" data-fermer>Fermer</button>` : ""}</div>
+    ${opts.apercu ? `<div class="msg info" style="margin-bottom:10px"><b>Aperçu (simulation)</b> — l'écran tel que l'employé le verra. Aucun choix n'est enregistré.</div>` : ""}
+    <blockquote style="margin:0;padding:12px 14px;border-left:3px solid var(--vert);background:var(--carte);border-radius:10px;line-height:1.55">${esc(TEXTE_GEO).replace(/\n/g, "<br><br>")}</blockquote>
+    ${!opts.apercu && GEOM.info && !GEOM.info.actif ? `<p class="petit" style="margin-top:10px">Le suivi n'est pas encore en service : aucune position n'est prise pour l'instant. Ton choix s'appliquera quand il sera activé, et tu pourras le modifier à tout moment.</p>` : ""}
+    ${choix ? `<p class="petit" style="margin-top:10px">Ton choix actuel : <b>${choix === "autorise" ? "géolocalisation autorisée" : "géolocalisation refusée"}</b>${GEOM.info?.consenti_le ? ` (le ${esc(dateCourte(GEOM.info.consenti_le.slice(0, 10)))})` : ""}.</p>` : ""}
+    ${detailsGeo()}
+    <p class="petit">Refuser n'est pas une faute : ta présence sera alors vérifiée autrement (Wi-Fi du restaurant, code d'un collègue ou validation de ton responsable).</p>
+    <div id="cg-msg"></div>
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-plein" data-cg="autorise">Autoriser la géolocalisation</button>
+      <button class="b-sec b-plein" data-cg="refuse">Refuser</button></div>`);
+  $$("[data-cg]", f.el).forEach((b) => b.onclick = async () => {
+    if (opts.apercu) return f.fermer();
+    $$("[data-cg]", f.el).forEach((y) => y.disabled = true);
+    try {
+      await geoE({ action: "geo_consentement", choix: b.dataset.cg });
+      GEOM.info = { ...(GEOM.info || {}), consentement: b.dataset.cg, consenti_le: new Date().toISOString() };
+      f.fermer(); majGeoEmploye();
+      if (b.dataset.cg === "autorise") geomSynchroniser(); else { geomSauver([]); geomArreter(); }
+    } catch (e) { $$("[data-cg]", f.el).forEach((y) => y.disabled = false); msg($("#cg-msg", f.el), e.message); }
+  });
+}
+function informerSuivi() { ecranConsentementGeo(); }
+const GEO_MOTIFS_E = { pause: "Pause autorisée", mission: "Mission professionnelle", achat: "Achat ou course pour l'établissement", urgence: "Urgence personnelle", autre: "Autre motif" };
+// Carte « Ma géolocalisation » + sorties à expliquer (seulement les siennes)
+async function majGeoEmploye() {
+  const z = $("#geo-employe"); if (!z || !E.token) return;
+  let info, sorties = [];
+  try { info = GEOM.info = await geoE({ action: "geo_etat" }); } catch { return; }
+  // employé (nouveau ou ancien) qui n'a pas encore répondu : l'écran d'autorisation s'ouvre à l'ouverture de l'appli, jusqu'à ce qu'il choisisse
+  if (!info.consentement && !GEOM.demandeFaite) { GEOM.demandeFaite = true; ecranConsentementGeo(); }
+  try { sorties = (await geoE({ action: "geo_mes_sorties" })).sorties; } catch {}
+  const aExpliquer = sorties.filter((x) => ["aucune", "explication_demandee"].includes(x.justification_statut) && x.fin);
+  if (!$("#geo-employe")) return;
+  const lib = info.consentement === "autorise" ? "autorisée pendant le service" : info.consentement === "refuse" ? "refusée" : "choix à faire";
+  z.innerHTML = `<div class="carte" style="padding:10px 14px;margin-bottom:10px"><div class="ligne" style="justify-content:space-between;align-items:center">
+      <span class="petit">Géolocalisation : <b>${lib}</b></span><button class="b-lien" id="ge-voir">${info.consentement ? "Voir / modifier" : "Choisir"}</button></div>
+    ${aExpliquer.length ? `<div style="margin-top:8px"><div class="petit" style="margin-bottom:4px"><b>Sortie${aExpliquer.length > 1 ? "s" : ""} à expliquer</b></div>
+      ${aExpliquer.map((x) => `<div class="ligne" style="justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--bord, rgba(255,255,255,.08))">
+        <span class="petit">${esc(dateCourte(x.debut.slice(0, 10)))} · ${heure(x.debut)} → ${heure(x.fin)} (${Math.max(1, Math.round(x.duree_s / 60))} min)${x.justification_statut === "explication_demandee" ? ` · <span class="t-orange">demandée</span>` : ""}</span>
+        <button class="b-sec" data-ge-j="${x.id}">Expliquer</button></div>`).join("")}</div>` : ""}</div>`;
+  $("#ge-voir").onclick = () => ecranConsentementGeo();
+  $$("[data-ge-j]", z).forEach((b) => b.onclick = () => justifierSortieE(sorties.find((x) => x.id === +b.dataset.geJ)));
+}
+function justifierSortieE(x, opts = {}) {
+  const f = feuille(`<div class="entete"><h2>Expliquer une sortie</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    ${opts.apercu ? `<div class="msg info" style="margin-bottom:10px"><b>Aperçu (simulation)</b> — rien n'est envoyé.</div>` : ""}
+    <p class="sous">${x ? `Sortie du ${esc(dateCourte(x.debut.slice(0, 10)))} de ${heure(x.debut)} à ${x.fin ? heure(x.fin) : "—"}` : ""}</p>
+    <p class="petit">Ce n'est pas une sanction : ton responsable examine simplement le motif.</p>
+    <div class="pile" style="gap:6px">${Object.entries(GEO_MOTIFS_E).map(([k, t]) => `<label class="pl-choix"><input type="radio" name="je-t" value="${k}"><span>${t}</span></label>`).join("")}</div>
+    <label>Précision (facultatif, obligatoire pour « Autre motif »)</label><textarea id="je-com" maxlength="500"></textarea>
+    <div id="je-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="je-ok">Envoyer</button></div>`);
+  $("#je-ok", f.el).onclick = async () => {
+    const t = $("input[name=je-t]:checked", f.el)?.value;
+    if (!t) return msg($("#je-msg", f.el), "Choisis un motif.");
+    if (opts.apercu) return f.fermer(), opts.apres && opts.apres(t, $("#je-com", f.el).value);
+    $("#je-ok", f.el).disabled = true;
+    try { await geoE({ action: "geo_justifier", id: x.id, type: t, commentaire: $("#je-com", f.el).value }); f.fermer(); majGeoEmploye(); }
+    catch (e) { $("#je-ok", f.el).disabled = false; msg($("#je-msg", f.el), e.message); }
   };
 }
 function aideLocalisation() {
@@ -1261,7 +1330,7 @@ function detailMaDemande(d) {
 // ======================================================================
 const G = { code: store.sget("capanna_code_v2") || store.get("capanna_code_garde"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
-const ONGLETS_G_GEO = [["geo_direct", "En direct"], ["geo_alertes", "Alertes"], ["geo_historique", "Historique"], ["geo_stats", "Statistiques"], ["geo_autorisations", "Autorisations"], ["geo_parametres", "Paramètres GPS"]];
+const ONGLETS_G_GEO = [["geo_direct", "En direct"], ["geo_alertes", "Alertes"], ["geo_historique", "Historique"], ["geo_stats", "Statistiques"], ["geo_autorisations", "Autorisations"], ["geo_simulation", "Simulation"], ["geo_parametres", "Paramètres"]];
 const ONGLETS_G = [...ONGLETS_G_GEO, ["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
 // Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
 // avec des sous-onglets dans la rubrique quand elle contient plusieurs vues.
@@ -1271,7 +1340,7 @@ const RUBRIQUES_G = [
   { k: "conges", lib: "Congés", court: "Congés", vues: ["demandes", "calendrier"], badge: "demandes" },
   { k: "planning", lib: "Planning", court: "Planning", vues: ["planning", "horaires"] },
   { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "journal"] },
-  { k: "geo", lib: "Géolocalisation & présences", nav: "Présences GPS", court: "Géoloc", vues: ["geo_direct", "geo_alertes", "geo_historique", "geo_stats", "geo_autorisations", "geo_parametres"], badge: "geo" },
+  { k: "geo", lib: "Présence et sorties", nav: "Présences", court: "Présences", vues: ["geo_direct", "geo_alertes", "geo_historique", "geo_stats", "geo_autorisations", "geo_simulation", "geo_parametres"], badge: "geo" },
   { k: "reglages", lib: "Réglages", court: "Réglages", vues: ["reglages"] },
 ];
 const rubriqueDe = (o) => RUBRIQUES_G.find((r) => r.vues.includes(o)) || RUBRIQUES_G[0];
@@ -1386,7 +1455,7 @@ function allerA(o, arg) {
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
   ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
-     geo_direct: vueGeoDirect, geo_alertes: vueGeoAlertes, geo_historique: vueGeoHistorique, geo_stats: vueGeoStats, geo_autorisations: vueGeoAutorisations, geo_parametres: vueGeoParametres }[o])(v, arg)
+     geo_direct: vueGeoDirect, geo_alertes: vueGeoAlertes, geo_historique: vueGeoHistorique, geo_stats: vueGeoStats, geo_autorisations: vueGeoAutorisations, geo_simulation: vueGeoSimulation, geo_parametres: vueGeoParametres }[o])(v, arg)
     .catch((e) => msg(v, e.message));
 }
 const services = () => [...new Set(G.equipe.map((x) => x.service))].sort();
@@ -2275,33 +2344,43 @@ async function gg(body) {
 }
 const GEO_ETAT = {
   dans: ["Dans la zone", "g-vert"], a_verifier: ["À vérifier", "g-orange"], hors: ["Hors zone", "g-rouge"],
-  inconnu: ["Position inconnue", "g-gris"], termine: ["Service terminé", "g-gris"],
+  inconnu: ["Position non vérifiée", "g-gris"], termine: ["Pointage terminé", "g-gris"],
 };
-const GEO_MOTIFS = { livraison: "Livraison", achat: "Achat professionnel", mission: "Mission extérieure", pause: "Pause autorisée", exceptionnelle: "Autorisation exceptionnelle", autre: "Autre motif" };
-const GEO_DECISION = { aucune: "À examiner", explication_demandee: "Explication demandée", acceptee: "Justifiée", refusee: "Non justifiée" };
-const GEO_ALERTE = { sortie: "Sortie > 3 min", sortie_prolongee: "Sortie prolongée", retour: "Retour", gps_desactive: "Localisation coupée", permission_retiree: "Autorisation retirée", injoignable: "Téléphone injoignable" };
+const GEO_MOTIFS = { pause: "Pause autorisée", mission: "Mission professionnelle", achat: "Achat ou course pour l'établissement", urgence: "Urgence personnelle", livraison: "Livraison", exceptionnelle: "Autorisation exceptionnelle", autre: "Autre motif" };
+const GEO_DECISION = { aucune: "À examiner", explication_demandee: "Justification demandée", justifiee: "Expliquée par l'employé · à décider", acceptee: "Acceptée", refusee: "Refusée" };
+// statuts du tableau de bord « Présence et sorties »
+const GEO_STATUT_AFF = { present: ["Présent dans l'établissement", "g-vert"], sortie_temporaire: ["Sortie temporaire détectée", "g-orange"], alerte: ["Alerte de sortie", "g-rouge"],
+  termine: ["Pointage terminé", "g-gris"], non_autorise: ["Géolocalisation non autorisée", "g-gris"], permission_indispo: ["Permission GPS indisponible", "g-orange"], non_verifiee: ["Position non vérifiée", "g-gris"] };
+const pastilleStatut = (l) => { const x = GEO_STATUT_AFF[l.statut_aff]; return x ? `<span class="g-pas ${x[1]}"><i></i>${x[0]}</span>` : pastilleGeo(l.etat); };
+const GEO_CNDP = { en_attente: "En attente de validation CNDP", confirmee: "Autorisation confirmée", non_autorise: "Non autorisé" };
+const GEO_ALERTE = { sortie: "Sortie du périmètre détectée", sortie_prolongee: "Sortie prolongée", retour: "Retour", gps_desactive: "Localisation coupée", permission_retiree: "Autorisation retirée", injoignable: "Téléphone injoignable" };
 const GEO_STATUT = { nouvelle: "Nouvelle", en_cours: "En cours", traitee: "Traitée", cloturee: "Clôturée" };
 const dureeS = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   return h ? `${h} h ${String(m).padStart(2, "0")}` : m ? `${m} min ${String(x).padStart(2, "0")}` : `${x} s`; };
 const initiales = (n) => String(n || "?").trim().split(/\s+/).map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 const pastilleGeo = (etat) => { const [t, c] = GEO_ETAT[etat] || GEO_ETAT.inconnu; return `<span class="g-pas ${c}"><i></i>${t}</span>`; };
-const BANDEAU_GEO = `<div class="msg info" style="margin-bottom:12px"><b>Module en préparation.</b> Le suivi démarrera avec l'application mobile KeyNet, après l'autorisation de la CNDP et l'information des employés. Rien n'est collecté tant que le module est désactivé (Paramètres GPS).</div>`;
+const bandeauGeo = (cndp) => `<div class="msg info" style="margin-bottom:12px"><b>${cndp === "confirmee" ? "Module désactivé." : `Autorisation réglementaire : ${esc(GEO_CNDP[cndp] || GEO_CNDP.en_attente)}.`}</b>
+  Aucune position réelle n'est collectée et aucun suivi n'a lieu. ${cndp === "confirmee" ? "Activation dans Paramètres." : "Seul le mode <b>Simulation</b> (données fictives) est disponible."}</div>`;
+let BANDEAU_GEO = bandeauGeo("en_attente");
 async function bandeauGeoInactif(v) {
   try {
     const p = (await gg({ action: "geo_admin_parametres" })).parametres;
-    G.geoActif = p.geo_actif === "1";
-    if (!G.geoActif) v.insertAdjacentHTML("afterbegin", `<div class="msg info" style="margin-bottom:12px"><b>Module en préparation.</b> Le suivi démarrera avec l'application mobile KeyNet, après l'autorisation de la CNDP et l'information des employés. Rien n'est collecté tant que le module est désactivé (Paramètres GPS).</div>`);
+    G.geoActif = p.geo_actif === "1" && p.geo_cndp === "confirmee"; BANDEAU_GEO = bandeauGeo(p.geo_cndp);
+    if (!G.geoActif) v.insertAdjacentHTML("afterbegin", BANDEAU_GEO);
   } catch {}
 }
 
 async function vueGeoDirect(v) {
   clearInterval(G.geoMinuteur);
-  if (G.geoActif === undefined) { try { G.geoActif = (await gg({ action: "geo_admin_parametres" })).parametres.geo_actif === "1"; } catch {} }
+  if (G.geoActif === undefined) { try { const p = (await gg({ action: "geo_admin_parametres" })).parametres; G.geoActif = p.geo_actif === "1" && p.geo_cndp === "confirmee"; BANDEAU_GEO = bandeauGeo(p.geo_cndp); } catch {} }
+  const F = G.geoDirF ||= { statut: "", service: "" };
   let precedent = "";
   const dessiner = async () => {
     const d = await gg({ action: "geo_admin_direct" });
     if (!v.isConnected) return clearInterval(G.geoMinuteur);
     const k = d.kpi, recu = Date.now();
+    const services = [...new Set(d.lignes.map((l) => l.service).filter(Boolean))].sort();
+    d.lignes = d.lignes.filter((l) => (!F.statut || l.statut_aff === F.statut) && (!F.service || l.service === F.service));
     const html = `${G.geoActif === false ? BANDEAU_GEO : ""}<div class="kpis g-kpis">
         <div class="kpi"><b>${k.pointes}</b><span>employés pointés</span></div>
         <div class="kpi"><b class="t-vert">${k.dans}</b><span>dans la zone</span></div>
@@ -2313,13 +2392,15 @@ async function vueGeoDirect(v) {
         <div class="kpi"><b class="t-orange">${k.a_verifier}</b><span>à vérifier</span></div></div>
       <div class="carte"><div class="ligne" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Aujourd'hui · ${esc(dateFr(d.jour_service))}</h3>
         <span class="petit" id="gd-maj">Actualisé à ${heure(new Date().toISOString())}</span></div>
+      <div class="ligne" style="margin:8px 0 2px"><div class="flex"><select id="gd-st" aria-label="Statut"><option value="">Tous les statuts</option>${Object.entries(GEO_STATUT_AFF).map(([c, [t]]) => `<option value="${c}" ${F.statut === c ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+        <div class="flex"><select id="gd-sv" aria-label="Service"><option value="">Tous les services</option>${services.map((x) => `<option ${F.service === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div></div>
       <ul class="liste g-liste">${d.lignes.map((l) => `<li class="g-ligne ${l.etat}">
         <span class="g-av">${esc(initiales(l.nom))}</span>
         <div class="flex"><div class="t">${esc(l.nom || "?")} <span class="petit">· ${esc(l.service || "")}</span></div>
           <div class="petit">Pointé à ${heure(l.debut)}${l.fin ? ` · parti à ${heure(l.fin)}` : ""}${l.nb_sorties ? ` · ${l.nb_sorties} sortie${l.nb_sorties > 1 ? "s" : ""}, ${dureeS(l.cumul_s)}` : ""}
           ${l.etat === "hors" && l.sortie_debut ? ` · <b>dehors depuis ${heure(l.sortie_debut)} (<span data-hors="${l.hors_s}">${dureeS(l.hors_s)}</span>)</b>` : ""}
           ${l.etat === "inconnu" && l.statut === "active" ? ` · ${!l.appli ? "appli mobile non active" : "dernière position " + heure(l.derniere_vue)}` : ""}</div></div>
-        <div style="text-align:right">${pastilleGeo(l.etat)}${l.niveau ? `<div class="petit t-rouge" style="margin-top:4px">${l.niveau >= 2 ? "Alerte prioritaire" : "Alerte"}</div>` : ""}
+        <div style="text-align:right">${pastilleStatut(l)}${l.niveau ? `<div class="petit t-rouge" style="margin-top:4px">${l.niveau >= 2 ? "Alerte prioritaire" : "Alerte"}</div>` : ""}
           <button class="b-lien" data-geo-fiche="${l.employe_id}" style="font-size:13px;padding:4px 0 0">Historique</button></div></li>`).join("")
         || `<li class="vide">Aucun employé pointé aujourd'hui.</li>`}</ul></div>
       ${d.alertes.length ? `<div class="carte"><h3>Alertes actives</h3>${listeAlertes(d.alertes)}</div>` : ""}`;
@@ -2336,6 +2417,9 @@ async function vueGeoDirect(v) {
       window.scrollTo(0, y);                       // l'écran reste exactement où il était
     }
     brancherAlertes(v, () => dessiner());
+    const sf = $("#gd-st", v), vf = $("#gd-sv", v);
+    if (sf) sf.onchange = () => { F.statut = sf.value; precedent = ""; dessiner(); };
+    if (vf) vf.onchange = () => { F.service = vf.value; precedent = ""; dessiner(); };
     $$("[data-geo-fiche]", v).forEach((b) => b.onclick = () => { G.geoFiltre = { employe: b.dataset.geoFiche, periode: "mois" }; allerA("geo_historique"); });
     // les durées hors zone avancent seconde par seconde entre deux actualisations
     clearInterval(G.geoTic);
@@ -2347,17 +2431,30 @@ async function vueGeoDirect(v) {
 }
 function listeAlertes(l) {
   return `<ul class="liste">${l.map((a) => `<li class="g-alerte ${a.priorite}"><span class="g-prio"></span>
-    <div class="flex"><div class="t">${esc(GEO_ALERTE[a.type] || a.type)} · ${esc(a.nom || "")}</div>
+    <div class="flex"><div class="t">${esc(GEO_ALERTE[a.type] || a.type)} – ${esc(a.nom || "")}</div>
       <div class="petit">${esc(dateCourte(a.cree_le.slice(0, 10)))} à ${heure(a.cree_le)} · ${esc(a.message)}</div>
       <div class="petit" style="margin-top:2px">Statut : <b>${GEO_STATUT[a.statut]}</b>${a.priorite === "haute" ? ` · <span class="t-rouge">priorité haute</span>` : ""}</div></div>
     ${["nouvelle", "en_cours"].includes(a.statut) ? `<div class="pile" style="gap:4px;text-align:right">${a.statut === "nouvelle" ? `<button class="b-lien" data-al="${a.id}|en_cours">Prendre en charge</button>` : ""}
-      ${a.sortie_id ? `<button class="b-lien" data-al-sortie="${a.sortie_id}">Qualifier la sortie</button>` : ""}
+      ${a.sortie_id ? `<button class="b-lien" data-al-sortie="${a.sortie_id}">Consulter</button><button class="b-lien" data-al-just="${a.sortie_id}">Demander une justification</button>` : `<button class="b-lien" data-al-emp="${a.employe_id}">Consulter</button>`}
       <button class="b-lien" data-al="${a.id}|traitee">Marquer traitée</button><button class="b-lien" style="color:var(--gris)" data-al="${a.id}|cloturee">Clôturer</button></div>` : ""}</li>`).join("")}</ul>`;
 }
 function brancherAlertes(v, apres) {
   $$("[data-al]", v).forEach((b) => b.onclick = async () => { const [id, statut] = b.dataset.al.split("|"); b.disabled = true;
     try { await gg({ action: "geo_admin_alerte_statut", id: +id, statut }); apres(); } catch (e) { b.disabled = false; alert(e.message); } });
   $$("[data-al-sortie]", v).forEach((b) => b.onclick = () => qualifierSortie(+b.dataset.alSortie, null, apres));
+  $$("[data-al-emp]", v).forEach((b) => b.onclick = () => { G.geoFiltre = { employe: b.dataset.alEmp, periode: "jour" }; allerA("geo_historique"); });
+  $$("[data-al-just]", v).forEach((b) => b.onclick = () => demanderJustification(+b.dataset.alJust, apres));
+}
+function demanderJustification(id, apres) {
+  const f = feuille(`<div class="entete"><h2>Demander une justification</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    <p class="petit">L'employé reçoit une notification et peut choisir un motif (pause, mission, course, urgence…). Une sortie n'est pas une faute en soi : GPS imprécis, pause ou mission sont possibles.</p>
+    <label>Message à l'employé</label><textarea id="dj-com">Peux-tu préciser le motif de ta sortie ?</textarea>
+    <div id="dj-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="dj-ok">Envoyer la demande</button></div>`);
+  $("#dj-ok", f.el).onclick = async () => {
+    $("#dj-ok", f.el).disabled = true;
+    try { await gg({ action: "geo_admin_sortie_decider", id, decision: "explication_demandee", commentaire: $("#dj-com", f.el).value }); f.fermer(); apres && apres(); }
+    catch (e) { $("#dj-ok", f.el).disabled = false; msg($("#dj-msg", f.el), e.message); }
+  };
 }
 async function vueGeoAlertes(v) {
   const f = G.geoAlFiltre || "actives";
@@ -2381,31 +2478,36 @@ async function vueGeoHistorique(v) {
   const d = await gg({ action: "geo_admin_historique", debut: f.debut, fin: f.fin, employe_id: f.employe || undefined });
   G.geoHist = d.sorties;
   const q = (f.q || "").toLowerCase();
-  const l = d.sorties.filter((x) => !q || (x.nom || "").toLowerCase().includes(q));
+  const servicesH = [...new Set(d.sorties.map((x) => x.service).filter(Boolean))].sort();
+  const l = d.sorties.filter((x) => (!q || (x.nom || "").toLowerCase().includes(q)) && (!f.service || x.service === f.service) && (!f.statut || x.justification_statut === f.statut));
   const total = l.reduce((t, x) => t + x.duree_s, 0), nonJ = l.filter((x) => x.justification_statut !== "acceptee").reduce((t, x) => t + x.duree_s, 0);
   v.innerHTML = `<div class="carte"><div class="segments">${["jour", "semaine", "mois"].map((p) => `<button data-p="${p}" class="${f.periode === p ? "actif" : ""}">${{ jour: "Jour", semaine: "Semaine", mois: "Mois" }[p]}</button>`).join("")}</div>
       <div class="ligne" style="margin-top:8px"><div class="flex"><label>Du</label><input type="date" id="gh-d" value="${f.debut}"></div><div class="flex"><label>Au</label><input type="date" id="gh-f" value="${f.fin}"></div></div>
-      <div class="ligne"><div class="flex"><label>Employé</label><select id="gh-e">${optionsEmployes(f.employe)}</select></div><div class="flex"><label>Recherche</label><input id="gh-q" placeholder="Nom…" value="${esc(f.q || "")}"></div></div></div>
+      <div class="ligne"><div class="flex"><label>Employé</label><select id="gh-e">${optionsEmployes(f.employe)}</select></div><div class="flex"><label>Recherche</label><input id="gh-q" placeholder="Nom…" value="${esc(f.q || "")}"></div></div>
+      <div class="ligne"><div class="flex"><label>Service</label><select id="gh-s"><option value="">Tous</option>${servicesH.map((x) => `<option ${f.service === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
+        <div class="flex"><label>Statut</label><select id="gh-st"><option value="">Tous</option>${Object.entries(GEO_DECISION).map(([c, t]) => `<option value="${c}" ${f.statut === c ? "selected" : ""}>${t}</option>`).join("")}</select></div></div></div>
     <div class="kpis"><div class="kpi"><b>${l.length}</b><span>sorties</span></div><div class="kpi"><b>${dureeS(total)}</b><span>temps hors zone</span></div>
       <div class="kpi"><b class="t-rouge">${dureeS(nonJ)}</b><span>non justifié</span></div></div>
     <div class="carte"><div class="ligne" style="justify-content:flex-end;gap:8px;margin-bottom:6px"><button class="b-sec" id="gh-csv">Exporter Excel</button><button class="b-sec" id="gh-pdf">PDF</button></div>
-    <div class="tableau"><table><thead><tr><th>Date</th><th>Employé</th><th>Entrée</th><th>Départ étab.</th><th>Retour</th><th class="num">Durée</th><th>Motif</th><th>Décision</th><th>Commentaire</th><th>Sortie service</th></tr></thead><tbody>
+    <div class="tableau"><table><thead><tr><th>Date</th><th>Employé</th><th>Entrée</th><th>Départ étab.</th><th>Retour</th><th class="num">Durée</th><th>Explication employé</th><th>Motif retenu</th><th>Décision</th><th>Commentaire</th><th>Sortie service</th></tr></thead><tbody>
     ${l.map((x) => `<tr class="cliquable" data-sortie="${x.id}"><td>${esc(dateCourte(x.jour_service))}</td><td>${esc(x.nom)}</td><td>${x.entree ? heure(x.entree) : "—"}</td>
       <td>${heure(x.debut)}</td><td>${x.fin ? heure(x.fin) + (x.cloture === "depart" ? " (départ)" : x.cloture === "fin_session" ? " (fin)" : "") : `<span class="t-rouge">en cours</span>`}</td>
-      <td class="num">${dureeS(x.duree_s)}</td><td>${esc(GEO_MOTIFS[x.justification_type] || "—")}</td><td>${esc(GEO_DECISION[x.justification_statut])}</td>
+      <td class="num">${dureeS(x.duree_s)}</td><td class="petit" style="white-space:normal;max-width:200px">${x.employe_type ? esc(GEO_MOTIFS[x.employe_type] + (x.employe_commentaire ? " – " + x.employe_commentaire : "")) : "—"}</td><td>${esc(GEO_MOTIFS[x.justification_type] || "—")}</td><td>${esc(GEO_DECISION[x.justification_statut])}</td>
       <td class="petit" style="white-space:normal;max-width:220px">${esc(x.commentaire || "")}</td><td>${x.sortie_service ? heure(x.sortie_service) : "—"}</td></tr>`).join("")
-      || `<tr><td colspan="10" class="vide">Aucune sortie sur cette période.</td></tr>`}</tbody></table></div>
+      || `<tr><td colspan="11" class="vide">Aucune sortie sur cette période.</td></tr>`}</tbody></table></div>
     <p class="petit" style="margin-top:8px">Une position inconnue ou une perte de GPS n'est jamais comptée comme une sortie. Une sortie justifiée reste visible mais n'entre pas dans le temps non justifié.</p></div>`;
   await bandeauGeoInactif(v);
   $$("[data-p]", v).forEach((b) => b.onclick = () => { f.periode = b.dataset.p; [f.debut, f.fin] = periodeGeo(f.periode); allerA("geo_historique"); });
   $("#gh-d").onchange = (e) => { f.debut = e.target.value; allerA("geo_historique"); };
   $("#gh-f").onchange = (e) => { f.fin = e.target.value; allerA("geo_historique"); };
   $("#gh-e").onchange = (e) => { f.employe = e.target.value; allerA("geo_historique"); };
+  $("#gh-s").onchange = (e) => { f.service = e.target.value; allerA("geo_historique"); };
+  $("#gh-st").onchange = (e) => { f.statut = e.target.value; allerA("geo_historique"); };
   $("#gh-q").oninput = (e) => { f.q = e.target.value; clearTimeout(G.geoQ); G.geoQ = setTimeout(() => allerA("geo_historique"), 400); };
   $$("[data-sortie]", v).forEach((tr) => tr.onclick = () => qualifierSortie(+tr.dataset.sortie, G.geoHist.find((x) => x.id === +tr.dataset.sortie), () => allerA("geo_historique")));
   const colonnes = [["Date", (x) => x.jour_service], ["Employé", (x) => x.nom], ["Poste", (x) => x.service], ["Entrée", (x) => x.entree ? heure(x.entree) : ""],
     ["Départ de l'établissement", (x) => heure(x.debut)], ["Retour", (x) => x.fin ? heure(x.fin) : "en cours"], ["Durée (min)", (x) => (x.duree_s / 60).toFixed(1).replace(".", ",")],
-    ["Motif", (x) => GEO_MOTIFS[x.justification_type] || ""], ["Décision", (x) => GEO_DECISION[x.justification_statut]], ["Commentaire", (x) => x.commentaire || ""],
+    ["Explication employé", (x) => x.employe_type ? GEO_MOTIFS[x.employe_type] + (x.employe_commentaire ? " – " + x.employe_commentaire : "") : ""], ["Motif retenu", (x) => GEO_MOTIFS[x.justification_type] || ""], ["Décision", (x) => GEO_DECISION[x.justification_statut]], ["Commentaire", (x) => x.commentaire || ""],
     ["Sortie de service", (x) => x.sortie_service ? heure(x.sortie_service) : ""]];
   $("#gh-csv").onclick = () => {
     const cell = (x) => { const s = String(x ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -2419,8 +2521,9 @@ async function vueGeoHistorique(v) {
 function qualifierSortie(id, x, apres) {
   const f = feuille(`<div class="entete"><h2>Qualifier la sortie</h2><button class="b-sec" data-fermer>Fermer</button></div>
     ${x ? `<p class="sous">${esc(x.nom)} · ${esc(dateFr(x.jour_service))} · sortie à ${heure(x.debut)}${x.fin ? `, retour à ${heure(x.fin)}` : " (en cours)"} · ${dureeS(x.duree_s)}</p>` : ""}
-    <p class="petit">Une sortie détectée par GPS n'est jamais une sanction automatique : c'est à toi de l'examiner.</p>
-    <label>Motif</label><select id="qs-type"><option value="">— Choisir —</option>${Object.entries(GEO_MOTIFS).map(([k, t]) => `<option value="${k}" ${x?.justification_type === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+    ${x?.employe_type ? `<div class="msg info" style="margin-bottom:8px">Explication de l'employé : <b>${esc(GEO_MOTIFS[x.employe_type])}</b>${x.employe_commentaire ? " – " + esc(x.employe_commentaire) : ""}</div>` : ""}
+    <p class="petit">Une sortie détectée par GPS n'est jamais une sanction automatique : pause autorisée, mission ou erreur GPS sont possibles. C'est à toi de l'examiner.</p>
+    <label>Motif</label><select id="qs-type"><option value="">— Choisir —</option>${Object.entries(GEO_MOTIFS).map(([k, t]) => `<option value="${k}" ${(x?.justification_type || x?.employe_type) === k ? "selected" : ""}>${t}</option>`).join("")}</select>
     <label>Commentaire</label><textarea id="qs-com" placeholder="Obligatoire pour refuser ou demander une explication">${esc(x?.commentaire || "")}</textarea>
     <div id="qs-msg"></div>
     <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" data-dec="acceptee">Accepter la justification</button>
@@ -2461,16 +2564,109 @@ async function vueGeoAutorisations(v) {
   v.innerHTML = `<div class="carte"><p class="petit" style="margin-top:0">Le suivi ne fonctionne qu'avec l'application mobile KeyNet et la localisation « Toujours » autorisée. Il ne s'active qu'entre le pointage d'arrivée et le pointage de départ.</p>
     <ul class="liste">${d.employes.map((e) => { const p = LIB[e.permission]; return `<li><span class="g-av">${esc(initiales(e.nom))}</span><div class="flex"><div class="t">${esc(e.nom)}</div>
       <div class="petit">${esc(e.service)} · ${e.appli_mobile ? `appli mobile vue ${e.derniere_vue ? "le " + esc(dateCourte(e.derniere_vue.slice(0, 10))) + " à " + heure(e.derniere_vue) : ""}` : e.telephone ? "pointe depuis l'appli web (pas de suivi)" : "téléphone non activé"}</div></div>
-      ${p ? `<span class="g-pas ${p[1]}"><i></i>${p[0]}</span>` : `<span class="g-pas g-gris"><i></i>${e.appli_mobile ? "Inconnue" : "Pas d'appli mobile"}</span>`}</li>`; }).join("")}</ul></div>`;
+      <div style="text-align:right"><div class="petit" style="margin-bottom:4px">Choix : <b>${e.consentement === "autorise" ? "autorisé" : e.consentement === "refuse" ? "refusé" : "non exprimé"}</b></div>
+      ${p ? `<span class="g-pas ${p[1]}"><i></i>${p[0]}</span>` : `<span class="g-pas g-gris"><i></i>${e.appli_mobile ? "Inconnue" : "Pas d'appli mobile"}</span>`}</div></li>`; }).join("")}</ul>
+    <p class="petit">Un refus n'est jamais une faute : la présence de l'employé est alors vérifiée par le Wi-Fi, le code d'un collègue ou ta validation.</p></div>`;
   await bandeauGeoInactif(v);
 }
+// ---------- Mode simulation : positions fictives uniquement ----------
+const SIM_ETAPES = [
+  ["arrivee", "Arrivée d'un employé"], ["presence", "Présence dans le rayon"], ["sortie", "Sortie du rayon"], ["compteur", "Compteur de 3 minutes démarré, sans alerte immédiate"],
+  ["annulation", "Compteur annulé après un retour avant 3 minutes"], ["alerte", "Alerte après 3 minutes consécutives dehors"], ["retour", "Retour enregistré"],
+  ["justification", "Justification de la sortie et décision"], ["imprecis", "Position imprécise : pas de sortie déclarée"], ["depart", "Pointage de départ"], ["arret", "Arrêt automatique du suivi"]];
+async function vueGeoSimulation(v) {
+  const sim = (b) => gg({ action: "geo_admin_sim", ...b });
+  let d;
+  const dessiner = (x) => {
+    d = x;
+    const actives = d.lignes.filter((l) => l.statut === "active");
+    v.innerHTML = `<div class="msg info" style="margin-bottom:12px;border:1px dashed var(--vert)"><b>MODE SIMULATION</b> — employés et positions <b>fictifs</b>. Ce n'est pas une vraie géolocalisation : aucun téléphone n'est suivi et aucune notification n'est envoyée.</div>
+      <div class="carte"><h3>Test automatique complet</h3><p class="petit">Rejoue tout le parcours du cahier des charges avec un employé fictif et vérifie chaque étape.</p>
+        <button class="b-principal" id="sm-auto">Lancer le scénario de test</button><div id="sm-res" style="margin-top:8px"></div></div>
+      <div class="carte"><h3>Simulation manuelle</h3>
+        <div class="ligne" style="align-items:flex-end"><div class="flex"><label>Employé fictif</label><input id="sm-nom" placeholder="Ex. Serveur test" maxlength="40"></div>
+          <button class="b-sec" id="sm-arr">Pointer l'arrivée</button></div>
+        <div class="ligne" style="margin-top:8px;flex-wrap:wrap;gap:6px"><span class="petit">Horloge simulée :</span>${[1, 3, 10].map((m) => `<button class="b-sec" data-sm-av="${m}">+${m} min</button>`).join("")}
+          <button class="b-lien" id="sm-apercu">Aperçu écran employé</button></div>
+        <ul class="liste g-liste" style="margin-top:8px">${actives.map((l) => `<li class="g-ligne ${l.etat}"><span class="g-av">${esc(initiales(String(l.nom).replace(" (fictif)", "")))}</span>
+          <div class="flex"><div class="t">${esc(l.nom)}</div><div class="petit">Arrivée ${heure(l.debut)}${l.nb_sorties ? ` · ${l.nb_sorties} sortie(s), ${dureeS(l.cumul_s)}` : ""}${l.sortie_debut ? ` · dehors depuis ${heure(l.sortie_debut)} (${dureeS(l.hors_s)})` : ""}</div>
+            <div style="margin-top:6px">${pastilleStatut(l)}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+              <button class="b-sec" data-sm="${l.session_id}|position|10|8">Dans le rayon (10 m)</button>
+              <button class="b-sec" data-sm="${l.session_id}|position|80|8">Hors du rayon (80 m)</button>
+              <button class="b-sec" data-sm="${l.session_id}|position|45|40">Position imprécise</button>
+              <button class="b-sec" data-sm="${l.session_id}|wifi">Wi-Fi du restaurant</button>
+              <button class="b-sec" data-sm="${l.session_id}|signal_perdu">Perte de signal</button>
+              <button class="b-danger" data-sm="${l.session_id}|depart">Pointer le départ</button></div></div></li>`).join("") || `<li class="vide">Aucun employé fictif en service.</li>`}</ul>
+        ${actives.length ? `<button class="b-lien" id="sm-fin">Terminer toutes les sessions fictives</button>` : ""}</div>
+      <div class="carte"><h3>Alertes simulées</h3>${d.alertes.length ? `<ul class="liste">${d.alertes.map((a) => `<li class="g-alerte ${a.priorite}"><span class="g-prio"></span><div class="flex">
+        <div class="t">${esc(GEO_ALERTE[a.type] || a.type)} – ${esc(a.nom || "")}</div><div class="petit">${heure(a.cree_le)} · ${esc(a.message)}</div></div></li>`).join("")}</ul>` : `<div class="vide">Aucune alerte simulée active.</div>`}</div>
+      <div class="carte"><h3>Sorties simulées</h3>${d.sorties.length ? `<ul class="liste">${d.sorties.map((x) => `<li><div class="flex"><div class="t">${esc(x.nom || "")}</div>
+        <div class="petit">Sortie ${heure(x.debut)} → ${x.fin ? "retour " + heure(x.fin) : "en cours"} · ${dureeS(x.duree_s)} · ${esc(GEO_DECISION[x.justification_statut])}${x.employe_type ? " · " + esc(GEO_MOTIFS[x.employe_type]) : ""}</div></div>
+        <div class="pile" style="gap:4px;text-align:right">${["aucune", "explication_demandee"].includes(x.justification_statut) ? `<button class="b-lien" data-sm-j="${x.id}">Justifier (employé)</button>` : ""}
+          ${!["acceptee", "refusee"].includes(x.justification_statut) ? `<button class="b-lien" data-sm-d="${x.id}|acceptee">Accepter</button><button class="b-lien" data-sm-d="${x.id}|refusee">Refuser</button>` : ""}</div></li>`).join("")}</ul>` : `<div class="vide">Aucune sortie simulée.</div>`}</div>`;
+    const act = async (b, el) => { if (el) el.disabled = true; try { dessiner(await sim(b)); } catch (e) { if (el) el.disabled = false; alert(e.message); } };
+    $("#sm-arr").onclick = (e) => act({ op: "arrivee", nom: $("#sm-nom").value }, e.target);
+    $$("[data-sm-av]", v).forEach((b) => b.onclick = () => act({ op: "avancer", minutes: +b.dataset.smAv }, b));
+    $$("[data-sm]", v).forEach((b) => b.onclick = () => { const [id, op, dist, prec] = b.dataset.sm.split("|");
+      act({ op, session_id: +id, distance_m: dist ? +dist : undefined, precision_m: prec ? +prec : undefined }, b); });
+    $$("[data-sm-j]", v).forEach((b) => b.onclick = () => justifierSortieE(d.sorties.find((x) => x.id === +b.dataset.smJ), { apercu: true,
+      apres: (type, commentaire) => act({ op: "justifier", sortie_id: +b.dataset.smJ, type, commentaire }) }));
+    $$("[data-sm-d]", v).forEach((b) => b.onclick = () => { const [id, decision] = b.dataset.smD.split("|"); act({ op: "decider", sortie_id: +id, decision, commentaire: "Décision simulée" }, b); });
+    if ($("#sm-fin")) $("#sm-fin").onclick = (e) => act({ op: "terminer_tout" }, e.target);
+    $("#sm-apercu").onclick = () => ecranConsentementGeo({ apercu: true });
+    $("#sm-auto").onclick = () => scenarioSimulation(sim, dessiner);
+  };
+  dessiner(await sim({ op: "etat" }));
+}
+async function scenarioSimulation(sim, dessiner) {
+  const z = $("#sm-res"), ok = {}, notes = {};
+  const montrer = () => { if (z) z.innerHTML = `<ul class="liste">${SIM_ETAPES.map(([k, t]) => `<li style="padding:4px 0"><span class="g-pas ${ok[k] === true ? "g-vert" : ok[k] === false ? "g-rouge" : "g-gris"}"><i></i>${ok[k] === true ? "Réussi" : ok[k] === false ? "Échec" : "…"}</span>
+    <span class="petit" style="margin-left:8px">${t}${notes[k] ? " — " + esc(notes[k]) : ""}</span></li>`).join("")}</ul>`; };
+  $("#sm-auto").disabled = true; montrer();
+  const ligne = (r, id) => r.lignes.find((l) => l.session_id === id);
+  try {
+    await sim({ op: "terminer_tout" });
+    let r = await sim({ op: "arrivee", nom: "Test automatique" }); const id = r.resultat.session_id;
+    ok.arrivee = !!ligne(r, id) && ligne(r, id).statut === "active"; montrer();
+    const pos = (m, p = 8) => sim({ op: "position", session_id: id, distance_m: m, precision_m: p });
+    await pos(10); r = await pos(12); ok.presence = ligne(r, id).statut_aff === "present"; montrer();
+    // position imprécise à la limite : ne déclare rien
+    r = await pos(45, 40); ok.imprecis = ligne(r, id).statut_aff === "present"; notes.imprecis = "45 m ± 40 m"; montrer();
+    // sortie courte : 3 mesures dehors sur plus d'une minute, retour avant 3 minutes
+    await pos(80); await sim({ op: "avancer", minutes: 1 }); await pos(85); r = await pos(90);
+    ok.sortie = ligne(r, id).etat === "hors"; ok.compteur = ok.sortie && !r.alertes.some((a) => a.session_id === id); montrer();
+    await pos(10); r = await pos(8);
+    ok.annulation = ligne(r, id).statut_aff === "present" && !r.alertes.some((a) => a.session_id === id) && r.sorties.some((x) => x.session_id === id && x.fin && x.niveau === 0); notes.annulation = "retour après ~1 min, aucune alerte"; montrer();
+    // sortie longue : alerte après 3 minutes
+    await pos(80); await sim({ op: "avancer", minutes: 1 }); await pos(85); await pos(90);
+    r = await sim({ op: "avancer", minutes: 3 });
+    ok.alerte = ligne(r, id).statut_aff === "alerte" && r.alertes.some((a) => a.session_id === id && a.type === "sortie"); montrer();
+    await pos(10); r = await pos(8);
+    ok.retour = ligne(r, id).statut_aff === "present" && r.sorties.filter((x) => x.session_id === id && x.fin).length === 2; montrer();
+    const longue = r.sorties.find((x) => x.session_id === id && x.niveau >= 1);
+    await sim({ op: "justifier", sortie_id: longue.id, type: "achat", commentaire: "Course urgente (test)" });
+    r = await sim({ op: "decider", sortie_id: longue.id, decision: "acceptee", commentaire: "Test" });
+    ok.justification = r.sorties.find((x) => x.id === longue.id)?.justification_statut === "acceptee"; montrer();
+    r = await sim({ op: "depart", session_id: id });
+    ok.depart = ligne(r, id)?.statut_aff === "termine"; montrer();
+    r = await sim({ op: "position", session_id: id, distance_m: 500, precision_m: 5 }).catch((e) => ({ refus: e.message }));
+    ok.arret = !!r.refus; notes.arret = "position refusée après le départ"; montrer();
+    dessiner(await sim({ op: "etat" })); $("#sm-res") && ($("#sm-res").innerHTML = z.innerHTML);
+  } catch (e) { const k = SIM_ETAPES.find(([k]) => ok[k] === undefined)?.[0]; if (k) { ok[k] = false; notes[k] = e.message; } montrer(); $("#sm-auto") && ($("#sm-auto").disabled = false); }
+}
 async function vueGeoParametres(v) {
-  const p = (await gg({ action: "geo_admin_parametres" })).parametres;
+  const R = await gg({ action: "geo_admin_parametres" }), p = R.parametres;
+  const cndp = p.geo_cndp || "en_attente";
   const champ = (cle, lib, aide, unite) => `<div class="g-param"><div class="flex"><label for="gp-${cle}">${lib}</label><div class="petit">${aide}</div></div>
     <div class="ligne" style="align-items:center;gap:6px"><input id="gp-${cle}" data-cle="${cle}" inputmode="numeric" value="${esc(p[cle] ?? "")}" style="width:84px;text-align:right"><span class="petit">${unite}</span></div></div>`;
-  v.innerHTML = `<div class="carte"><h3>Activation</h3>
-      <label class="pl-choix"><input type="checkbox" id="gp-actif" ${p.geo_actif === "1" ? "checked" : ""}><span><b>Module de géolocalisation actif</b>
-      <small>À activer seulement après l'autorisation de la CNDP et l'information écrite des employés. Désactivé, aucune position n'est enregistrée et aucune alerte n'est envoyée.</small></span></label></div>
+  v.innerHTML = `<div class="carte"><h3>Autorisation réglementaire de géolocalisation</h3>
+      <p style="margin:4px 0 8px"><span class="g-pas ${cndp === "confirmee" ? "g-vert" : cndp === "non_autorise" ? "g-rouge" : "g-orange"}"><i></i>${esc(GEO_CNDP[cndp])}</span></p>
+      <p class="petit">Tant que l'autorisation n'est pas confirmée, aucune position réelle n'est collectée et aucun suivi en arrière-plan n'a lieu : seul le mode Simulation fonctionne. Le consentement des employés ne remplace pas les formalités CNDP.</p>
+      <button class="b-sec" id="gp-cndp">Modifier (réservé au propriétaire)</button></div>
+    <div class="carte"><h3>Activation</h3>
+      <label class="pl-choix"><input type="checkbox" id="gp-actif" ${p.geo_actif === "1" ? "checked" : ""} ${cndp !== "confirmee" ? "disabled" : ""}><span><b>Module de géolocalisation actif</b>
+      <small>${cndp !== "confirmee" ? "Impossible tant que l'autorisation CNDP n'est pas confirmée." : "À activer après l'information écrite des employés. Désactivé, aucune position n'est enregistrée et aucune alerte n'est envoyée."}</small></span></label></div>
     <div class="carte"><h3>Zone et alertes</h3>
       ${champ("geo_rayon_m", "Rayon de l'établissement", "Au-delà, l'employé est considéré hors zone.", "m")}
       ${champ("geo_alerte1_min", "Première alerte", "Après une sortie confirmée de cette durée.", "min")}
@@ -2482,6 +2678,20 @@ async function vueGeoParametres(v) {
       <p class="petit">Centre de la zone : la position du restaurant (Réglages › Position du restaurant)${p.site_lat ? ` · ${(+p.site_lat).toFixed(5)}, ${(+p.site_lng).toFixed(5)}` : " — <b>non enregistrée</b>"}.</p>
       <label>Motif de la modification</label><input id="gp-motif" placeholder="Obligatoire">
       <div id="gp-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="gp-ok">Enregistrer</button></div></div>`;
+  $("#gp-cndp").onclick = () => {
+    const f = feuille(`<div class="entete"><h2>Autorisation réglementaire</h2><button class="b-sec" data-fermer>Fermer</button></div>
+      <p class="petit">Réservé au propriétaire (code propriétaire, différent du code gérant). Chaque changement est journalisé.</p>
+      <div class="pile" style="gap:6px">${Object.entries(GEO_CNDP).map(([c, t]) => `<label class="pl-choix"><input type="radio" name="cn-v" value="${c}" ${c === cndp ? "checked" : ""}><span>${t}</span></label>`).join("")}</div>
+      <label>Code propriétaire</label><input id="cn-code" type="password" inputmode="numeric" autocomplete="off">
+      <label>Motif (ex. référence de la décision CNDP)</label><input id="cn-motif">
+      <div id="cn-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="cn-ok">Enregistrer</button></div>`);
+    $("#cn-ok", f.el).onclick = async () => {
+      $("#cn-ok", f.el).disabled = true;
+      try { await gg({ action: "geo_admin_cndp_modifier", valeur: $("input[name=cn-v]:checked", f.el).value, code_proprietaire: $("#cn-code", f.el).value, motif: $("#cn-motif", f.el).value });
+        f.fermer(); G.geoActif = undefined; allerA("geo_parametres"); }
+      catch (e) { $("#cn-ok", f.el).disabled = false; msg($("#cn-msg", f.el), e.message); }
+    };
+  };
   $("#gp-ok").onclick = async () => {
     const motif = $("#gp-motif").value.trim();
     if (motif.length < 3) return msg($("#gp-msg"), "Le motif est obligatoire (3 caractères minimum).");
@@ -2613,7 +2823,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-092534";
+const VERSION_APP = "20261123-102644";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
