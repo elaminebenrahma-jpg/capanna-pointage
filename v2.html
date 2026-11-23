@@ -555,6 +555,11 @@ function demanderMotif(titre, aide, valider, opts = {}) {
 const LIB_TYPE = { absence_autorisee: "Absence autorisée", retard_justifie: "Retard autorisé", depart_anticipe: "Départ anticipé", conge: "Congé", maladie: "Maladie", absence_injustifiee: "Absence injustifiée" };
 const LIB_STATUT = { demandee: "En attente", complement: "Complément demandé", validee: "Acceptée", refusee: "Refusée", annulee: "Annulée" };
 const CLASSE_STATUT = { demandee: "attente", complement: "complement", validee: "validee", refusee: "refusee", annulee: "annulee" };
+// accord selon le genre de l'employé (Présent / Présente) ; genre inconnu : « Présent(e) »
+const accord = (id, mot) => { const g = G.genres?.[id]; return g === "f" ? mot + "e" : g === "h" ? mot : mot + "(e)"; };
+const libJour = (r, id = r.employe_id) => r.statut === "present" ? accord(id, "Présent") : r.statut === "absence_injustifiee" ? accord(id, "Absent")
+  : r.statut === "absent_en_cours" ? accord(id, "Absent") + " (pas de pointage)" : LIB_JOUR[r.statut] || r.statut;
+async function chargerGenres() { try { G.genres = (await gg({ action: "geo_admin_genres" })).genres; } catch { G.genres ||= {}; } }
 const LIB_JOUR = { travaille: "Travaillé", present: "Présent", depart_non_pointe: "Départ non pointé", coupure_non_pointee: "Coupure non pointée", absence_justifiee: "Absence justifiée", absence_injustifiee: "Absent", absent_en_cours: "Absent (pas de pointage)", a_venir: "À venir", hors_planning: "Hors planning" };
 function periodeDemande(d) {
   let t = d.date_debut === d.date_fin ? dateFr(d.date_debut) : `du ${dateCourte(d.date_debut)} au ${dateCourte(d.date_fin)}`;
@@ -1387,6 +1392,7 @@ async function demarrerGerant() {
 }
 
 async function coquilleGerant() {
+  await chargerGenres();
   $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><div class="ligne" style="gap:6px;flex-wrap:nowrap"><button class="cloche" id="g-cloche" aria-label="Notifications">${svgN("cloche")}<span id="g-badge"></span></button><button class="b-lien" id="g-sortir">Quitter</button></div></div>
     <div id="g-segments"></div><div id="vue-g"></div>`;
   $("#g-cloche").onclick = voirNotifications;
@@ -1542,7 +1548,7 @@ async function vueTableau(v) {
       <div class="kpi"><b>${retardAuj.length}</b><span>en retard aujourd'hui</span></div>
     </div>
     ${aujRows.filter((r) => r.statut === "absent_en_cours").length ? `<div class="carte bandeau-attente"><h3>Pas de pointage aujourd'hui</h3><ul class="liste">${aujRows.filter((r) => r.statut === "absent_en_cours").map((r) => `<li class="cliquable" data-fiche="${r.employe_id}"><div class="flex"><div class="t">${esc(r.nom)}</div>
-      <div class="petit">attendu(e) à ${hcourt(r.prevu_debut)} · ${duree(sansPointage(r))} sans pointage</div></div><span class="puce refusee">Absent</span></li>`).join("")}</ul>
+      <div class="petit">${accord(r.employe_id, "attendu")} à ${hcourt(r.prevu_debut)} · ${duree(sansPointage(r))} sans pointage</div></div><span class="puce refusee">${accord(r.employe_id, "Absent")}</span></li>`).join("")}</ul>
       <p class="petit">Sans pointage ni absence justifiée, la journée sera comptée « absence injustifiée » demain.</p></div>` : ""}
     <h3 style="margin:18px 2px 8px">Période · ${dateCourte(f.debut)} → ${dateCourte(f.fin)}</h3>
     <div class="kpis">
@@ -1613,9 +1619,9 @@ function bandeauAttente(v, d) {
 }
 
 // état du jour : présent, parti (départ pointé) ou pas encore pointé — « absent » n'est affiché que par le moteur (planning)
-const pucePresence = (x) => x.present ? `<span class="puce validee">Présent</span>`
-  : x.parti_a ? `<span class="puce">Parti à ${esc(x.parti_a)}</span>` : `<span class="puce annulee">Pas pointé</span>`;
-const textePresence = (x) => x.present ? "présent maintenant" : x.parti_a ? `parti à ${x.parti_a}` : "pas de pointage aujourd'hui";
+const pucePresence = (x) => x.present ? `<span class="puce validee">${accord(x.id, "Présent")}</span>`
+  : x.parti_a ? `<span class="puce">${accord(x.id, "Parti")} à ${esc(x.parti_a)}</span>` : `<span class="puce annulee">Pas de pointage</span>`;
+const textePresence = (x) => x.present ? accord(x.id, "présent") + " maintenant" : x.parti_a ? `${accord(x.id, "parti")} à ${x.parti_a}` : "pas de pointage aujourd'hui";
 // ---------- Équipe ----------
 async function vueEquipe(v) {
   const [eq, em] = await Promise.all([ga({ action: "admin_equipe" }), ga({ action: "admin_emojis_mois" })]);
@@ -1662,10 +1668,10 @@ async function vueFiche(v, id) {
       ${!e.actif && e.date_sortie ? `<div class="msg info">A quitté l'équipe le ${esc(dateFr(e.date_sortie))}${e.sortie_motif ? ` · ${esc(e.sortie_motif)}` : ""}. Son historique est conservé.</div>` : ""}
       <div class="ligne" style="margin-top:12px"><button class="b-sec flex" id="f-rapport">Rapport du mois (PDF)</button><button class="b-sec flex" id="f-csv">Historique (Excel)</button>
       <button class="b-sec flex" id="f-horaires">Planning fixe</button><button class="b-sec flex" id="f-pointages">Pointages</button><button class="b-sec flex" id="f-absence">Saisir une absence</button></div>
-      ${e.actif ? `<div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button><button class="b-lien" id="f-depart" style="color:var(--rouge);margin-left:auto">Ne travaille plus ici</button></div>` : ""}<div id="f-msg"></div></div>
-    ${absAuj.length ? `<div class="msg mal">Aucun pointage aujourd'hui : attendu(e) à ${hcourt(absAuj[0].prevu_debut)}, ${duree(sansPointage(absAuj[0]))} sans pointage. Si c'est une absence prévue ou justifiée, saisis-la avec « Saisir une absence ».</div>` : ""}
+      ${e.actif ? `<div class="ligne" style="margin-top:8px"><button class="b-lien" id="f-reset">Réinitialiser le téléphone</button><button class="b-lien" id="f-code">Nouveau code</button><button class="b-lien" id="f-genre">${G.genres?.[e.id] === "f" ? "Femme" : G.genres?.[e.id] === "h" ? "Homme" : "Genre ?"}</button><button class="b-lien" id="f-depart" style="color:var(--rouge);margin-left:auto">Ne travaille plus ici</button></div>` : ""}<div id="f-msg"></div></div>
+    ${absAuj.length ? `<div class="msg mal">Aucun pointage aujourd'hui : ${accord(e.id, "attendu")} à ${hcourt(absAuj[0].prevu_debut)}, ${duree(sansPointage(absAuj[0]))} sans pointage. Si c'est une absence prévue ou justifiée, saisis-la avec « Saisir une absence ».</div>` : ""}
     <div class="kpis">
-      ${absAuj.length ? `<div class="kpi"><b style="color:var(--rouge)">Absent(e)</b><span>aujourd'hui · aucun pointage</span></div>` : `<div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>`}
+      ${absAuj.length ? `<div class="kpi"><b style="color:var(--rouge)">${accord(e.id, "Absent")}</b><span>aujourd'hui · aucun pointage</span></div>` : `<div class="kpi"><b>${duree(sJ.cumul)}</b><span>retard du jour</span></div>`}
       <div class="kpi"><b>${duree(sS.cumul)}</b><span>retard de la semaine</span></div>
       <div class="kpi"><b>${duree(sM.cumul)}</b><span>retard du mois</span></div>
       <div class="kpi"><b>${duree(sT.cumul)}</b><span>retard depuis le ${dateCourte(suivi)}</span></div>
@@ -1680,7 +1686,7 @@ async function vueFiche(v, id) {
       ${histo.length ? histo.map((r) => `<tr><td>${r.emoji_jour ? smileyDe(r.emoji_jour, 24) : ""}</td><td>${esc(dateCourte(r.jour))} ${JOURS_C[dow(r.jour)]}</td>
         <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
         <td class="num">${r.retard_min ? r.retard_min + " min" : r.retard_justifie_min ? "justifié" : "—"}</td><td>${hhmm(r.depart_min)}</td>
-        <td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(LIB_JOUR[r.statut] || r.statut)}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Pas encore de journée suivie.</td></tr>`}
+        <td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(libJour(r, e.id))}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Pas encore de journée suivie.</td></tr>`}
     </tbody></table></div></div>
     <div class="carte"><h3>Demandes</h3><ul class="liste">${(dm.demandes || []).slice(0, 10).map((d) => `<li class="cliquable" data-dem="${d.id}"><div class="flex"><div class="t">${esc(LIB_TYPE[d.type])}</div><div class="petit">${esc(periodeDemande(d))}</div></div><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span></li>`).join("") || `<li class="vide">Aucune demande.</li>`}</ul></div>`;
   $("#f-retour").onclick = () => allerA("equipe");
@@ -1691,6 +1697,18 @@ async function vueFiche(v, id) {
   $("#f-rapport").onclick = () => rapportMensuelPDF(e, parPeriode(debutMois(G.js)), nm);
   if (!e.actif) { $$("#f-horaires, #f-absence", v).forEach((x) => x.remove()); }
   if ($("#f-depart")) $("#f-depart").onclick = () => departEmploye(e);
+  if ($("#f-genre")) $("#f-genre").onclick = () => {
+    const f = feuille(`<div class="entete"><h2>${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+      <p class="petit">Sert uniquement à accorder les libellés : Présent / Présente, Absent / Absente, Parti / Partie.</p>
+      <div class="pile" style="gap:6px">${[["h", "Homme"], ["f", "Femme"]].map(([g, t]) => `<label class="pl-choix"><input type="radio" name="fg" value="${g}" ${G.genres?.[e.id] === g ? "checked" : ""}><span>${t}</span></label>`).join("")}</div>
+      <div id="fg-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="fg-ok">Enregistrer</button></div>`);
+    $("#fg-ok", f.el).onclick = async () => {
+      const g = $("input[name=fg]:checked", f.el)?.value; if (!g) return msg($("#fg-msg", f.el), "Choisis Homme ou Femme.");
+      $("#fg-ok", f.el).disabled = true;
+      try { await gg({ action: "geo_admin_genre_modifier", id: e.id, genre: g }); (G.genres ||= {})[e.id] = g; f.fermer(); $("#f-genre").textContent = g === "f" ? "Femme" : "Homme"; }
+      catch (x) { $("#fg-ok", f.el).disabled = false; msg($("#fg-msg", f.el), x.message); }
+    };
+  };
   if ($("#f-reset")) $("#f-reset").onclick = () => demanderMotif("Réinitialiser le téléphone", `${esc(e.nom)} devra réactiver son téléphone avec un code.`, async (m) => { await ga({ action: "admin_reinitialiser", employe_id: id, motif: m }); e.telephone = false; allerA("fiche", id); }, { classe: "b-danger", bouton: "Réinitialiser" });
   if ($("#f-code")) $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin; msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}`, "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
   $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
@@ -1859,7 +1877,7 @@ async function vuePointages(v, arg) {
       <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
       <td>${r.depart_min !== null && r.depart_min !== undefined ? hhmm(r.depart_min) : r.arrivee_min !== null && r.arrivee_min !== undefined ? `<span class="petit">${r.statut === "present" ? "en service" : "non pointé"}</span>` : "—"}</td>
       <td class="num">${r.retard_min ? r.retard_min + " min" : "—"}</td><td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td>
-      <td>${esc(LIB_JOUR[r.statut] || r.statut)}</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Personne n'était prévu ni n'a pointé ce jour-là.</td></tr>`}
+      <td>${esc(libJour(r))}</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Personne n'était prévu ni n'a pointé ce jour-là.</td></tr>`}
     </tbody></table></div></div>
     <div class="carte"><h3>Détail des pointages</h3><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
     ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
@@ -2791,7 +2809,7 @@ function exporterCSV(rows, nom) {
   const cols = [["Date", (r) => r.jour], ["Employé", (r) => r.nom], ["Poste", (r) => r.service], ["Prévu début", (r) => hcourt(r.prevu_debut)], ["Prévu fin", (r) => hcourt(r.prevu_fin)],
     ["Arrivée", (r) => r.arrivee_min == null ? "" : hhmm(r.arrivee_min)], ["Départ", (r) => r.depart_min == null ? "" : hhmm(r.depart_min)], ["Retard (min)", (r) => r.retard_min || 0],
     ["Retard justifié (min)", (r) => r.retard_justifie_min || 0], ["Départ anticipé (min)", (r) => r.depart_anticipe_min || 0], ["Heures sup (min)", (r) => r.heures_sup_min || 0],
-    ["Présence (min)", (r) => r.presence_min ?? ""], ["Travail effectif (min)", (r) => r.travail_min ?? ""], ["Statut", (r) => LIB_JOUR[r.statut] || r.statut], ["Absence", (r) => LIB_TYPE[r.absence_type] || ""]];
+    ["Présence (min)", (r) => r.presence_min ?? ""], ["Travail effectif (min)", (r) => r.travail_min ?? ""], ["Statut", (r) => libJour(r)], ["Absence", (r) => LIB_TYPE[r.absence_type] || ""]];
   const cell = (x) => { const s = String(x ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const csv = "﻿" + [cols.map((c) => c[0]).join(";"), ...[...rows].sort((a, b) => a.jour.localeCompare(b.jour) || a.nom.localeCompare(b.nom)).map((r) => cols.map((c) => cell(c[1](r))).join(";"))].join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -2823,7 +2841,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-104556";
+const VERSION_APP = "20261123-105227";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
