@@ -2152,7 +2152,7 @@ function dessinerPlanning(v = $("#vue-g")) {
     liste += `<div class="pl-grp"><span class="pl-pastille" style="background:${couleurPoste(poste)}"></span>${esc(poste)}</div>`;
     liste += l.map((e) => { const c = contenuCase(e, jr);
       return `<div class="pl-ligne ${c.modif ? "modifie" : ""} ${c.editable ? "editable" : ""} ${c.passe ? "passe" : ""}" ${c.editable ? `data-e="${e.id}" data-j="${jr}" tabindex="0" role="button" aria-label="Modifier : ${esc(c.label)}"` : ""}>
-        <div class="qui"><b>${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</b><span>${esc(e.service)}</span>${ed ? `<button class="b-lien pl-sem-lien" data-semaine="${e.id}">Toute la semaine</button>` : ""}</div><div class="quoi">${c.h}</div></div>`; }).join("");
+        <div class="qui"><b>${esc(e.nom)}${e.nouveau ? ` <span class="pl-neuf">Nouveau</span>` : ""}</b>${ed ? `<select class="pl-sel-poste" data-poste="${e.id}" aria-label="Poste de ${esc(e.nom)}">${postesConnus().map((p) => `<option ${p === e.service ? "selected" : ""}>${esc(p)}</option>`).join("")}</select><button class="b-lien pl-sem-lien" data-semaine="${e.id}">Toute la semaine</button>` : `<span>${esc(e.service)}</span>`}</div><div class="quoi">${c.h}</div></div>`; }).join("");
   }
 
   v.innerHTML = `<div class="pl ${ed ? "edition" : ""} pl-m-${PL.vueM}">
@@ -2202,6 +2202,7 @@ function dessinerPlanning(v = $("#vue-g")) {
   };
   $("#pl-enreg", v).onclick = confirmerPlanning;
   $("#pl-ajout-emp", v).onclick = ajouterEmployePlanning;
+  $$("[data-poste]", v).forEach((s) => s.onclick = (ev) => ev.stopPropagation());
   $$("[data-poste]", v).forEach((s) => s.onchange = () => {
     const id = s.dataset.poste, nv = PL.br.nouveaux.find((x) => x.ref === id);
     if (nv) nv.service = s.value;
@@ -2957,7 +2958,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-180809";
+const VERSION_APP = "20261123-183852";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
