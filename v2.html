@@ -690,10 +690,29 @@ async function demarrerEmploye() {
   $("#texte-wifi").textContent = ok ? "Connecté au Wi-Fi Capanna"
     : actif ? "Réseau du restaurant non reconnu : tu peux pointer quand même, ta position sera vérifiée."
     : "Pas sur le Wi-Fi Capanna — connecte-toi au Wi-Fi du restaurant";
-  if (!E.etat.moi) return ecranActivation();
+  if (!E.etat.moi) return store.get("capanna_token_attente") ? ecranAttenteActivation() : ecranActivation();
   ecranEmploye();
 }
 
+const garde = (corps) => fetch(API.replace("pointage-v2", "pointage-garde"), { method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify(corps) }).then((y) => y.json());
+// Nouveau téléphone en attente de l'accord du gérant : rien ne peut être pointé avant
+async function ecranAttenteActivation() {
+  const t = store.get("capanna_token_attente"); if (!t) return ecranActivation();
+  let r; try { r = await garde({ action: "etat_activation", token: t }); } catch { r = { statut: "attente" }; }
+  if (r.statut === "acceptee") { store.del("capanna_token_attente"); E.token = t; store.set("capanna_token", t); return demarrerEmploye(); }
+  if (r.statut !== "attente") {
+    store.del("capanna_token_attente"); ecranActivation();
+    return msg($("#a-msg"), r.statut === "refusee" ? "Le gérant a refusé l'activation de ce téléphone. Parle-lui directement." : "La demande a expiré. Recommence l'activation.");
+  }
+  if (!$("#corps")) return;
+  $("#corps").innerHTML = `<div class="carte"><h2>Demande envoyée au gérant</h2>
+    <p class="sous">Un autre téléphone est déjà enregistré à ton nom. Pour ta sécurité, le gérant doit confirmer que ce nouveau téléphone est bien le tien.</p>
+    <p class="petit">Ton téléphone sera activé dès qu'il accepte. Tu pourras alors pointer normalement.</p>
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="aa-verif">Vérifier maintenant</button></div><div id="aa-msg"></div></div>`;
+  $("#aa-verif").onclick = () => ecranAttenteActivation();
+  clearTimeout(E.attenteMinuteur); E.attenteMinuteur = setTimeout(() => { if ($("#aa-verif")) ecranAttenteActivation(); }, 15000);
+}
 function ecranActivation() {
   const emps = E.etat.employes || [];
   $("#corps").innerHTML = `<div class="carte"><h2>Activer mon téléphone</h2>
@@ -711,12 +730,12 @@ function ecranActivation() {
       let r;
       try { r = await api({ action: "enregistrer", ...corps }); }
       catch (e) {
-        // un ancien téléphone (ou un autre navigateur) est encore enregistré : avec le bon code et sur le Wi-Fi, on le remplace
+        // un autre téléphone (ou navigateur) est déjà enregistré : demande envoyée au gérant, qui doit l'accepter
         if (!/déjà enregistré/.test(e.message)) throw e;
-        const x = await fetch(API.replace("pointage-v2", "pointage-garde"), { method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "reactiver", ...corps }) }).then((y) => y.json());
+        const x = await garde({ action: "reactiver", ...corps });
         if (!x.token) throw new Error(x.erreur || "Activation impossible, réessaie.");
-        r = x;
+        store.set("capanna_token_attente", x.token);
+        return ecranAttenteActivation();
       }
       E.token = r.token; store.set("capanna_token", r.token); demarrerEmploye();
     } catch (e) { msg($("#a-msg"), e.message); b.disabled = false; }
@@ -1413,7 +1432,7 @@ async function demarrerGerant() {
 async function coquilleGerant() {
   await chargerGenres();
   $("#app").innerHTML = `<div class="entete-g"><h2 id="g-titre"></h2><div class="ligne" style="gap:6px;flex-wrap:nowrap"><button class="cloche" id="g-cloche" aria-label="Notifications">${svgN("cloche")}<span id="g-badge"></span></button><button class="b-lien" id="g-sortir">Quitter</button></div></div>
-    <div id="g-segments"></div><div id="vue-g"></div>`;
+    <div id="g-segments"></div><div id="g-activations"></div><div id="vue-g"></div>`;
   $("#g-cloche").onclick = voirNotifications;
   $("#g-sortir").onclick = () => { oublierGerant(); $("#g-nav")?.remove(); demarrerGerant(); };
   try {
@@ -1470,12 +1489,30 @@ async function rafraichirBadges() {
     const b = $('#g-nav [data-r="conges"]'); if (b) b.setAttribute("aria-label", n ? `Congés, ${n} demande${n > 1 ? "s" : ""} en attente` : "Congés");
   } catch {}
 }
+// demandes de nouveau téléphone (un autre est déjà enregistré) : le gérant accepte ou refuse
+async function activationsAttente() {
+  const z = $("#g-activations"); if (!z) return;
+  let d; try { d = await garde({ action: "admin_activations", code: G.code }); } catch { return; }
+  const l = d.demandes || [];
+  z.innerHTML = l.length ? `<div class="carte" style="border:1px solid var(--orange, #E2742B)"><h3 style="margin-top:0">Nouveau téléphone à valider</h3>
+    <p class="petit">Accepte seulement si tu es sûr que c'est bien le téléphone de la personne (un collègue pourrait utiliser son code). L'ancien téléphone sera désactivé.</p>
+    <ul class="liste">${l.map((x) => `<li><div class="flex"><div class="t">${esc(x.nom || "?")}</div><div class="petit">${esc(x.service || "")} · ${esc(x.appareil)} · demandé à ${heure(x.cree_le)}</div></div>
+      <div class="ligne" style="gap:6px"><button class="b-principal" data-act="${x.id}|acceptee">Accepter</button><button class="b-sec" data-act="${x.id}|refusee">Refuser</button></div></li>`).join("")}</ul></div>` : "";
+  $$("[data-act]", z).forEach((b) => b.onclick = async () => {
+    const [id, decision] = b.dataset.act.split("|");
+    if (decision === "refusee" && !confirm("Refuser ce nouveau téléphone ?")) return;
+    b.disabled = true;
+    const r = await garde({ action: "admin_activation_decider", code: G.code, id: +id, decision }).catch(() => ({ erreur: "Erreur réseau." }));
+    if (r.erreur) alert(r.erreur);
+    activationsAttente();
+  });
+}
 function allerA(o, arg) {
   if (o !== "planning" && PL.edition) {
     if (nbChangementsPl() && !confirm("Des modifications du planning ne sont pas enregistrées. Les abandonner ?")) return;
     PL.edition = false; PL.br = null;
   }
-  const avant = G.onglet; G.onglet = o; G.ongletArg = arg; marquerNavigation(o);
+  const avant = G.onglet; G.onglet = o; G.ongletArg = arg; marquerNavigation(o); activationsAttente();
   if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
@@ -2861,7 +2898,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-163759";
+const VERSION_APP = "20261123-164628";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
