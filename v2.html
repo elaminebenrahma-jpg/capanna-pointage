@@ -707,7 +707,17 @@ function ecranActivation() {
   b.onclick = async () => {
     b.disabled = true;
     try {
-      const r = await api({ action: "enregistrer", employe_id: $("#a-nom").value, pin: $("#a-pin").value.trim() });
+      const corps = { employe_id: $("#a-nom").value, pin: $("#a-pin").value.trim() };
+      let r;
+      try { r = await api({ action: "enregistrer", ...corps }); }
+      catch (e) {
+        // un ancien téléphone (ou un autre navigateur) est encore enregistré : avec le bon code et sur le Wi-Fi, on le remplace
+        if (!/déjà enregistré/.test(e.message)) throw e;
+        const x = await fetch(API.replace("pointage-v2", "pointage-garde"), { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "reactiver", ...corps }) }).then((y) => y.json());
+        if (!x.token) throw new Error(x.erreur || "Activation impossible, réessaie.");
+        r = x;
+      }
       E.token = r.token; store.set("capanna_token", r.token); demarrerEmploye();
     } catch (e) { msg($("#a-msg"), e.message); b.disabled = false; }
   };
@@ -2851,7 +2861,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-160556";
+const VERSION_APP = "20261123-163759";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
