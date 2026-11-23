@@ -1156,6 +1156,15 @@ async function pointer(type) {
     if (!E.etat.wifi) { msg($("#p-msg"), "Vérification de ta position…", "info");
       gps = await position((p) => msg($("#p-msg"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
       msg($("#p-msg"), ""); }
+    // GPS nettement hors du restaurant (hors Wi-Fi) : refus automatique, gardé dans l'historique
+    if (gps) {
+      const c = await fetch(API_GEO.replace("geo-v1", "pointage-garde"), { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "controle_pointage", token: E.token, type, gps }) }).then((x) => x.json()).catch(() => null);
+      if (c && c.refuse) {
+        $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t" style="color:var(--rouge)">Pointage refusé</div><div class="petit">${esc(c.message)}</div></div></div>`;
+        afficherJournal(E.etat.moi.aujourdhui); return;
+      }
+    }
     const r = await api({ action: "pointer", token: E.token, type, gps, gps_err: gps ? null : position.erreur });
     if (r.en_attente) {
       $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${type === "arrivee" ? "Arrivée enregistrée" : "Départ enregistré"} à ${esc(r.heure)}</div>
@@ -2841,7 +2850,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-105227";
+const VERSION_APP = "20261123-145646";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
