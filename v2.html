@@ -731,7 +731,7 @@ function ecranEmploye() {
   const m = E.etat.moi;
   const ong = [["pointage", "Pointage"], ["planning", "Mon planning"], ["demandes", "Mes demandes"]];
   $("#corps").innerHTML = `<div class="barre-e"><div class="onglets" role="tablist">${ong.map(([k, l]) => `<button class="onglet ${E.onglet === k ? "actif" : ""}" data-o="${k}" role="tab" aria-selected="${E.onglet === k}">${l}</button>`).join("")}</div>
-      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="suivi-geo"></div><div id="geo-employe"></div><div id="vue-e"></div>`;
+      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="suivi-geo"></div><div id="vue-e"></div><div id="geo-employe"></div>`;
   $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => allerE(b.dataset.o));
   $("#e-cloche").onclick = () => allerE("notifications");
   majBadgeE(E.nonLues ?? m.non_lues);
@@ -882,7 +882,7 @@ async function majGeoEmploye() {
   const aExpliquer = sorties.filter((x) => ["aucune", "explication_demandee"].includes(x.justification_statut) && x.fin);
   if (!$("#geo-employe")) return;
   const lib = info.consentement === "autorise" ? "autorisée pendant le service" : info.consentement === "refuse" ? "refusée" : "choix à faire";
-  z.innerHTML = `<div class="carte" style="padding:10px 14px;margin-bottom:10px"><div class="ligne" style="justify-content:space-between;align-items:center">
+  z.innerHTML = `<div class="carte" style="padding:10px 14px;margin-top:12px"><div class="ligne" style="justify-content:space-between;align-items:center">
       <span class="petit">Géolocalisation : <b>${lib}</b></span><button class="b-lien" id="ge-voir">${info.consentement ? "Voir / modifier" : "Choisir"}</button></div>
     ${aExpliquer.length ? `<div style="margin-top:8px"><div class="petit" style="margin-bottom:4px"><b>Sortie${aExpliquer.length > 1 ? "s" : ""} à expliquer</b></div>
       ${aExpliquer.map((x) => `<div class="ligne" style="justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--bord, rgba(255,255,255,.08))">
@@ -2823,7 +2823,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-102644";
+const VERSION_APP = "20261123-104354";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
@@ -2832,11 +2832,10 @@ function majPossible() {
   if (a && a.matches && a.matches("input, textarea, select")) return false;       // saisie en cours
   return true;
 }
-const CHARGE_A = Date.now();
 function appliquerMaj(force) {
   if (!majEnAttente) return;
   // Pas de rechargement visible : juste à l'ouverture (avant toute action), sinon quand l'appli passe en arrière-plan.
-  if (!force && document.visibilityState === "visible" && Date.now() - CHARGE_A > 6000) return;
+  if (!force && document.visibilityState === "visible") return;   // jamais pendant l'utilisation
   if (!majPossible()) return setTimeout(() => appliquerMaj(force), 5000);
   // anti-boucle : si la page rechargée est encore l'ancienne (publication pas encore propagée), on attend 5 min
   try {
@@ -2845,6 +2844,7 @@ function appliquerMaj(force) {
     sessionStorage.setItem("capanna_maj", JSON.stringify({ v: majEnAttente, quand: Date.now() }));
   } catch {}
   location.replace(`v2.html?v=${encodeURIComponent(majEnAttente)}${location.hash}`);
+  return true;
 }
 async function verifierMaj() {
   if (VERSION_APP.startsWith("__")) return;
@@ -2872,7 +2872,20 @@ function route() {
   demarrerEmploye();
 }
 window.addEventListener("hashchange", route);
-route();
+// Démarrage : la version est vérifiée AVANT le premier affichage. S'il y en a une nouvelle,
+// on la charge tout de suite (écran encore vide) : aucun écran ne se recharge sous les yeux.
+(async () => {
+  if (!VERSION_APP.startsWith("__")) {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 1500);
+      const r = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store", signal: ctl.signal });
+      clearTimeout(t);
+      const v = r.ok ? (await r.json()).version : null;
+      if (v && v !== VERSION_APP) { majEnAttente = v; if (appliquerMaj(true)) return; }
+    } catch {}
+  }
+  route();
+})();
 </script>
 </body>
 </html>
