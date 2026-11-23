@@ -1,0 +1,2 @@
+-- hr_planning_appliquer : jours passés modifiables (62 jours max), toujours pour ce jour-là seulement,
+-- sans notification à l'employé pour une correction passée ; motif obligatoire et journalisé.

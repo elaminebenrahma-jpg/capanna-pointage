@@ -1762,10 +1762,10 @@ function contenuCase(e, j) {
   const col = couleurPoste(e.service);
   let h = absJour ? `<span class="pl-abs t-${absJour.type}">${LIB_TYPE[absJour.type]}</span>` : "";
   h += crs.length ? crs.map((c) => `<span class="pl-cr ${absJour ? "barre" : ""}" style="--c:${col}" title="${c.pause_min ? `Pause ${c.pause_min} min` : "Sans pause"}">${c.debut}–${c.fin}</span>`).join("")
-    : absJour ? "" : (PL.edition && !passe ? `<span class="pl-plus" aria-hidden="true">+</span>` : `<span class="pl-repos">Repos</span>`);
+    : absJour ? "" : (PL.edition ? `<span class="pl-plus" aria-hidden="true">+</span>` : `<span class="pl-repos">Repos</span>`);
   for (const a of partiels) h += `<span class="pl-tag">${LIB_TYPE[a.type] || a.type}${a.type === "retard_justifie" && a.heure_fin ? ` · ${a.heure_fin.slice(0, 5)}` : ""}${a.type === "depart_anticipe" && a.heure_debut ? ` · ${a.heure_debut.slice(0, 5)}` : ""}</span>`;
   if (att.length) h += `<span class="pl-tag attente" title="Demande pas encore validée : sans effet sur le planning">Demande en attente</span>`;
-  const editable = PL.edition && !passe;
+  const editable = PL.edition; // les jours passés se corrigent aussi (ce jour-là seulement, motif journalisé)
   const label = `${e.nom}, ${JOURS[dow(j)]} ${+j.slice(8)} : ${crs.length ? crs.map((c) => `${c.debut} à ${c.fin}`).join(" puis ") : "repos"}`;
   return { h, modif, passe, exc, editable, absJour, crs, label };
 }
@@ -1826,7 +1826,7 @@ function dessinerPlanning(v = $("#vue-g")) {
              : `<button class="b-sec pl-ic" id="pl-imprimer" title="Imprimer le planning de la semaine">${svgPl("impr")}<span>Imprimer</span></button><button class="b-principal pl-ic" id="pl-modifier">${svgPl("crayon")}<span>Modifier le planning</span></button>`}
       </div>
     </div>
-    ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer un jour, ou le nom d'un employé (« Toute la semaine ») pour changer toute sa semaine. Rien n'est enregistré avant « Enregistrer les modifications ». Les jours passés sont verrouillés.</div>` : ""}
+    ${ed ? `<div class="pl-bandeau"><b>Mode modification</b> Touche une case pour changer un jour, ou le nom d'un employé (« Toute la semaine ») pour changer toute sa semaine. Rien n'est enregistré avant « Enregistrer les modifications ». Corriger un jour passé ne change que ce jour-là et recalcule ses retards et absences.</div>` : ""}
     <div class="pl-legende"><span><i style="background:#1E2228;box-shadow:inset 3px 0 0 #7A7F86"></i>Service</span><span><i style="border:1px dashed rgba(255,255,255,.25)"></i>Repos</span><span><i class="t-conge"></i>Congé</span><span><i class="t-maladie"></i>Maladie</span><span><i class="t-absence_autorisee"></i>Absence autorisée</span><span><i style="background:#FFF4D6"></i>Retard / départ autorisé</span><span><i class="pl-exc-l"></i>Modifié pour cette date</span></div>
     <div class="segments pl-mob" role="tablist"><button data-vm="jour" class="${PL.vueM === "jour" ? "actif" : ""}">Jour</button><button data-vm="semaine" class="${PL.vueM === "semaine" ? "actif" : ""}">Semaine</button></div>
     <div class="pl-jchips">${d.jours.map((j) => `<button data-jour="${j}" class="${j === jr ? "actif" : ""} ${j === js ? "auj" : ""}"><span>${JOURS_C[dow(j)]}</span><b>${+j.slice(8)}</b></button>`).join("")}</div>
@@ -1891,19 +1891,17 @@ function editerSemaine(eId) {
   const f = feuille(`<div class="entete"><h2>Semaine de ${esc(e.nom)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
     <p class="sous">${esc(titreSemaine(PL.d.lundi, PL.d.dimanche))} · ${esc(e.service)}. Modifie tous les jours d'un coup ; rien n'est enregistré avant « Enregistrer les modifications ».</p>
     <div id="cs-jours"></div>
-    <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00). Les jours passés sont verrouillés.</p>
+    <p class="petit" style="margin-top:8px">Un service après minuit se termine le lendemain (ex. 19:00 → 02:00). Corriger un jour passé ne change que ce jour-là.</p>
     <div id="cs-msg"></div>
     <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="cs-ok">Valider la semaine</button></div>`);
   const el = f.el, zone = $("#cs-jours", el);
   const lireJour = (j) => $$(`.cs-jour[data-j="${j}"] .ce-ligne`, zone).map((l) => ({ debut: $('[data-k="debut"]', l).value, fin: $('[data-k="fin"]', l).value, pause_min: +$('[data-k="pause"]', l).value || 0 }));
-  const tout = () => { for (const j of jours) if (j >= js) sem[j] = lireJour(j); };
+  const tout = () => { for (const j of jours) sem[j] = lireJour(j); };
   const rendre = () => {
     zone.innerHTML = jours.map((j) => {
       const passe = j < js, crs = sem[j];
       const titre = `${JOURS[dow(j)].replace(/^./, (c) => c.toUpperCase())} ${+j.slice(8)}`;
-      if (passe) return `<div class="cs-jour passe" data-j="${j}"><div class="cs-tete"><b>${titre}</b><span class="petit">passé</span></div>
-        <div class="petit">${crs.length ? crs.map((c) => `${c.debut}–${c.fin}`).join(" · ") : "Repos"}</div></div>`;
-      return `<div class="cs-jour" data-j="${j}"><div class="cs-tete"><b>${titre}</b>
+      return `<div class="cs-jour" data-j="${j}"><div class="cs-tete"><b>${titre}${passe ? ` <span class="puce" style="font-size:11px">passé</span>` : ""}</b>
           <span><button class="b-lien" data-cs-ajout="${j}" ${crs.length >= 4 ? "disabled" : ""}>+ service</button><button class="b-lien" data-cs-repos="${j}">Repos</button><button class="b-lien" data-cs-copier="${j}">Copier sur les jours suivants</button></span></div>
         ${crs.length ? crs.map((c, i) => `<div class="ce-ligne">
           <div><label>Début</label><input type="time" data-k="debut" value="${c.debut}"></div>
@@ -1916,7 +1914,7 @@ function editerSemaine(eId) {
     $$("[data-cs-repos]", zone).forEach((b) => b.onclick = () => { tout(); sem[b.dataset.csRepos] = []; rendre(); });
     $$("[data-cs-suppr]", zone).forEach((b) => b.onclick = () => { tout(); const [j, i] = b.dataset.csSuppr.split("|"); sem[j].splice(+i, 1); rendre(); });
     $$("[data-cs-copier]", zone).forEach((b) => b.onclick = () => { tout(); const src = b.dataset.csCopier;
-      for (const j of jours) if (j > src && j >= js) sem[j] = sem[src].map((c) => ({ ...c }));
+      for (const j of jours) if (j > src) sem[j] = sem[src].map((c) => ({ ...c }));
       rendre(); msg($("#cs-msg", el), "Horaires copiés sur les jours suivants. Mets en repos les jours où il ne travaille pas.", "info"); });
   };
   rendre();
@@ -1924,7 +1922,6 @@ function editerSemaine(eId) {
     tout();
     const res = {};
     for (const j of jours) {
-      if (j < js) continue;
       const v = verifierServices(sem[j]);
       if (v.err) return msg($("#cs-msg", el), `${JOURS[dow(j)].replace(/^./, (c) => c.toUpperCase())} ${+j.slice(8)} : ${v.err}`);
       res[j] = v.tri;
@@ -1938,7 +1935,7 @@ function editerSemaine(eId) {
 }
 function editerCase(eId, j) {
   const e = employesPlanning().find((x) => String(x.id) === String(eId)) || PL.d.employes.find((x) => String(x.id) === String(eId));
-  if (!e || j < PL.d.jour_service) return;
+  if (!e) return;
   const k = cleCase(e.id, j);
   let crs = creneauxCase(e.id, j).map((c) => ({ ...c }));
   const abs = (PL.d.absParCase[k] || []).map((a) => `<div class="msg info">${LIB_TYPE[a.type] || a.type} validé(e) ce jour-là${a.heure_debut || a.heure_fin ? ` (${(a.heure_debut || "").slice(0, 5)}${a.heure_fin ? "–" + a.heure_fin.slice(0, 5) : ""})` : ""}. Le planning reste modifiable, l'absence reste prise en compte.</div>`).join("");
@@ -2018,7 +2015,7 @@ function confirmerPlanning() {
     <ul class="pl-recap">${lignes.map((l) => `<li>${l}</li>`).join("")}</ul>
     ${aCases ? `<label>Ces nouveaux horaires valent pour :</label>
       <label class="pl-choix"><input type="radio" name="pl-portee" value="semaine" checked><span><b>Seulement les jours modifiés</b><small>Pour un remplacement ou un changement ponctuel. Les autres semaines ne bougent pas.</small></span></label>
-      <label class="pl-choix"><input type="radio" name="pl-portee" value="suivantes"><span><b>Ces jours-là et toutes les semaines suivantes</b><small>Le nouvel horaire devient l'horaire habituel de ce jour de la semaine. Les semaines passées ne changent jamais.</small></span></label>` : ""}
+      <label class="pl-choix"><input type="radio" name="pl-portee" value="suivantes"><span><b>Ces jours-là et toutes les semaines suivantes</b><small>Le nouvel horaire devient l'horaire habituel de ce jour de la semaine. Les jours déjà passés ne sont corrigés que pour eux-mêmes.</small></span></label>` : ""}
     <label>Motif (obligatoire)</label><textarea id="pl-motif" placeholder="Ex. : planning de décembre, remplacement de Salma"></textarea>
     <div id="pl-msg"></div>
     <div class="ligne" style="margin-top:12px"><button class="b-sec flex" data-fermer>Retour</button><button class="b-principal flex" id="pl-go">Confirmer et enregistrer</button></div>`);
@@ -2171,7 +2168,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261122-234630";
+const VERSION_APP = "20261123-000902";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
