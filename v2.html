@@ -731,12 +731,122 @@ function ecranEmploye() {
   const m = E.etat.moi;
   const ong = [["pointage", "Pointage"], ["planning", "Mon planning"], ["demandes", "Mes demandes"]];
   $("#corps").innerHTML = `<div class="barre-e"><div class="onglets" role="tablist">${ong.map(([k, l]) => `<button class="onglet ${E.onglet === k ? "actif" : ""}" data-o="${k}" role="tab" aria-selected="${E.onglet === k}">${l}</button>`).join("")}</div>
-      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="vue-e"></div>`;
+      <button class="cloche ${E.onglet === "notifications" ? "actif" : ""}" id="e-cloche" aria-label="Notifications">${svgN("cloche")}<span id="e-badge"></span></button></div><div id="suivi-geo"></div><div id="vue-e"></div>`;
   $$(".onglet", $("#corps")).forEach((b) => b.onclick = () => allerE(b.dataset.o));
   $("#e-cloche").onclick = () => allerE("notifications");
   majBadgeE(E.nonLues ?? m.non_lues);
   ({ pointage: () => vuePointage(m), planning: vueMonPlanning, demandes: vueMesDemandes, notifications: vueNotificationsE }[E.onglet] || (() => vuePointage(m)))();
+  majBandeauSuivi(); geomSynchroniser();
 }
+
+
+// =====================================================================
+// Suivi de présence pendant le service — uniquement dans l'application mobile KeyNet
+// (iPhone / Android). Dans le navigateur ou l'appli web, rien de tout ceci ne s'exécute.
+// Le téléphone envoie ses positions ; c'est le serveur qui décide (rayon, précision,
+// confirmation, alertes) avec sa propre horloge. Hors service, aucune position n'est prise.
+// =====================================================================
+const NATIF = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform());
+const API_GEO_E = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/geo-v1";
+const GEOM = { watcher: null, etat: null, derniereMesure: 0, derniereEnvoi: 0, meilleure: null, envoiEnCours: false };
+const geomFile = () => { try { return JSON.parse(localStorage.getItem("keynet_geo_file") || "[]"); } catch { return []; } };
+const geomSauver = (l) => { try { localStorage.setItem("keynet_geo_file", JSON.stringify(l.slice(-600))); } catch {} };
+const geomId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^A-Za-z0-9_-]/g, "");
+function geomAjouter(ev) { const l = geomFile(); l.push({ client_id: geomId(), heure: new Date().toISOString(), ...ev }); geomSauver(l); }
+const consentementGeo = () => { try { return localStorage.getItem("keynet_geo_info") === "lu"; } catch { return false; } };
+// envoi de la file (positions mises de côté hors connexion comprises), sans doublon grâce aux identifiants
+async function geomEnvoyer() {
+  if (!E.token || GEOM.envoiEnCours) return null;
+  GEOM.envoiEnCours = true;
+  const lot = geomFile().slice(0, 200);
+  try {
+    const r = await fetch(API_GEO_E, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "geo_evenements", token: E.token, evenements: lot }) });
+    const j = await r.json();
+    if (!r.ok || j.erreur) throw new Error(j.erreur);
+    const envoyes = new Set(lot.map((x) => x.client_id));
+    geomSauver(geomFile().filter((x) => !envoyes.has(x.client_id)));
+    GEOM.etat = j; majBandeauSuivi();
+    if (!j.actif || !j.suivi) geomArreter();
+    return j;
+  } catch { return null; }                         // hors connexion : la file reste et repartira
+  finally { GEOM.envoiEnCours = false; }
+}
+async function geomSynchroniser() {
+  if (!NATIF || !E.token) return;
+  const j = await geomEnvoyer();
+  if (!j || !j.actif || !j.suivi) return;
+  if (!consentementGeo()) return informerSuivi();
+  geomDemarrer();
+}
+async function geomDemarrer() {
+  if (GEOM.watcher) return;
+  const BG = window.Capacitor?.Plugins?.BackgroundGeolocation;
+  if (!BG) return;
+  try {
+    // Android 13+ : la notification « service en cours » exige l'autorisation des notifications
+    const LN = window.Capacitor?.Plugins?.LocalNotifications;
+    if (LN && window.Capacitor.getPlatform?.() === "android") { try { await LN.requestPermissions(); } catch {} }
+    GEOM.watcher = await BG.addWatcher({
+      backgroundTitle: "KeyNet · service en cours",
+      backgroundMessage: "Ta présence au restaurant est vérifiée jusqu'à ton pointage de départ.",
+      requestPermissions: true, stale: false, distanceFilter: 0,
+    }, (pos, err) => {
+      if (err) {
+        if (err.code === "NOT_AUTHORIZED") { geomAjouter({ type: "permission", detail: "refusee" }); geomEnvoyer(); aideLocalisation(); }
+        return;
+      }
+      if (!pos) return;
+      const m = { lat: pos.latitude, lng: pos.longitude, precision: pos.accuracy };
+      if (!GEOM.meilleure || m.precision < GEOM.meilleure.precision) GEOM.meilleure = m;
+      const t = Date.now();
+      if (t - GEOM.derniereMesure < 20000) return;          // une mesure retenue toutes les 20 s (la plus précise)
+      GEOM.derniereMesure = t;
+      geomAjouter({ type: "position", ...GEOM.meilleure }); GEOM.meilleure = null;
+      if (t - GEOM.derniereEnvoi >= 30000) { GEOM.derniereEnvoi = t; geomEnvoyer(); }
+    });
+    majBandeauSuivi();
+  } catch { geomAjouter({ type: "gps_desactive", detail: "demarrage impossible" }); geomEnvoyer(); }
+}
+async function geomArreter() {
+  if (!GEOM.watcher) return;
+  const id = GEOM.watcher; GEOM.watcher = null;
+  try { await window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id }); } catch {}
+  majBandeauSuivi();
+}
+function majBandeauSuivi() {
+  const z = $("#suivi-geo"); if (!z) return;
+  if (!NATIF) { z.innerHTML = ""; return; }
+  const e = GEOM.etat;
+  z.innerHTML = GEOM.watcher && e?.suivi ? `<div class="msg bon" style="display:flex;gap:10px;align-items:center"><span class="g-pas g-vert" style="padding:4px"><i></i></span>
+      <span><b>Suivi de présence actif</b> pendant ton service, jusqu'à ton pointage de départ.${e.etat === "hors" ? " Tu es actuellement hors du restaurant." : ""}</span></div>`
+    : e?.actif && !e?.suivi ? `<p class="petit" style="margin:6px 2px">Suivi de présence : inactif (aucun service en cours).</p>` : "";
+}
+function informerSuivi() {
+  const f = feuille(`<div class="entete"><h2>Suivi de présence</h2></div>
+    <p>Pendant ton service, l'application vérifie que tu es bien au restaurant.</p>
+    <ul class="petit" style="padding-left:18px;line-height:1.6">
+      <li><b>Quand :</b> seulement entre ton pointage d'arrivée et ton pointage de départ. Jamais en dehors.</li>
+      <li><b>Quoi :</b> la position du téléphone (environ toutes les 20 secondes) et le fait d'être connecté au Wi-Fi du restaurant.</li>
+      <li><b>Pourquoi :</b> savoir si tu quittes l'établissement (rayon de 30 m). Ton responsable est prévenu après quelques minutes de sortie. Une sortie peut toujours être justifiée (livraison, course…) ; il n'y a jamais de sanction automatique.</li>
+      <li><b>Qui voit :</b> uniquement ton responsable. Jamais les autres employés.</li>
+      <li><b>Combien de temps :</b> les positions détaillées sont effacées après la durée fixée par l'entreprise ; seules les sorties restent dans l'historique.</li>
+      <li><b>Tes droits :</b> tu peux demander à consulter ou corriger tes données auprès de ton employeur (loi 09-08).</li></ul>
+    <p class="petit">Si le GPS ne capte pas ou si ton téléphone est éteint, ce n'est jamais compté comme une sortie.</p>
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="si-ok">J'ai compris, continuer</button></div>`);
+  $("#si-ok", f.el).onclick = () => {
+    try { localStorage.setItem("keynet_geo_info", "lu"); } catch {}
+    geomAjouter({ type: "appli", detail: "information lue" });
+    f.fermer(); geomDemarrer().then(geomEnvoyer);
+  };
+}
+function aideLocalisation() {
+  if ($("#aide-loc")) return;
+  const f = feuille(`<div class="entete"><h2 id="aide-loc">Localisation désactivée</h2><button class="b-sec" data-fermer>Plus tard</button></div>
+    <p>Pour que ta présence soit reconnue pendant ton service, autorise la localisation pour KeyNet (« Toujours » ou « Lorsque l'app est active »).</p>
+    <div class="pile" style="margin-top:12px"><button class="b-principal b-plein" id="al-ok">Ouvrir les réglages</button></div>`);
+  $("#al-ok", f.el).onclick = () => { window.Capacitor?.Plugins?.BackgroundGeolocation?.openSettings?.(); f.fermer(); };
+}
+if (NATIF) document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") geomSynchroniser(); });
 
 // ---------- Mon planning (lecture seule) ----------
 async function vueMonPlanning() {
@@ -879,7 +989,7 @@ function zoneCode(dernier) {
         const r = await api({ action: "pointage_code", token: E.token, code });
         $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${r.type === "arrivee" ? "Arrivée validée" : "Départ validé"} à ${esc(r.heure)}</div>
           <div class="petit">Présence confirmée par ${esc(r.par)}.</div></div></div>`;
-        afficherJournal(r.aujourdhui, r.en_attente_liste);
+        afficherJournal(r.aujourdhui, r.en_attente_liste); geomSynchroniser();
       } catch (e) { $("#pc-ok").disabled = false; msg($("#pc-msg"), e.message); }
     };
   } else if (dernier?.type === "arrivee" && dernier.ok) {
@@ -973,7 +1083,7 @@ async function pointer(type) {
     if (r.en_attente) {
       $("#p-resultat").innerHTML = `<div class="resultat"><div><div class="t">${type === "arrivee" ? "Arrivée enregistrée" : "Départ enregistré"} à ${esc(r.heure)}</div>
         <div class="petit">${esc(r.info)}</div>${!gps && position.erreur === "refusee" ? `<div class="petit" style="margin-top:6px;color:var(--s-orange)">La localisation est bloquée sur ton téléphone. Autorise-la pour ce site (Réglages › Safari › Localisation) : la prochaine fois ton pointage sera validé tout de suite.</div>` : ""}</div></div>`;
-      afficherJournal(r.aujourdhui, r.en_attente_liste);
+      afficherJournal(r.aujourdhui, r.en_attente_liste); geomSynchroniser();
       return;
     }
     const j = r.emojis?.jour;
@@ -981,7 +1091,7 @@ async function pointer(type) {
       <div><div class="t">${type === "arrivee" ? "Arrivée" : "Départ"} enregistrée à ${esc(r.heure)}</div>
       <div class="petit">${esc(type === "arrivee" && j ? j.message : r.info)}</div>${type === "arrivee" && j && r.info && !/heure|Retard/.test(r.info) ? `<div class="petit">${esc(r.info)}</div>` : ""}
       ${type === "depart" && /prochain service/.test(r.info) ? "" : ""}</div></div>`;
-    afficherJournal(r.aujourdhui, r.en_attente_liste); afficherIndicateurs(r.emojis, true);
+    afficherJournal(r.aujourdhui, r.en_attente_liste); geomSynchroniser(); afficherIndicateurs(r.emojis, true);
     if (!store.get("capanna_push_propose") && await etatPush() === "a_activer") {
       store.set("capanna_push_propose", "1");
       $("#p-resultat").insertAdjacentHTML("beforeend", `<div data-push-zone style="margin-top:12px"></div>`);
@@ -2486,7 +2596,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-091526";
+const VERSION_APP = "20261123-091854";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
