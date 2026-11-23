@@ -1465,11 +1465,11 @@ function allerA(o, arg) {
     if (nbChangementsPl() && !confirm("Des modifications du planning ne sont pas enregistrées. Les abandonner ?")) return;
     PL.edition = false; PL.br = null;
   }
-  const avant = G.onglet; G.onglet = o; marquerNavigation(o);
+  const avant = G.onglet; G.onglet = o; G.ongletArg = arg; marquerNavigation(o);
   if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
-  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
+  return ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
      geo_direct: vueGeoDirect, geo_alertes: vueGeoAlertes, geo_historique: vueGeoHistorique, geo_stats: vueGeoStats, geo_autorisations: vueGeoAutorisations, geo_simulation: vueGeoSimulation, geo_parametres: vueGeoParametres }[o])(v, arg)
     .catch((e) => msg(v, e.message));
 }
@@ -2850,7 +2850,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-145646";
+const VERSION_APP = "20261123-152310";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
@@ -2890,6 +2890,25 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pageshow", (e) => { if (e.persisted) verifierMaj(); });
 
+// Retour dans l'appli après une absence (téléphone verrouillé, autre appli, lendemain) :
+// les données affichées sont rechargées, à la même position. Jamais pendant l'utilisation.
+let CACHE_LE = Date.now();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") { CACHE_LE = Date.now(); return; }
+  if (Date.now() - CACHE_LE < 60000 || document.querySelector(".voile")) return;
+  if ($("#vue-g") && G.onglet && !(typeof PL !== "undefined" && PL.edition)) rafraichirGerant();
+  else if ($("#corps") && E.token) demarrerEmploye();
+});
+async function rafraichirGerant() {
+  try {
+    const eq = await ga({ action: "admin_equipe" });
+    G.equipe = eq.equipe;
+    if (eq.jour_service !== G.js) { if (G.filtres.fin === G.js) G.filtres.fin = eq.jour_service; G.js = eq.jour_service; }
+  } catch { return; }
+  const y = scrollY;
+  try { await allerA(G.onglet, G.ongletArg); } catch {}
+  scrollTo(0, y);
+}
 function route() {
   const h = location.hash;
   if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; if (/^#gerant\/geo/.test(h)) G.onglet = "geo_direct"; return demarrerGerant(); }
