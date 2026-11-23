@@ -1719,7 +1719,8 @@ async function vueFiche(v, id) {
     };
   };
   if ($("#f-reset")) $("#f-reset").onclick = () => demanderMotif("Réinitialiser le téléphone", `${esc(e.nom)} devra réactiver son téléphone avec un code.`, async (m) => { await ga({ action: "admin_reinitialiser", employe_id: id, motif: m }); e.telephone = false; allerA("fiche", id); }, { classe: "b-danger", bouton: "Réinitialiser" });
-  if ($("#f-code")) $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin; msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}`, "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
+  if ($("#f-code")) $("#f-code").onclick = async () => { try { const r = await ga({ action: "admin_nouveau_code", employe_id: id }); e.pin = r.pin;
+    msg($("#f-msg"), `Nouveau code d'activation : ${r.pin}` + (e.telephone ? ". Attention : son ancien téléphone est toujours enregistré. Touche « Réinitialiser le téléphone » pour que le nouveau puisse s'activer." : ""), e.telephone ? "info" : "bon"); } catch (x) { msg($("#f-msg"), x.message); } };
   $$("[data-dem]", v).forEach((li) => li.onclick = () => ficheDemande(+li.dataset.dem));
 }
 function departEmploye(e) {
@@ -2850,7 +2851,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-152310";
+const VERSION_APP = "20261123-160556";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
