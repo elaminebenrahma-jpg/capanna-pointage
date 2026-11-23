@@ -101,8 +101,8 @@ tr.barre td{color:#aaa;text-decoration:line-through}
 :root{--nav-h:72px;--nav-bas:calc(env(safe-area-inset-bottom) + 12px);--nav-actif:#C8F542;--nav-inactif:#7C858F}
 body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 .nav-bas{position:fixed;z-index:40;left:50%;bottom:var(--nav-bas);transform:translateX(-50%);
-  width:min(calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)),620px);height:var(--nav-h);
-  display:grid;grid-template-columns:repeat(6,1fr);align-items:stretch;padding:6px;border-radius:26px;
+  width:min(calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)),720px);height:var(--nav-h);
+  display:grid;grid-template-columns:repeat(var(--nav-n,6),minmax(0,1fr));align-items:stretch;padding:6px;border-radius:26px;
   background:rgba(242,243,243,.72);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
   border:1px solid rgba(255,255,255,.65);
   box-shadow:0 10px 30px -8px rgba(35,40,45,.20),0 2px 8px rgba(35,40,45,.06),inset 0 1px 0 rgba(255,255,255,.7);
@@ -131,8 +131,8 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 @media(prefers-reduced-motion:reduce){.nav-bas,.nav-item,.nav-item svg,.nav-item::after{transition:none!important}}
 .entete-g{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;min-height:40px}
 .entete-g h2{font-size:22px}
-.segments{display:inline-flex;gap:2px;padding:3px;margin:10px 0 2px;border-radius:12px;background:rgba(51,56,61,.07)}
-.segments button{background:none;border-radius:9px;padding:7px 14px;font-size:14px;font-weight:600;color:#6E7378;transition:background .2s,color .2s}
+.segments{display:inline-flex;max-width:100%;overflow-x:auto;scrollbar-width:none;gap:2px;padding:3px;margin:10px 0 2px;border-radius:12px;background:rgba(51,56,61,.07)}
+.segments button{flex:none;white-space:nowrap;background:none;border-radius:9px;padding:7px 14px;font-size:14px;font-weight:600;color:#6E7378;transition:background .2s,color .2s}
 .segments button.actif{background:#fff;color:var(--nav-actif);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 /* ---------- planning hebdomadaire ---------- */
 .pl-barre{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:12px 0 8px}
@@ -389,6 +389,29 @@ tr.barre td{color:#5E666F}
 .compte .barre{height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}
 .compte .barre i{display:block;height:100%;background:var(--vert);border-radius:4px}
 .compte.fini .chrono{color:var(--s-orange)}
+
+/* ---------- géolocalisation ---------- */
+@media(max-width:400px){#g-nav{padding:6px 3px}#g-nav .nav-item{font-size:9px;letter-spacing:-.02em;gap:3px}#g-nav .nav-item svg{width:21px;height:21px}}
+.g-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.t-vert{color:#5FD38B}.t-rouge{color:#FF7A70}.t-orange{color:#F3A36B}.t-gris{color:#8A939D}
+.g-pas{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap;transition:background .4s,color .4s}
+.g-pas i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.g-vert{background:rgba(46,158,91,.16);color:#7FE0A3}.g-orange{background:rgba(226,116,43,.16);color:#F3A36B}
+.g-rouge{background:rgba(255,107,97,.16);color:#FF8C84}.g-rouge i{animation:g-pulse 1.6s ease-in-out infinite}.g-gris{background:var(--carte-3);color:#8A939D}
+@keyframes g-pulse{50%{opacity:.35}}
+.g-av{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--carte-3);font-family:var(--mono);font-size:13px;font-weight:700;color:#C9CFD5;margin-right:10px}
+.g-liste li,.g-alerte{display:flex;align-items:center;gap:6px}
+.g-ligne{transition:background .4s}.g-ligne.hors{background:rgba(255,107,97,.05)}.g-ligne.hors .g-av{box-shadow:0 0 0 2px #FF7A70}
+.g-ligne.a_verifier .g-av{box-shadow:0 0 0 2px #F3A36B}.g-ligne.dans .g-av{box-shadow:0 0 0 2px rgba(95,211,139,.7)}
+.g-prio{flex:none;width:4px;align-self:stretch;border-radius:2px;background:#F3A36B;margin-right:8px}
+.g-alerte.haute .g-prio{background:#FF7A70}.g-alerte.info .g-prio{background:#5FD38B}
+.g-barres{display:grid;gap:8px}.g-barre{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:center;font-size:13px}
+.g-barre .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.g-barre .v{color:var(--gris);font-size:12px;white-space:nowrap}
+.g-barre .b{position:relative;height:10px;border-radius:5px;background:var(--carte-3);overflow:hidden}
+.g-barre .b i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:rgba(242,244,246,.35)}.g-barre .b i.nj{background:#FF7A70}
+.g-leg{display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(242,244,246,.35);vertical-align:-1px}.g-leg.nj{background:#FF7A70}
+.g-param{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--ligne)}.g-param:first-of-type{border-top:0}.g-param label{margin:0}
+@media(prefers-reduced-motion:reduce){.g-rouge i{animation:none}}
 /* ================= fin du thème sombre ================= */
 #impression{display:none}
 @media print{
@@ -1125,20 +1148,22 @@ function detailMaDemande(d) {
 // ======================================================================
 const G = { code: store.sget("capanna_code_v2") || store.get("capanna_code_garde"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
-const ONGLETS_G = [["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
+const ONGLETS_G_GEO = [["geo_direct", "En direct"], ["geo_alertes", "Alertes"], ["geo_historique", "Historique"], ["geo_stats", "Statistiques"], ["geo_autorisations", "Autorisations"], ["geo_parametres", "Paramètres GPS"]];
+const ONGLETS_G = [...ONGLETS_G_GEO, ["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
 // Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
 // avec des sous-onglets dans la rubrique quand elle contient plusieurs vues.
 const RUBRIQUES_G = [
-  { k: "tableau", lib: "Tableau de bord", court: "Tableau", vues: ["tableau"] },
+  { k: "tableau", lib: "Tableau de bord", nav: "Tableau", court: "Tableau", vues: ["tableau"] },
   { k: "equipe", lib: "Équipe", court: "Équipe", vues: ["equipe", "fiche"] },
   { k: "conges", lib: "Congés", court: "Congés", vues: ["demandes", "calendrier"], badge: "demandes" },
   { k: "planning", lib: "Planning", court: "Planning", vues: ["planning", "horaires"] },
   { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "journal"] },
+  { k: "geo", lib: "Géolocalisation & présences", nav: "Présences GPS", court: "Géoloc", vues: ["geo_direct", "geo_alertes", "geo_historique", "geo_stats", "geo_autorisations", "geo_parametres"], badge: "geo" },
   { k: "reglages", lib: "Réglages", court: "Réglages", vues: ["reglages"] },
 ];
 const rubriqueDe = (o) => RUBRIQUES_G.find((r) => r.vues.includes(o)) || RUBRIQUES_G[0];
 const libVue = (o) => (ONGLETS_G.find(([k]) => k === o) || [o, o])[1];
-const ICONES_NAV = {"tableau": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "equipe": "<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>", "conges": "<path d=\"M8 2v3\"/><path d=\"M16 2v3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M8 13h.01\"/><path d=\"M12 13h.01\"/><path d=\"M16 13h.01\"/><path d=\"M8 17h.01\"/><path d=\"M12 17h.01\"/><path d=\"M16 17h.01\"/>", "planning": "<path d=\"M16 2v3\"/><path d=\"M17 15.5v1.7l1 .625\"/><path d=\"M21 8.936V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.935\"/><path d=\"M3 9h9.873\"/><path d=\"M8 2v3\"/><circle cx=\"17\" cy=\"17\" r=\"5\"/>", "rapports": "<path d=\"M12 16v5\"/><path d=\"M16 14.639V21\"/><path d=\"M20 10.656V21\"/><path d=\"m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15\"/><path d=\"M4 18.463V21\"/><path d=\"M8 14.656V21\"/>", "reglages": "<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>"};
+const ICONES_NAV = {"geo": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/>", "tableau": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "equipe": "<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>", "conges": "<path d=\"M8 2v3\"/><path d=\"M16 2v3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M8 13h.01\"/><path d=\"M12 13h.01\"/><path d=\"M16 13h.01\"/><path d=\"M8 17h.01\"/><path d=\"M12 17h.01\"/><path d=\"M16 17h.01\"/>", "planning": "<path d=\"M16 2v3\"/><path d=\"M17 15.5v1.7l1 .625\"/><path d=\"M21 8.936V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.935\"/><path d=\"M3 9h9.873\"/><path d=\"M8 2v3\"/><circle cx=\"17\" cy=\"17\" r=\"5\"/>", "rapports": "<path d=\"M12 16v5\"/><path d=\"M16 14.639V21\"/><path d=\"M20 10.656V21\"/><path d=\"m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15\"/><path d=\"M4 18.463V21\"/><path d=\"M8 14.656V21\"/>", "reglages": "<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>"};
 const ga = (body) => api({ ...body, code: G.code });
 
 function manifesteGerant(oui) {
@@ -1199,9 +1224,10 @@ function dessinerOnglets() {
   $("#g-nav")?.remove();
   const nav = document.createElement("nav");
   nav.id = "g-nav"; nav.className = "nav-bas"; nav.setAttribute("aria-label", "Navigation principale");
+  nav.style.setProperty("--nav-n", RUBRIQUES_G.length);
   nav.innerHTML = RUBRIQUES_G.map((r) => `<button class="nav-item" data-r="${r.k}" aria-label="${r.lib}">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES_NAV[r.k]}</svg>
-      <span class="nav-lib"><span class="nav-lib-long">${r.lib}</span><span class="nav-lib-court">${r.court}</span></span>
+      <span class="nav-lib"><span class="nav-lib-long">${r.nav || r.lib}</span><span class="nav-lib-court">${r.court}</span></span>
       ${r.badge ? `<span data-badge="${r.badge}"></span>` : ""}</button>`).join("");
   document.body.appendChild(nav);
   $$(".nav-item", nav).forEach((b) => b.onclick = () => {
@@ -1246,7 +1272,8 @@ function allerA(o, arg) {
   if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
-  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche }[o])(v, arg)
+  ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
+     geo_direct: vueGeoDirect, geo_alertes: vueGeoAlertes, geo_historique: vueGeoHistorique, geo_stats: vueGeoStats, geo_autorisations: vueGeoAutorisations, geo_parametres: vueGeoParametres }[o])(v, arg)
     .catch((e) => msg(v, e.message));
 }
 const services = () => [...new Set(G.equipe.map((x) => x.service))].sort();
@@ -2121,6 +2148,227 @@ function imprimerPlanning() {
     <table><thead><tr><th>Employé</th>${d.jours.map((j) => `<th>${JOURS_C[dow(j)]} ${+j.slice(8)}</th>`).join("")}</tr></thead><tbody>${lignes}</tbody></table>`);
 }
 
+
+// =====================================================================
+// Géolocalisation & présences (module KeyNet) — données servies par geo-v1
+// Vert : dans la zone · Orange : à vérifier · Rouge : sortie confirmée · Gris : position inconnue
+// =====================================================================
+const API_GEO = "https://cqtnjliywdwzbbgutqlq.supabase.co/functions/v1/geo-v1";
+async function gg(body) {
+  const r = await fetch(API_GEO, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, code: G.code }) });
+  const j = await r.json().catch(() => ({ erreur: "Réponse illisible du serveur." }));
+  if (!r.ok || j.erreur) throw new Error(j.erreur || "Erreur " + r.status);
+  return j;
+}
+const GEO_ETAT = {
+  dans: ["Dans la zone", "g-vert"], a_verifier: ["À vérifier", "g-orange"], hors: ["Hors zone", "g-rouge"],
+  inconnu: ["Position inconnue", "g-gris"], termine: ["Service terminé", "g-gris"],
+};
+const GEO_MOTIFS = { livraison: "Livraison", achat: "Achat professionnel", mission: "Mission extérieure", pause: "Pause autorisée", exceptionnelle: "Autorisation exceptionnelle", autre: "Autre motif" };
+const GEO_DECISION = { aucune: "À examiner", explication_demandee: "Explication demandée", acceptee: "Justifiée", refusee: "Non justifiée" };
+const GEO_ALERTE = { sortie: "Sortie > 3 min", sortie_prolongee: "Sortie prolongée", retour: "Retour", gps_desactive: "Localisation coupée", permission_retiree: "Autorisation retirée", injoignable: "Téléphone injoignable" };
+const GEO_STATUT = { nouvelle: "Nouvelle", en_cours: "En cours", traitee: "Traitée", cloturee: "Clôturée" };
+const dureeS = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h} h ${String(m).padStart(2, "0")}` : m ? `${m} min ${String(x).padStart(2, "0")}` : `${x} s`; };
+const initiales = (n) => String(n || "?").trim().split(/\s+/).map((x) => x[0]).slice(0, 2).join("").toUpperCase();
+const pastilleGeo = (etat) => { const [t, c] = GEO_ETAT[etat] || GEO_ETAT.inconnu; return `<span class="g-pas ${c}"><i></i>${t}</span>`; };
+async function bandeauGeoInactif(v) {
+  try {
+    const p = (await gg({ action: "geo_admin_parametres" })).parametres;
+    G.geoActif = p.geo_actif === "1";
+    if (!G.geoActif) v.insertAdjacentHTML("afterbegin", `<div class="msg info" style="margin-bottom:12px"><b>Module en préparation.</b> Le suivi démarrera avec l'application mobile KeyNet, après l'autorisation de la CNDP et l'information des employés. Rien n'est collecté tant que le module est désactivé (Paramètres GPS).</div>`);
+  } catch {}
+}
+
+async function vueGeoDirect(v) {
+  clearInterval(G.geoMinuteur);
+  const dessiner = async () => {
+    const d = await gg({ action: "geo_admin_direct" });
+    if (!v.isConnected) return clearInterval(G.geoMinuteur);
+    const k = d.kpi, recu = Date.now();
+    v.innerHTML = `<div class="kpis g-kpis">
+        <div class="kpi"><b>${k.pointes}</b><span>employés pointés</span></div>
+        <div class="kpi"><b class="t-vert">${k.dans}</b><span>dans la zone</span></div>
+        <div class="kpi"><b class="t-rouge">${k.hors}</b><span>hors zone</span></div>
+        <div class="kpi"><b class="t-orange">${k.alertes}</b><span>alertes actives</span></div>
+        <div class="kpi"><b>${dureeS(k.cumul_s)}</b><span>cumul hors zone aujourd'hui</span></div>
+        <div class="kpi"><b>${k.autorisees}</b><span>sorties autorisées</span></div>
+        <div class="kpi"><b class="t-gris">${k.inconnus}</b><span>positions indisponibles</span></div>
+        <div class="kpi"><b class="t-orange">${k.a_verifier}</b><span>à vérifier</span></div></div>
+      <div class="carte"><div class="ligne" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Aujourd'hui · ${esc(dateFr(d.jour_service))}</h3>
+        <span class="petit" id="gd-maj">Actualisé à ${heure(new Date().toISOString())}</span></div>
+      <ul class="liste g-liste">${d.lignes.map((l) => `<li class="g-ligne ${l.etat}">
+        <span class="g-av">${esc(initiales(l.nom))}</span>
+        <div class="flex"><div class="t">${esc(l.nom || "?")} <span class="petit">· ${esc(l.service || "")}</span></div>
+          <div class="petit">Pointé à ${heure(l.debut)}${l.fin ? ` · parti à ${heure(l.fin)}` : ""}${l.nb_sorties ? ` · ${l.nb_sorties} sortie${l.nb_sorties > 1 ? "s" : ""}, ${dureeS(l.cumul_s)}` : ""}
+          ${l.etat === "hors" && l.sortie_debut ? ` · <b>dehors depuis ${heure(l.sortie_debut)} (<span data-hors="${l.hors_s}">${dureeS(l.hors_s)}</span>)</b>` : ""}
+          ${l.etat === "inconnu" && l.statut === "active" ? ` · ${!l.appli ? "appli mobile non active" : "dernière position " + heure(l.derniere_vue)}` : ""}</div></div>
+        <div style="text-align:right">${pastilleGeo(l.etat)}${l.niveau ? `<div class="petit t-rouge" style="margin-top:4px">${l.niveau >= 2 ? "Alerte prioritaire" : "Alerte"}</div>` : ""}
+          <button class="b-lien" data-geo-fiche="${l.employe_id}" style="font-size:13px;padding:4px 0 0">Historique</button></div></li>`).join("")
+        || `<li class="vide">Aucun employé pointé aujourd'hui.</li>`}</ul></div>
+      ${d.alertes.length ? `<div class="carte"><h3>Alertes actives</h3>${listeAlertes(d.alertes)}</div>` : ""}`;
+    await bandeauGeoInactif(v);
+    brancherAlertes(v, () => dessiner());
+    $$("[data-geo-fiche]", v).forEach((b) => b.onclick = () => { G.geoFiltre = { employe: b.dataset.geoFiche, periode: "mois" }; allerA("geo_historique"); });
+    // les durées hors zone avancent seconde par seconde entre deux actualisations
+    clearInterval(G.geoTic);
+    G.geoTic = setInterval(() => { if (!v.isConnected) return clearInterval(G.geoTic);
+      $$("[data-hors]", v).forEach((x) => x.textContent = dureeS(+x.dataset.hors + (Date.now() - recu) / 1000)); }, 1000);
+  };
+  await dessiner();
+  G.geoMinuteur = setInterval(() => { if (!v.isConnected) return clearInterval(G.geoMinuteur); if (document.visibilityState === "visible") dessiner().catch(() => {}); }, 20000);
+}
+function listeAlertes(l) {
+  return `<ul class="liste">${l.map((a) => `<li class="g-alerte ${a.priorite}"><span class="g-prio"></span>
+    <div class="flex"><div class="t">${esc(GEO_ALERTE[a.type] || a.type)} · ${esc(a.nom || "")}</div>
+      <div class="petit">${esc(dateCourte(a.cree_le.slice(0, 10)))} à ${heure(a.cree_le)} · ${esc(a.message)}</div>
+      <div class="petit" style="margin-top:2px">Statut : <b>${GEO_STATUT[a.statut]}</b>${a.priorite === "haute" ? ` · <span class="t-rouge">priorité haute</span>` : ""}</div></div>
+    ${["nouvelle", "en_cours"].includes(a.statut) ? `<div class="pile" style="gap:4px;text-align:right">${a.statut === "nouvelle" ? `<button class="b-lien" data-al="${a.id}|en_cours">Prendre en charge</button>` : ""}
+      ${a.sortie_id ? `<button class="b-lien" data-al-sortie="${a.sortie_id}">Qualifier la sortie</button>` : ""}
+      <button class="b-lien" data-al="${a.id}|traitee">Marquer traitée</button><button class="b-lien" style="color:var(--gris)" data-al="${a.id}|cloturee">Clôturer</button></div>` : ""}</li>`).join("")}</ul>`;
+}
+function brancherAlertes(v, apres) {
+  $$("[data-al]", v).forEach((b) => b.onclick = async () => { const [id, statut] = b.dataset.al.split("|"); b.disabled = true;
+    try { await gg({ action: "geo_admin_alerte_statut", id: +id, statut }); apres(); } catch (e) { b.disabled = false; alert(e.message); } });
+  $$("[data-al-sortie]", v).forEach((b) => b.onclick = () => qualifierSortie(+b.dataset.alSortie, null, apres));
+}
+async function vueGeoAlertes(v) {
+  const f = G.geoAlFiltre || "actives";
+  const d = await gg({ action: "geo_admin_alertes", filtre: f });
+  v.innerHTML = `<div class="segments" style="margin-bottom:10px"><button data-f="actives" class="${f === "actives" ? "actif" : ""}">Actives</button><button data-f="toutes" class="${f === "toutes" ? "actif" : ""}">Toutes</button></div>
+    <div class="carte">${d.alertes.length ? listeAlertes(d.alertes) : `<div class="vide">Aucune alerte ${f === "actives" ? "active" : ""}.</div>`}</div>`;
+  await bandeauGeoInactif(v);
+  $$("[data-f]", v).forEach((b) => b.onclick = () => { G.geoAlFiltre = b.dataset.f; allerA("geo_alertes"); });
+  brancherAlertes(v, () => allerA("geo_alertes"));
+}
+
+function periodeGeo(p, ref) {
+  const js = ref || G.js;
+  if (p === "jour") return [js, js];
+  if (p === "semaine") { const l = lundiDe(js); return [l, plusJours(l, 6)]; }
+  return [js.slice(0, 8) + "01", js];
+}
+async function vueGeoHistorique(v) {
+  const f = G.geoFiltre ||= { periode: "jour", employe: "", q: "" };
+  if (!f.debut) [f.debut, f.fin] = periodeGeo(f.periode);
+  const d = await gg({ action: "geo_admin_historique", debut: f.debut, fin: f.fin, employe_id: f.employe || undefined });
+  G.geoHist = d.sorties;
+  const q = (f.q || "").toLowerCase();
+  const l = d.sorties.filter((x) => !q || (x.nom || "").toLowerCase().includes(q));
+  const total = l.reduce((t, x) => t + x.duree_s, 0), nonJ = l.filter((x) => x.justification_statut !== "acceptee").reduce((t, x) => t + x.duree_s, 0);
+  v.innerHTML = `<div class="carte"><div class="segments">${["jour", "semaine", "mois"].map((p) => `<button data-p="${p}" class="${f.periode === p ? "actif" : ""}">${{ jour: "Jour", semaine: "Semaine", mois: "Mois" }[p]}</button>`).join("")}</div>
+      <div class="ligne" style="margin-top:8px"><div class="flex"><label>Du</label><input type="date" id="gh-d" value="${f.debut}"></div><div class="flex"><label>Au</label><input type="date" id="gh-f" value="${f.fin}"></div></div>
+      <div class="ligne"><div class="flex"><label>Employé</label><select id="gh-e">${optionsEmployes(f.employe)}</select></div><div class="flex"><label>Recherche</label><input id="gh-q" placeholder="Nom…" value="${esc(f.q || "")}"></div></div></div>
+    <div class="kpis"><div class="kpi"><b>${l.length}</b><span>sorties</span></div><div class="kpi"><b>${dureeS(total)}</b><span>temps hors zone</span></div>
+      <div class="kpi"><b class="t-rouge">${dureeS(nonJ)}</b><span>non justifié</span></div></div>
+    <div class="carte"><div class="ligne" style="justify-content:flex-end;gap:8px;margin-bottom:6px"><button class="b-sec" id="gh-csv">Exporter Excel</button><button class="b-sec" id="gh-pdf">PDF</button></div>
+    <div class="tableau"><table><thead><tr><th>Date</th><th>Employé</th><th>Entrée</th><th>Départ étab.</th><th>Retour</th><th class="num">Durée</th><th>Motif</th><th>Décision</th><th>Commentaire</th><th>Sortie service</th></tr></thead><tbody>
+    ${l.map((x) => `<tr class="cliquable" data-sortie="${x.id}"><td>${esc(dateCourte(x.jour_service))}</td><td>${esc(x.nom)}</td><td>${x.entree ? heure(x.entree) : "—"}</td>
+      <td>${heure(x.debut)}</td><td>${x.fin ? heure(x.fin) + (x.cloture === "depart" ? " (départ)" : x.cloture === "fin_session" ? " (fin)" : "") : `<span class="t-rouge">en cours</span>`}</td>
+      <td class="num">${dureeS(x.duree_s)}</td><td>${esc(GEO_MOTIFS[x.justification_type] || "—")}</td><td>${esc(GEO_DECISION[x.justification_statut])}</td>
+      <td class="petit" style="white-space:normal;max-width:220px">${esc(x.commentaire || "")}</td><td>${x.sortie_service ? heure(x.sortie_service) : "—"}</td></tr>`).join("")
+      || `<tr><td colspan="10" class="vide">Aucune sortie sur cette période.</td></tr>`}</tbody></table></div>
+    <p class="petit" style="margin-top:8px">Une position inconnue ou une perte de GPS n'est jamais comptée comme une sortie. Une sortie justifiée reste visible mais n'entre pas dans le temps non justifié.</p></div>`;
+  await bandeauGeoInactif(v);
+  $$("[data-p]", v).forEach((b) => b.onclick = () => { f.periode = b.dataset.p; [f.debut, f.fin] = periodeGeo(f.periode); allerA("geo_historique"); });
+  $("#gh-d").onchange = (e) => { f.debut = e.target.value; allerA("geo_historique"); };
+  $("#gh-f").onchange = (e) => { f.fin = e.target.value; allerA("geo_historique"); };
+  $("#gh-e").onchange = (e) => { f.employe = e.target.value; allerA("geo_historique"); };
+  $("#gh-q").oninput = (e) => { f.q = e.target.value; clearTimeout(G.geoQ); G.geoQ = setTimeout(() => allerA("geo_historique"), 400); };
+  $$("[data-sortie]", v).forEach((tr) => tr.onclick = () => qualifierSortie(+tr.dataset.sortie, G.geoHist.find((x) => x.id === +tr.dataset.sortie), () => allerA("geo_historique")));
+  const colonnes = [["Date", (x) => x.jour_service], ["Employé", (x) => x.nom], ["Poste", (x) => x.service], ["Entrée", (x) => x.entree ? heure(x.entree) : ""],
+    ["Départ de l'établissement", (x) => heure(x.debut)], ["Retour", (x) => x.fin ? heure(x.fin) : "en cours"], ["Durée (min)", (x) => (x.duree_s / 60).toFixed(1).replace(".", ",")],
+    ["Motif", (x) => GEO_MOTIFS[x.justification_type] || ""], ["Décision", (x) => GEO_DECISION[x.justification_statut]], ["Commentaire", (x) => x.commentaire || ""],
+    ["Sortie de service", (x) => x.sortie_service ? heure(x.sortie_service) : ""]];
+  $("#gh-csv").onclick = () => {
+    const cell = (x) => { const s = String(x ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const csv = "﻿" + [colonnes.map((c) => c[0]).join(";"), ...l.map((x) => colonnes.map((c) => cell(c[1](x))).join(";"))].join("\r\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `sorties-${f.debut}-${f.fin}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $("#gh-pdf").onclick = () => imprimer(`<h1>Sorties de l'établissement</h1><p>Du ${esc(dateCourte(f.debut))} au ${esc(dateCourte(f.fin))} · ${l.length} sortie(s) · ${dureeS(total)} hors zone dont ${dureeS(nonJ)} non justifié</p>
+    <table><thead><tr>${colonnes.map((c) => `<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${l.map((x) => `<tr>${colonnes.map((c) => `<td>${esc(c[1](x))}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+}
+function qualifierSortie(id, x, apres) {
+  const f = feuille(`<div class="entete"><h2>Qualifier la sortie</h2><button class="b-sec" data-fermer>Fermer</button></div>
+    ${x ? `<p class="sous">${esc(x.nom)} · ${esc(dateFr(x.jour_service))} · sortie à ${heure(x.debut)}${x.fin ? `, retour à ${heure(x.fin)}` : " (en cours)"} · ${dureeS(x.duree_s)}</p>` : ""}
+    <p class="petit">Une sortie détectée par GPS n'est jamais une sanction automatique : c'est à toi de l'examiner.</p>
+    <label>Motif</label><select id="qs-type"><option value="">— Choisir —</option>${Object.entries(GEO_MOTIFS).map(([k, t]) => `<option value="${k}" ${x?.justification_type === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <label>Commentaire</label><textarea id="qs-com" placeholder="Obligatoire pour refuser ou demander une explication">${esc(x?.commentaire || "")}</textarea>
+    <div id="qs-msg"></div>
+    <div class="pile" style="margin-top:10px"><button class="b-principal b-plein" data-dec="acceptee">Accepter la justification</button>
+      <div class="ligne"><button class="b-sec flex" data-dec="explication_demandee">Demander une explication</button><button class="b-danger flex" data-dec="refusee">Refuser</button></div>
+      <button class="b-lien" data-dec="commentaire">Enregistrer seulement le commentaire</button></div>`);
+  $$("[data-dec]", f.el).forEach((b) => b.onclick = async () => {
+    $$("[data-dec]", f.el).forEach((y) => y.disabled = true);
+    try { await gg({ action: "geo_admin_sortie_decider", id, decision: b.dataset.dec, type: $("#qs-type", f.el).value || null, commentaire: $("#qs-com", f.el).value });
+      f.fermer(); apres && apres(); }
+    catch (e) { $$("[data-dec]", f.el).forEach((y) => y.disabled = false); msg($("#qs-msg", f.el), e.message); }
+  });
+}
+async function vueGeoStats(v) {
+  const f = G.geoStat ||= { periode: "mois" };
+  [f.debut, f.fin] = f.debut && f.libre ? [f.debut, f.fin] : periodeGeo(f.periode);
+  const d = await gg({ action: "geo_admin_stats", debut: f.debut, fin: f.fin });
+  const max = Math.max(1, ...d.employes.map((e) => e.total_s));
+  v.innerHTML = `<div class="carte"><div class="segments">${["semaine", "mois"].map((p) => `<button data-p="${p}" class="${f.periode === p && !f.libre ? "actif" : ""}">${p === "semaine" ? "Cette semaine" : "Ce mois"}</button>`).join("")}</div>
+      <div class="ligne" style="margin-top:8px"><div class="flex"><label>Du</label><input type="date" id="gs-d" value="${f.debut}"></div><div class="flex"><label>Au</label><input type="date" id="gs-f" value="${f.fin}"></div></div></div>
+    <div class="kpis"><div class="kpi"><b>${d.nb}</b><span>sorties</span></div><div class="kpi"><b>${dureeS(d.total_s)}</b><span>temps total hors zone</span></div>
+      <div class="kpi"><b>${dureeS(d.moyenne_s)}</b><span>durée moyenne</span></div><div class="kpi"><b class="t-vert">${d.autorisees}</b><span>sorties autorisées</span></div>
+      <div class="kpi"><b class="t-rouge">${d.refusees}</b><span>non justifiées après examen</span></div></div>
+    <div class="carte"><h3>Comparaison entre employés</h3>${d.employes.length ? `<div class="g-barres">${d.employes.map((e) => `<div class="g-barre"><span class="n">${esc(e.nom)}</span>
+      <span class="b"><i style="width:${(100 * e.total_s / max).toFixed(1)}%"></i><i class="nj" style="width:${(100 * e.non_justifie_s / max).toFixed(1)}%"></i></span>
+      <span class="v">${dureeS(e.total_s)} · ${e.nb} sortie${e.nb > 1 ? "s" : ""}</span></div>`).join("")}</div>
+      <p class="petit" style="margin-top:6px"><span class="g-leg nj"></span> non justifié · <span class="g-leg"></span> total</p>` : `<div class="vide">Aucune sortie sur la période.</div>`}</div>
+    <div class="carte"><h3>Évolution par jour</h3>${d.jours.length ? `<div class="tableau"><table><thead><tr><th>Jour</th><th class="num">Sorties</th><th class="num">Temps hors zone</th></tr></thead><tbody>
+      ${d.jours.map((j) => `<tr><td>${esc(dateFr(j.jour))}</td><td class="num">${j.nb}</td><td class="num">${dureeS(j.total_s)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="vide">—</div>`}
+      <p class="petit" style="margin-top:8px">Les positions inconnues et les pertes de GPS ne sont jamais comptées comme du temps d'absence.</p></div>`;
+  await bandeauGeoInactif(v);
+  $$("[data-p]", v).forEach((b) => b.onclick = () => { f.periode = b.dataset.p; f.libre = false; allerA("geo_stats"); });
+  $("#gs-d").onchange = (e) => { f.debut = e.target.value; f.libre = true; allerA("geo_stats"); };
+  $("#gs-f").onchange = (e) => { f.fin = e.target.value; f.libre = true; allerA("geo_stats"); };
+}
+async function vueGeoAutorisations(v) {
+  const d = await gg({ action: "geo_admin_autorisations" });
+  const LIB = { toujours: ["Toujours autorisée", "g-vert"], pendant_utilisation: ["Seulement pendant l'utilisation", "g-orange"], refusee: ["Refusée", "g-rouge"], gps_desactive: ["Localisation coupée", "g-rouge"] };
+  v.innerHTML = `<div class="carte"><p class="petit" style="margin-top:0">Le suivi ne fonctionne qu'avec l'application mobile KeyNet et la localisation « Toujours » autorisée. Il ne s'active qu'entre le pointage d'arrivée et le pointage de départ.</p>
+    <ul class="liste">${d.employes.map((e) => { const p = LIB[e.permission]; return `<li><span class="g-av">${esc(initiales(e.nom))}</span><div class="flex"><div class="t">${esc(e.nom)}</div>
+      <div class="petit">${esc(e.service)} · ${e.appli_mobile ? `appli mobile vue ${e.derniere_vue ? "le " + esc(dateCourte(e.derniere_vue.slice(0, 10))) + " à " + heure(e.derniere_vue) : ""}` : e.telephone ? "pointe depuis l'appli web (pas de suivi)" : "téléphone non activé"}</div></div>
+      ${p ? `<span class="g-pas ${p[1]}"><i></i>${p[0]}</span>` : `<span class="g-pas g-gris"><i></i>${e.appli_mobile ? "Inconnue" : "Pas d'appli mobile"}</span>`}</li>`; }).join("")}</ul></div>`;
+  await bandeauGeoInactif(v);
+}
+async function vueGeoParametres(v) {
+  const p = (await gg({ action: "geo_admin_parametres" })).parametres;
+  const champ = (cle, lib, aide, unite) => `<div class="g-param"><div class="flex"><label for="gp-${cle}">${lib}</label><div class="petit">${aide}</div></div>
+    <div class="ligne" style="align-items:center;gap:6px"><input id="gp-${cle}" data-cle="${cle}" inputmode="numeric" value="${esc(p[cle] ?? "")}" style="width:84px;text-align:right"><span class="petit">${unite}</span></div></div>`;
+  v.innerHTML = `<div class="carte"><h3>Activation</h3>
+      <label class="pl-choix"><input type="checkbox" id="gp-actif" ${p.geo_actif === "1" ? "checked" : ""}><span><b>Module de géolocalisation actif</b>
+      <small>À activer seulement après l'autorisation de la CNDP et l'information écrite des employés. Désactivé, aucune position n'est enregistrée et aucune alerte n'est envoyée.</small></span></label></div>
+    <div class="carte"><h3>Zone et alertes</h3>
+      ${champ("geo_rayon_m", "Rayon de l'établissement", "Au-delà, l'employé est considéré hors zone.", "m")}
+      ${champ("geo_alerte1_min", "Première alerte", "Après une sortie confirmée de cette durée.", "min")}
+      ${champ("geo_alerte2_min", "Deuxième alerte (prioritaire)", "Sortie prolongée.", "min")}
+      ${champ("geo_precision_max_m", "Précision GPS exigée", "Une mesure moins précise ne compte ni comme sortie ni comme présence.", "m")}
+      ${champ("geo_confirmation_s", "Confirmation d'une sortie", "Au moins 3 mesures précises hors zone sur cette durée.", "s")}
+      ${champ("geo_injoignable_min", "Téléphone injoignable", "Alerte grise si le téléphone ne donne plus de nouvelles.", "min")}
+      ${champ("geo_conservation_jours", "Conservation des positions", "Les coordonnées brutes sont effacées ensuite ; les sorties restent.", "jours")}
+      <p class="petit">Centre de la zone : la position du restaurant (Réglages › Position du restaurant)${p.site_lat ? ` · ${(+p.site_lat).toFixed(5)}, ${(+p.site_lng).toFixed(5)}` : " — <b>non enregistrée</b>"}.</p>
+      <label>Motif de la modification</label><input id="gp-motif" placeholder="Obligatoire">
+      <div id="gp-msg"></div><div class="pile" style="margin-top:10px"><button class="b-principal b-plein" id="gp-ok">Enregistrer</button></div></div>`;
+  $("#gp-ok").onclick = async () => {
+    const motif = $("#gp-motif").value.trim();
+    if (motif.length < 3) return msg($("#gp-msg"), "Le motif est obligatoire (3 caractères minimum).");
+    const changes = $$("[data-cle]", v).filter((i) => i.value.trim() !== String(p[i.dataset.cle] ?? "")).map((i) => [i.dataset.cle, i.value.trim()]);
+    const actif = $("#gp-actif").checked ? "1" : "0";
+    if (actif !== (p.geo_actif || "0")) changes.push(["geo_actif", actif]);
+    if (!changes.length) return msg($("#gp-msg"), "Aucun changement.", "info");
+    $("#gp-ok").disabled = true;
+    try { for (const [cle, valeur] of changes) await gg({ action: "geo_admin_parametre_modifier", cle, valeur, motif });
+      allerA("geo_parametres"); }
+    catch (e) { $("#gp-ok").disabled = false; msg($("#gp-msg"), e.message); }
+  };
+}
+
 // ---------- Réglages ----------
 async function vueReglages(v) {
   const [p, cx, cfgR] = await Promise.all([ga({ action: "admin_parametres" }), ga({ action: "admin_connexion" }), ga({ action: "admin_emojis_config" })]);
@@ -2238,7 +2486,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-001241";
+const VERSION_APP = "20261123-091526";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
@@ -2274,7 +2522,7 @@ window.addEventListener("pageshow", (e) => { if (e.persisted) verifierMaj(); });
 
 function route() {
   const h = location.hash;
-  if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; return demarrerGerant(); }
+  if (h.startsWith("#gerant")) { const m = h.match(/^#gerant\/demande\/(\d+)/); G.ouvrirDemande = m ? +m[1] : null; if (/^#gerant\/geo/.test(h)) G.onglet = "geo_direct"; return demarrerGerant(); }
   if ((!h || h === "#") && store.get("capanna_mode") === "gerant" && !E.token) { history.replaceState(null, "", location.pathname + location.search + "#gerant"); return route(); }
   const m = h.match(/^#e\/(pointage|planning|demandes|notifications)(?:\/(\d{4}-\d{2}-\d{2}))?/);
   if (m) { E.onglet = m[1]; if (m[2]) { E.plMode = "semaine"; E.plRef = lundiDe(m[2]); E.plFocus = m[2]; } }
