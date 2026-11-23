@@ -560,6 +560,9 @@ const accord = (id, mot) => { const g = G.genres?.[id]; return g === "f" ? mot +
 const libJour = (r, id = r.employe_id) => r.statut === "present" ? accord(id, "Présent") : r.statut === "absence_injustifiee" ? accord(id, "Absent")
   : r.statut === "absent_en_cours" ? accord(id, "Absent") + " (pas de pointage)" : LIB_JOUR[r.statut] || r.statut;
 async function chargerGenres() { try { G.genres = (await gg({ action: "geo_admin_genres" })).genres; } catch { G.genres ||= {}; } }
+// départs anticipés : jamais une absence ; minutes exactes conservées même quand c'est autorisé
+const LIB_DEP = { autorise: "Départ anticipé autorisé", partiel: "Départ anticipé partiellement autorisé", non_autorise: "Départ anticipé non autorisé", tolere: "Départ dans la tolérance" };
+const texteDep = (r) => ["autorise", "partiel", "non_autorise"].includes(r.depart_anticipe_statut) ? `${LIB_DEP[r.depart_anticipe_statut]} · ${r.depart_anticipe_brut_min} min avant la fin` : "";
 const LIB_JOUR = { travaille: "Travaillé", present: "Présent", depart_non_pointe: "Départ non pointé", coupure_non_pointee: "Coupure non pointée", absence_justifiee: "Absence justifiée", absence_injustifiee: "Absent", absent_en_cours: "Absent (pas de pointage)", a_venir: "À venir", hors_planning: "Hors planning" };
 function periodeDemande(d) {
   let t = d.date_debut === d.date_fin ? dateFr(d.date_debut) : `du ${dateCourte(d.date_debut)} au ${dateCourte(d.date_fin)}`;
@@ -1374,7 +1377,7 @@ function detailMaDemande(d) {
 const G = { code: store.sget("capanna_code_v2") || store.get("capanna_code_garde"), onglet: "tableau", equipe: [], js: null, cfg: null,
   filtres: { debut: null, fin: null, employe: "", service: "" } };
 const ONGLETS_G_GEO = [["geo_direct", "En direct"], ["geo_alertes", "Alertes"], ["geo_historique", "Historique"], ["geo_stats", "Statistiques"], ["geo_autorisations", "Autorisations"], ["geo_simulation", "Simulation"], ["geo_parametres", "Paramètres"]];
-const ONGLETS_G = [...ONGLETS_G_GEO, ["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
+const ONGLETS_G = [...ONGLETS_G_GEO, ["tableau", "Tableau de bord"], ["equipe", "Équipe"], ["demandes", "Demandes"], ["calendrier", "Calendrier"], ["pointages", "Pointages"], ["departs", "Départs anticipés"], ["planning", "Planning"], ["horaires", "Horaires"], ["reglages", "Réglages"], ["journal", "Journal"]];
 // Les 8 vues existantes restent toutes accessibles : elles sont regroupées dans 6 rubriques (barre du bas),
 // avec des sous-onglets dans la rubrique quand elle contient plusieurs vues.
 const RUBRIQUES_G = [
@@ -1382,7 +1385,7 @@ const RUBRIQUES_G = [
   { k: "equipe", lib: "Équipe", court: "Équipe", vues: ["equipe", "fiche"] },
   { k: "conges", lib: "Congés", court: "Congés", vues: ["demandes", "calendrier"], badge: "demandes" },
   { k: "planning", lib: "Planning", court: "Planning", vues: ["planning", "horaires"] },
-  { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "journal"] },
+  { k: "rapports", lib: "Rapports", court: "Rapports", vues: ["pointages", "departs", "journal"] },
   { k: "geo", lib: "Présence et sorties", nav: "Présences", court: "Présences", vues: ["geo_direct", "geo_alertes", "geo_historique", "geo_stats", "geo_autorisations", "geo_simulation", "geo_parametres"], badge: "geo" },
   { k: "reglages", lib: "Réglages", court: "Réglages", vues: ["reglages"] },
 ];
@@ -1516,7 +1519,7 @@ function allerA(o, arg) {
   if (G.nbAttente) { const seg = $('[data-badge="demandes-seg"]'); if (seg) seg.innerHTML = `<span class="badge">${G.nbAttente}</span>`; }
   if (rubriqueDe(avant).k !== rubriqueDe(o).k) window.scrollTo(0, 0);
   const v = $("#vue-g"); v.innerHTML = `<div class="vide">Chargement…</div>`;
-  return ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
+  return ({ tableau: vueTableau, equipe: vueEquipe, demandes: vueDemandes, calendrier: vueCalendrier, pointages: vuePointages, departs: vueDeparts, planning: vuePlanning, horaires: vueHoraires, reglages: vueReglages, journal: vueJournal, fiche: vueFiche,
      geo_direct: vueGeoDirect, geo_alertes: vueGeoAlertes, geo_historique: vueGeoHistorique, geo_stats: vueGeoStats, geo_autorisations: vueGeoAutorisations, geo_simulation: vueGeoSimulation, geo_parametres: vueGeoParametres }[o])(v, arg)
     .catch((e) => msg(v, e.message));
 }
@@ -1544,6 +1547,61 @@ function stats(rows) {
 }
 // « 0 % » après un seul jour induit en erreur : on affiche le nombre de jours à l'heure
 const aLheure = (s) => s.jours_prevus ? `${s.a_lheure}/${s.jours_prevus} jour${s.jours_prevus > 1 ? "s" : ""} à l'heure` : "pas encore de jour prévu";
+function statsDeparts(rows) {
+  const l = rows.filter((r) => ["autorise", "partiel", "non_autorise"].includes(r.depart_anticipe_statut));
+  return { liste: l, nb: l.length, autorises: l.filter((r) => r.depart_anticipe_statut === "autorise").length,
+    non_autorises: l.filter((r) => r.depart_anticipe_statut !== "autorise").length,
+    min_non_autorisees: l.reduce((t, r) => t + (r.depart_anticipe_min || 0), 0), min_autorisees: l.reduce((t, r) => t + (r.depart_autorise_min || 0), 0),
+    min_exactes: l.reduce((t, r) => t + (r.depart_anticipe_brut_min || 0), 0) };
+}
+// ---------- Départs anticipés (tableau de bord) ----------
+async function vueDeparts(v) {
+  const f = G.filtresDep ||= { debut: debutMois(G.js), fin: G.js, service: "", employe: "", statut: "" };
+  const [jr, pr] = await Promise.all([ga({ action: "admin_journees", debut: f.debut, fin: f.fin }), ga({ action: "admin_parametres" })]);
+  const P = pr.parametres, tol = P.tolerance_depart_min ?? "5", mode = P.mode_depart || "complet";
+  const rows = jr.journees.filter((r) => (!f.service || r.service === f.service) && (!f.employe || r.employe_id === +f.employe));
+  const d = statsDeparts(rows);
+  const liste = d.liste.filter((r) => !f.statut || (f.statut === "autorise" ? r.depart_anticipe_statut === "autorise" : r.depart_anticipe_statut !== "autorise"))
+    .sort((a, b) => b.jour.localeCompare(a.jour) || a.nom.localeCompare(b.nom));
+  const par = {}; d.liste.forEach((r) => (par[r.employe_id] ||= []).push(r));
+  const parEmp = Object.entries(par).map(([id, l]) => ({ id: +id, nom: l[0].nom, service: l[0].service, ...statsDeparts(l) })).sort((a, b) => b.min_non_autorisees - a.min_non_autorisees || b.nb - a.nb);
+  const champDate = (id, val) => `<input type="date" id="${id}" value="${val}">`;
+  v.innerHTML = `<div class="carte"><div class="ligne"><div class="flex"><label>Du</label>${champDate("dp-deb", f.debut)}</div><div class="flex"><label>Au</label>${champDate("dp-fin", f.fin)}</div></div>
+      <div class="ligne"><div class="flex"><label>Service</label><select id="dp-srv">${optionsServices(f.service)}</select></div>
+        <div class="flex"><label>Employé</label><select id="dp-emp"><option value="">Tous</option>${G.equipe.filter((x) => x.actif).map((x) => `<option value="${x.id}" ${+f.employe === x.id ? "selected" : ""}>${esc(x.nom)}</option>`).join("")}</select></div>
+        <div class="flex"><label>Statut</label><select id="dp-st"><option value="">Tous</option><option value="autorise" ${f.statut === "autorise" ? "selected" : ""}>Autorisés</option><option value="non" ${f.statut === "non" ? "selected" : ""}>Non autorisés</option></select></div></div></div>
+    <div class="kpis">
+      <div class="kpi"><b>${d.nb}</b><span>départs anticipés</span></div>
+      <div class="kpi"><b>${duree(d.min_non_autorisees)}</b><span>minutes perdues (non autorisées)</span></div>
+      <div class="kpi"><b>${d.autorises}</b><span>autorisés · ${duree(d.min_autorisees)}</span></div>
+      <div class="kpi"><b>${d.non_autorises}</b><span>non autorisés</span></div></div>
+    <div class="carte"><h3>Par employé</h3>${parEmp.length ? `<div class="tableau"><table><thead><tr><th>Employé</th><th>Service</th><th class="num">Départs</th><th class="num">Non autorisés</th><th class="num">Min. non autorisées</th><th class="num">Min. autorisées</th></tr></thead><tbody>
+      ${parEmp.map((x) => `<tr class="cliquable" data-fiche="${x.id}"><td>${esc(x.nom)}</td><td>${esc(x.service)}</td><td class="num">${x.nb}</td><td class="num">${x.non_autorises}</td><td class="num">${duree(x.min_non_autorisees)}</td><td class="num">${duree(x.min_autorisees)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="vide">Aucun départ anticipé sur la période.</div>`}</div>
+    <div class="carte"><h3>Historique</h3>${liste.length ? `<div class="tableau"><table><thead><tr><th>Date</th><th>Employé</th><th>Fin prévue</th><th>Départ réel</th><th class="num">Avant la fin</th><th>Statut</th></tr></thead><tbody>
+      ${liste.map((r) => `<tr><td>${dateCourte(r.jour)} ${JOURS_C[dow(r.jour)]}</td><td>${esc(r.nom)}</td><td>${hcourt(r.prevu_fin)}</td><td>${hhmm(r.depart_min)}</td><td class="num">${r.depart_anticipe_brut_min} min</td>
+        <td><span class="puce ${r.depart_anticipe_statut === "autorise" ? "validee" : r.depart_anticipe_statut === "partiel" ? "attente" : "refusee"}">${esc(LIB_DEP[r.depart_anticipe_statut])}</span>${r.depart_anticipe_statut === "partiel" ? `<div class="petit">${r.depart_anticipe_min} min hors autorisation</div>` : ""}</td></tr>`).join("")}</tbody></table></div>` : `<div class="vide">Aucun départ anticipé.</div>`}</div>
+    <div class="carte"><h3>Règle de calcul</h3>
+      <p class="petit">L'heure réelle de départ est comparée à la fin prévue au planning. Un départ jusqu'à <b>${esc(tol)} min</b> avant la fin n'est pas compté.
+        Au-delà, ${mode === "deduit" ? "seules les minutes au-delà de la tolérance sont comptées" : "toutes les minutes sont comptées"}. Une autorisation validée (demande « Départ anticipé ») couvre la période : la durée reste dans l'historique mais n'est pas comptée comme non autorisée.
+        Le planning n'est jamais modifié, un départ anticipé n'est jamais une absence, et aucune retenue n'est calculée.</p>
+      <div class="ligne"><div class="flex"><label>Tolérance (min)</label><input type="number" id="dp-tol" min="0" max="60" value="${esc(tol)}"></div>
+        <div class="flex"><label>Au-delà de la tolérance</label><select id="dp-mode"><option value="complet" ${mode === "complet" ? "selected" : ""}>Compter toutes les minutes</option><option value="deduit" ${mode === "deduit" ? "selected" : ""}>Déduire la tolérance</option></select></div></div>
+      <div class="ligne"><input id="dp-motif" class="flex" placeholder="Motif du changement (obligatoire)"><button class="b-sec" id="dp-ok">Enregistrer</button></div><div id="dp-msg"></div></div>`;
+  const maj = (k, val) => { f[k] = val; allerA("departs"); };
+  $("#dp-deb").onchange = (e) => maj("debut", e.target.value); $("#dp-fin").onchange = (e) => maj("fin", e.target.value);
+  $("#dp-srv").onchange = (e) => maj("service", e.target.value); $("#dp-emp").onchange = (e) => maj("employe", e.target.value); $("#dp-st").onchange = (e) => maj("statut", e.target.value);
+  $$("[data-fiche]", v).forEach((t) => t.onclick = () => allerA("fiche", +t.dataset.fiche));
+  $("#dp-ok").onclick = async () => {
+    const motif = $("#dp-motif").value.trim();
+    if (motif.length < 3) return msg($("#dp-msg"), "Indique un motif.");
+    for (const [cle, valeur] of [["tolerance_depart_min", $("#dp-tol").value], ["mode_depart", $("#dp-mode").value]]) {
+      if (String(valeur) === String(cle === "mode_depart" ? mode : tol)) continue;
+      const r = await garde({ action: "admin_parametre_depart", code: G.code, cle, valeur, motif }).catch(() => ({ erreur: "Erreur réseau." }));
+      if (r.erreur) return msg($("#dp-msg"), r.erreur);
+    }
+    allerA("departs");
+  };
+}
 function filtrer(rows, f) {
   return rows.filter((r) => (!f.employe || r.employe_id === +f.employe) && (!f.service || r.service === f.service));
 }
@@ -1742,7 +1800,7 @@ async function vueFiche(v, id) {
       ${histo.length ? histo.map((r) => `<tr><td>${r.emoji_jour ? smileyDe(r.emoji_jour, 24) : ""}</td><td>${esc(dateCourte(r.jour))} ${JOURS_C[dow(r.jour)]}</td>
         <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
         <td class="num">${r.retard_min ? r.retard_min + " min" : r.retard_justifie_min ? "justifié" : "—"}</td><td>${hhmm(r.depart_min)}</td>
-        <td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(libJour(r, e.id))}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Pas encore de journée suivie.</td></tr>`}
+        <td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(libJour(r, e.id))}${texteDep(r) ? `<div class="petit" style="color:${r.depart_anticipe_statut === "autorise" ? "var(--vert-ok, #7FE0A3)" : "var(--orange, #E2742B)"}">${esc(texteDep(r))}</div>` : ""}</td></tr>`).join("") : `<tr><td colspan="8" class="vide">Pas encore de journée suivie.</td></tr>`}
     </tbody></table></div></div>
     <div class="carte"><h3>Demandes</h3><ul class="liste">${(dm.demandes || []).slice(0, 10).map((d) => `<li class="cliquable" data-dem="${d.id}"><div class="flex"><div class="t">${esc(LIB_TYPE[d.type])}</div><div class="petit">${esc(periodeDemande(d))}</div></div><span class="puce ${CLASSE_STATUT[d.statut]}">${LIB_STATUT[d.statut]}</span></li>`).join("") || `<li class="vide">Aucune demande.</li>`}</ul></div>`;
   $("#f-retour").onclick = () => allerA("equipe");
@@ -1934,7 +1992,7 @@ async function vuePointages(v, arg) {
       <td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td>
       <td>${r.depart_min !== null && r.depart_min !== undefined ? hhmm(r.depart_min) : r.arrivee_min !== null && r.arrivee_min !== undefined ? `<span class="petit">${r.statut === "present" ? "en service" : "non pointé"}</span>` : "—"}</td>
       <td class="num">${r.retard_min ? r.retard_min + " min" : "—"}</td><td class="num">${r.travail_min ? duree(r.travail_min) : "—"}</td>
-      <td>${esc(libJour(r))}</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Personne n'était prévu ni n'a pointé ce jour-là.</td></tr>`}
+      <td>${esc(libJour(r))}${texteDep(r) ? `<div class="petit">${esc(texteDep(r))}</div>` : ""}</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Personne n'était prévu ni n'a pointé ce jour-là.</td></tr>`}
     </tbody></table></div></div>
     <div class="carte"><h3>Détail des pointages</h3><div class="tableau"><table><thead><tr><th></th><th>Employé</th><th>Type</th><th>Heure</th><th>Source</th><th>Détail</th><th></th></tr></thead><tbody>
     ${pts.pointages.map((p) => { const e = employeDe(p.employe_id) || {}; return `<tr class="${p.annule ? "barre" : ""}"><td>${p.type === "arrivee" && !p.annule && p.accepte && emo[p.employe_id] ? smileyDe(emo[p.employe_id], 22) : ""}</td>
@@ -2866,7 +2924,7 @@ function exporterCSV(rows, nom) {
   const cols = [["Date", (r) => r.jour], ["Employé", (r) => r.nom], ["Poste", (r) => r.service], ["Prévu début", (r) => hcourt(r.prevu_debut)], ["Prévu fin", (r) => hcourt(r.prevu_fin)],
     ["Arrivée", (r) => r.arrivee_min == null ? "" : hhmm(r.arrivee_min)], ["Départ", (r) => r.depart_min == null ? "" : hhmm(r.depart_min)], ["Retard (min)", (r) => r.retard_min || 0],
     ["Retard justifié (min)", (r) => r.retard_justifie_min || 0], ["Départ anticipé (min)", (r) => r.depart_anticipe_min || 0], ["Heures sup (min)", (r) => r.heures_sup_min || 0],
-    ["Présence (min)", (r) => r.presence_min ?? ""], ["Travail effectif (min)", (r) => r.travail_min ?? ""], ["Statut", (r) => libJour(r)], ["Absence", (r) => LIB_TYPE[r.absence_type] || ""]];
+    ["Présence (min)", (r) => r.presence_min ?? ""], ["Travail effectif (min)", (r) => r.travail_min ?? ""], ["Statut", (r) => libJour(r)], ["Départ anticipé (min exactes)", (r) => r.depart_anticipe_brut_min || 0], ["Départ anticipé autorisé (min)", (r) => r.depart_autorise_min || 0], ["Départ anticipé", (r) => LIB_DEP[r.depart_anticipe_statut] || ""], ["Absence", (r) => LIB_TYPE[r.absence_type] || ""]];
   const cell = (x) => { const s = String(x ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const csv = "﻿" + [cols.map((c) => c[0]).join(";"), ...[...rows].sort((a, b) => a.jour.localeCompare(b.jour) || a.nom.localeCompare(b.nom)).map((r) => cols.map((c) => cell(c[1](r))).join(";"))].join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -2878,7 +2936,8 @@ function rapportMensuelPDF(e, rows, nm) {
     <div style="display:flex;align-items:center;gap:10px;margin:8px 0">${smiley(nm.smiley, { taille: 36 })}<span>Discipline du mois</span></div>
     <div class="kpis">${[["Jours travaillés", s.jours], ["Retards", s.nb_retards], ["Retard cumulé", duree(s.cumul)], ["Retard moyen", duree(s.moyenne)], ["Ponctualité", (s.ponctualite ?? "—") + " %"], ["Absences injustifiées", s.absences], ["Heures sup", duree(s.heures_sup)], ["Travail effectif", duree(s.travail)]].map(([l, x]) => `<div class="kpi"><b>${esc(x)}</b><span>${l}</span></div>`).join("")}</div>
     <table style="margin-top:12px"><thead><tr><th>Date</th><th>Prévu</th><th>Arrivée</th><th>Retard</th><th>Départ</th><th>Travail</th><th>Statut</th></tr></thead><tbody>
-    ${[...rows].sort((a, b) => a.jour.localeCompare(b.jour)).map((r) => `<tr><td>${dateCourte(r.jour)} ${JOURS_C[dow(r.jour)]}</td><td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td><td>${r.retard_min ? r.retard_min + " min" : "—"}</td><td>${hhmm(r.depart_min)}</td><td>${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(LIB_JOUR[r.statut] || "")}</td></tr>`).join("")}</tbody></table>
+    ${[...rows].sort((a, b) => a.jour.localeCompare(b.jour)).map((r) => `<tr><td>${dateCourte(r.jour)} ${JOURS_C[dow(r.jour)]}</td><td>${r.prevu_debut ? hcourt(r.prevu_debut) + "–" + hcourt(r.prevu_fin) : "—"}</td><td>${hhmm(r.arrivee_min)}</td><td>${r.retard_min ? r.retard_min + " min" : "—"}</td><td>${hhmm(r.depart_min)}</td><td>${r.travail_min ? duree(r.travail_min) : "—"}</td><td>${esc(LIB_JOUR[r.statut] || "")}${texteDep(r) ? `<br><small>${esc(texteDep(r))}</small>` : ""}</td></tr>`).join("")}</tbody></table>
+    ${(() => { const d = statsDeparts(rows); return d.nb ? `<p style="margin-top:10px"><b>Départs anticipés :</b> ${d.nb} (${d.autorises} autorisé${d.autorises > 1 ? "s" : ""}, ${d.non_autorises} non autorisé${d.non_autorises > 1 ? "s" : ""}) · ${duree(d.min_non_autorisees)} non autorisées · ${duree(d.min_autorisees)} autorisées. Information seulement : aucune retenue n'est calculée.</p>` : ""; })()}
     <p style="margin-top:14px;font-size:10px;color:#666">Édité le ${new Date().toLocaleString("fr-FR", { timeZone: TZ })} · calculé à partir des pointages réels et des horaires prévus.</p>`);
 }
 function rapportGlobalPDF(rows, f) {
@@ -2898,7 +2957,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261123-164628";
+const VERSION_APP = "20261123-180809";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
