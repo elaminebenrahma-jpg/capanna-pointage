@@ -289,6 +289,7 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 /* ================= fin du thème sombre ================= */
 .theme-choix{display:flex;flex-direction:column;align-items:center;gap:2px;margin:36px auto 0;font-size:12px;color:var(--gris)}.theme-choix .segments{margin:4px 0 0}.theme-choix .segments button{font-size:13px;padding:6px 12px}
 .kpi-lien{display:block;width:100%;text-align:left;font:inherit;color:inherit;border:0;cursor:pointer;position:relative}.kpi-lien::after{content:"\203A";position:absolute;right:12px;top:10px;font-size:20px;color:var(--gris)}.kpi-lien:active{transform:scale(.98)}
+.etapes-gps{margin:10px 0 0;padding-left:20px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:6px}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -1372,9 +1373,18 @@ async function pointer(type) {
   $("#p-arr").disabled = $("#p-dep").disabled = true; msg($("#p-msg"), "");
   try {
     let gps = null;
-    if (!E.etat.wifi) { msg($("#p-msg"), "Vérification de ta position…", "info");
-      gps = await position((p) => msg($("#p-msg"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
-      msg($("#p-msg"), ""); }
+    if (!E.etat.wifi) {
+      // Wi-Fi du restaurant non reconnu : la position est demandée ; si elle est bloquée, on propose de l'activer avant d'envoyer
+      for (;;) {
+        msg($("#p-msg"), "Vérification de ta position…", "info");
+        gps = await position((p) => msg($("#p-msg"), `Précision actuelle : ${p} m — nouvelle mesure en cours…`, "info"));
+        msg($("#p-msg"), "");
+        if (gps) break;
+        const choix = await demanderActivationGPS(position.erreur);
+        if (choix === "annuler") { afficherJournal(E.etat.moi.aujourdhui); return; }
+        if (choix === "envoyer") break;
+      }
+    }
     // GPS nettement hors du restaurant (hors Wi-Fi) : refus automatique, gardé dans l'historique
     if (gps) {
       const c = await fetch(API_GEO.replace("geo-v1", "pointage-garde"), { method: "POST", headers: { "content-type": "application/json" },
@@ -1403,6 +1413,33 @@ async function pointer(type) {
       brancherPush($("#p-resultat"), "employe", E.etat.moi.vapid, (abonnement) => api({ action: "push_abonner", token: E.token, abonnement }));
     }
   } catch (e) { msg($("#p-msg"), e.message); afficherJournal(E.etat.moi.aujourdhui); }
+}
+// Wi-Fi non reconnu et position impossible : explique comment activer la localisation, puis « Réessayer »,
+// « Pointer quand même » (le gérant reçoit alors « Pointage à valider ») ou « Annuler ».
+async function demanderActivationGPS(erreur) {
+  let etat = null;
+  try { etat = (await navigator.permissions.query({ name: "geolocation" })).state; } catch {}
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua), android = /Android/.test(ua);
+  const bloquee = erreur === "refusee" || etat === "denied";
+  const etapes = bloquee
+    ? (ios ? `<ol class="etapes-gps"><li>Ouvre <b>Réglages</b> › <b>Confidentialité et sécurité</b> › <b>Service de localisation</b> : il doit être activé.</li><li>Dans la même liste, touche <b>Safari</b> (ou l'appli Capanna si elle est installée) et choisis <b>Lorsque l'app est active</b>, avec <b>Position exacte</b> activée.</li><li>Dans Safari, touche <b>aA</b> à gauche de l'adresse › <b>Réglages du site web</b> › <b>Localisation</b> › <b>Autoriser</b>.</li><li>Reviens ici et touche <b>Réessayer</b>.</li></ol>`
+      : android ? `<ol class="etapes-gps"><li>Active la <b>Localisation</b> dans le volet rapide du téléphone (glisse du haut de l'écran).</li><li>Dans Chrome, touche l'icône à gauche de l'adresse › <b>Autorisations</b> › <b>Position</b> › <b>Autoriser</b>.</li><li>Reviens ici et touche <b>Réessayer</b>.</li></ol>`
+      : `<ol class="etapes-gps"><li>Active la localisation du téléphone.</li><li>Autorise la position pour ce site dans les réglages du navigateur.</li><li>Reviens ici et touche <b>Réessayer</b>.</li></ol>`)
+    : `<ol class="etapes-gps"><li>Active la <b>localisation (GPS)</b> du téléphone${android ? " dans le volet rapide" : ios ? " : Réglages › Confidentialité et sécurité › Service de localisation" : ""}.</li><li>Si possible, sors du sous-sol ou rapproche-toi d'une fenêtre.</li><li>Touche <b>Réessayer</b>${etat === "prompt" ? ", puis <b>Autoriser</b> quand le téléphone le demande" : ""}.</li></ol>`;
+  return new Promise((fin) => {
+    let rendu = false;
+    const f = feuille(`<div class="entete"><h2>Active ta localisation</h2></div>
+      <p class="sous">Le Wi-Fi du restaurant n'est pas reconnu sur ton téléphone${bloquee ? " et la localisation est bloquée" : " et ta position n'a pas pu être mesurée"}. Avec la localisation, ton pointage est validé tout de suite.</p>
+      ${etapes}
+      <div class="pile" style="margin-top:14px"><button class="b-principal b-plein" id="g-reessayer">Réessayer</button>
+      <button class="b-sec b-plein" id="g-envoyer">Pointer quand même</button>
+      <p class="petit" style="margin:0;text-align:center">Sans localisation, ton pointage est envoyé au gérant, qui doit le valider.</p>
+      <button class="b-lien" id="g-annuler" style="align-self:center">Annuler</button></div>`, () => { if (!rendu) fin("annuler"); });
+    const choisir = (c) => { rendu = true; f.fermer(); fin(c); };
+    $("#g-reessayer", f.el).onclick = () => choisir("reessayer");
+    $("#g-envoyer", f.el).onclick = () => choisir("envoyer");
+    $("#g-annuler", f.el).onclick = () => choisir("annuler");
+  });
 }
 // position du téléphone (jamais bloquant : sans réponse en 10 s, on pointe sans)
 // Mesure la position et la relance automatiquement tant que la précision dépasse 10 m (20 s au plus).
@@ -3163,7 +3200,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261124-102110";
+const VERSION_APP = "20261124-132641";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
