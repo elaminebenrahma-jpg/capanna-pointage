@@ -1,2 +1,0 @@
--- Notification immédiate au gérant pour chaque pointage « à valider » (déclencheur sur hr_pointages)
--- voir la fonction public.hr_notifier_attente() et le trigger hr_pointages_notifier_attente dans la base
