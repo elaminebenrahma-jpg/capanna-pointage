@@ -288,6 +288,7 @@ body.admin{padding-bottom:calc(var(--nav-h) + var(--nav-bas) + 28px)}
 .lien-discret{color:var(--gris);text-decoration:underline;text-underline-offset:3px}
 /* ================= fin du thème sombre ================= */
 .theme-choix{display:flex;flex-direction:column;align-items:center;gap:2px;margin:36px auto 0;font-size:12px;color:var(--gris)}.theme-choix .segments{margin:4px 0 0}.theme-choix .segments button{font-size:13px;padding:6px 12px}
+.kpi-lien{display:block;width:100%;text-align:left;font:inherit;color:inherit;border:0;cursor:pointer;position:relative}.kpi-lien::after{content:"\203A";position:absolute;right:12px;top:10px;font-size:20px;color:var(--gris)}.kpi-lien:active{transform:scale(.98)}
 #impression{display:none}
 @media print{
   body{background:#fff;padding:0}body>*:not(#impression){display:none!important}
@@ -1843,9 +1844,9 @@ async function vueTableau(v) {
       <div class="flex"><label>Employé</label><select id="f-emp">${optionsEmployes(f.employe)}</select></div><div class="flex"><label>Poste</label><select id="f-srv">${optionsServices(f.service)}</select></div></div></div>
     <h3 style="margin:16px 2px 8px">Aujourd'hui · ${esc(dateFr(G.js))}</h3>
     <div class="kpis">
-      <div class="kpi"><b>${presents.length}</b><span>présents actuellement</span></div>
-      <div class="kpi"><b>${absentsAuj.size}</b><span>absents ou pas encore arrivés</span></div>
-      <div class="kpi"><b>${retardAuj.length}</b><span>en retard aujourd'hui</span></div>
+      <button type="button" class="kpi kpi-lien" data-kpi="presents"><b>${presents.length}</b><span>présents actuellement</span></button>
+      <button type="button" class="kpi kpi-lien" data-kpi="absents"><b>${absentsAuj.size}</b><span>absents ou pas encore arrivés</span></button>
+      <button type="button" class="kpi kpi-lien" data-kpi="retards"><b>${retardAuj.length}</b><span>en retard aujourd'hui</span></button>
     </div>
     ${aujRows.filter((r) => r.statut === "absent_en_cours").length ? `<div class="carte bandeau-attente"><h3>Pas de pointage aujourd'hui</h3><ul class="liste">${aujRows.filter((r) => r.statut === "absent_en_cours").map((r) => `<li class="cliquable" data-fiche="${r.employe_id}"><div class="flex"><div class="t">${esc(r.nom)}</div>
       <div class="petit">${accord(r.employe_id, "attendu")} à ${hcourt(r.prevu_debut)} · ${duree(sansPointage(r))} sans pointage</div></div><span class="puce refusee">${accord(r.employe_id, "Absent")}</span></li>`).join("")}</ul>
@@ -1871,6 +1872,24 @@ async function vueTableau(v) {
   const relancer = () => { Object.assign(G.filtres, { debut: $("#f-debut").value, fin: $("#f-fin").value, employe: $("#f-emp").value, service: $("#f-srv").value }); allerA("tableau"); };
   ["#f-debut", "#f-fin", "#f-emp", "#f-srv"].forEach((s) => $(s).onchange = relancer);
   $$("[data-fiche]", v).forEach((li) => li.onclick = () => allerA("fiche", +li.dataset.fiche));
+  // chiffres du jour cliquables : la liste des personnes concernées, chacune ouvre sa fiche
+  const ligneAuj = (id) => aujRows.find((r) => r.employe_id === id);
+  const nomDe = (id) => (eq.equipe.find((x) => x.id === id) || ligneAuj(id) || {}).nom || "—";
+  const posteDe = (id) => (eq.equipe.find((x) => x.id === id) || {}).service || "";
+  const listes = {
+    presents: { titre: `Présents actuellement (${presents.length})`, vide: "Personne n'est pointé présent en ce moment.",
+      lignes: presents.map((x) => { const r = ligneAuj(x.id); return { id: x.id, detail: `${esc(x.service || "")}${r && AVEC_ARRIVEE(r) ? ` · ${accord(x.id, "arrivé")} à ${hhmm(r.arrivee_min)}` : ""}${r && r.prevu_fin ? ` · fin prévue ${hcourt(r.prevu_fin)}` : ""}`, puce: r && r.retard_min > 0 ? `<span class="puce attente">${duree(r.retard_min)} de retard</span>` : `<span class="puce validee">${accord(x.id, "Présent")}</span>` }; }) },
+    absents: { titre: `Absents ou pas encore arrivés (${absentsAuj.size})`, vide: "Aucune absence pour l'instant.",
+      lignes: [...absentsAuj].map((id) => { const r = ligneAuj(id); return { id, detail: `${esc(posteDe(id))}${r && r.prevu_debut ? ` · ${accord(id, "attendu")} à ${hcourt(r.prevu_debut)}` : ""}`, puce: `<span class="puce refusee">${esc(r ? (LIB_JOUR[r.statut] || "Absent") : "Absent")}</span>` }; }) },
+    retards: { titre: `En retard aujourd'hui (${retardAuj.length})`, vide: "Aucun retard aujourd'hui.",
+      lignes: retardAuj.map((r) => ({ id: r.employe_id, detail: `${esc(posteDe(r.employe_id))}${r.prevu_debut ? ` · prévu ${hcourt(r.prevu_debut)}` : ""}${AVEC_ARRIVEE(r) ? `, ${accord(r.employe_id, "arrivé")} à ${hhmm(r.arrivee_min)}` : ""}`, puce: `<span class="puce attente">${duree(r.retard_min)}</span>` })) },
+  };
+  $$("[data-kpi]", v).forEach((k) => k.onclick = () => {
+    const l = listes[k.dataset.kpi];
+    const fe = feuille(`<div class="entete"><h2>${esc(l.titre)}</h2><button class="b-sec" data-fermer>Fermer</button></div>
+      ${l.lignes.length ? `<ul class="liste">${[...l.lignes].sort((a, b) => nomDe(a.id).localeCompare(nomDe(b.id), "fr")).map((x) => `<li class="cliquable" data-fiche-kpi="${x.id}"><div class="flex"><div class="t">${esc(nomDe(x.id))}</div><div class="petit">${x.detail}</div></div>${x.puce}</li>`).join("")}</ul>` : `<p class="sous">${l.vide}</p>`}`);
+    $$("[data-fiche-kpi]", fe.el).forEach((li) => li.onclick = () => { fe.fermer(); allerA("fiche", +li.dataset.ficheKpi); });
+  });
   $("#t-csv").onclick = () => exporterCSV(rows, `capanna-pointages-${f.debut}-${f.fin}.csv`);
   $("#t-pdf").onclick = () => rapportGlobalPDF(rows, f);
   bandeauAttente(v, await attente);
@@ -3144,7 +3163,7 @@ function rapportGlobalPDF(rows, f) {
 // ---------- mise à jour automatique ----------
 // À chaque publication, version.json change : l'appli ouverte (y compris depuis l'écran d'accueil)
 // se recharge d'elle-même sur la nouvelle version, sans jamais interrompre une saisie.
-const VERSION_APP = "20261124-002427";
+const VERSION_APP = "20261124-102110";
 let majEnAttente = null;
 function majPossible() {
   if ($(".voile")) return false;                                   // une fenêtre est ouverte
