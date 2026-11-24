@@ -5,8 +5,8 @@
   "start_url": "v2.html#gerant",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F2EEE1",
-  "theme_color": "#0B4F3C",
+  "background_color": "#101D2B",
+  "theme_color": "#101D2B",
   "lang": "fr",
   "icons": [
     {
